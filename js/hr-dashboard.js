@@ -35,9 +35,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Initialise allowance workspace as part of HR payroll load.
     // =========================================================
     await refreshEmployeeWorkspace();
-    await refreshPayrollMasterWorkspace();
-    await refreshPayrollAllowanceWorkspace();
-    await refreshPayrollWorkspace();
+await refreshPayrollMasterWorkspace();
+await refreshPayrollAllowanceWorkspace();
+await refreshPayrollWorkspace();
+
+// BANK DIRECTORY - STEP 7A
+// Load saved banks from Supabase so Bank Directory records survive page refresh.
+await refreshBankDirectoryWorkspace();
 
     window.hrEditEmployee = (employeeId) => {
       startEmployeeEdit(employeeId);
@@ -75,6 +79,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.hrEditPayrollMasterRecord = (payrollMasterId) => {
       startPayrollMasterEdit(payrollMasterId);
     };
+
+    // BANK DIRECTORY - STEP 8
+// Expose Bank Directory edit action for the table button.
+window.hrEditBankDirectoryRecord = (bankId) => {
+  startBankDirectoryEdit(bankId);
+};
   } catch (error) {
     console.error("Error initialising HR dashboard:", error);
     showPageAlert(
@@ -115,8 +125,14 @@ const state = {
   // Allowance component state holders
   // These will hold allowance rows linked to payroll master data.
   // =========================================================
-  payrollAllowanceComponents: [],
-  filteredPayrollAllowanceComponents: [],
+payrollAllowanceComponents: [],
+filteredPayrollAllowanceComponents: [],
+
+// BANK DIRECTORY - STEP 5
+// Temporary in-page bank directory records.
+// Database persistence will be added after the UI behaviour is confirmed.
+bankDirectoryRecords: [],
+filteredBankDirectoryRecords: [],
 
   currentEditingEmployee: null,
   currentEditingPayroll: null,
@@ -132,6 +148,10 @@ const state = {
   // Tracks the allowance component currently being edited.
   // =========================================================
   currentEditingPayrollAllowance: null,
+
+// BANK DIRECTORY - STEP 8D
+// Tracks the bank currently being edited so Save Bank can update instead of creating a duplicate.
+currentEditingBankDirectory: null,
 
   pendingFiles: [],
   attachedDocuments: [],
@@ -322,8 +342,31 @@ function cacheDomElements() {
 
     // DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
     // Collapse controls for the Payroll Master Data card.
-    togglePayrollMasterCardBtn: document.getElementById("togglePayrollMasterCardBtn"),
-    payrollMasterCardCollapse: document.getElementById("payrollMasterCardCollapse"),
+payrollMasterCardCollapse: document.getElementById("payrollMasterCardCollapse"),
+togglePayrollMasterCardBtn: document.getElementById("togglePayrollMasterCardBtn"),
+
+// BANK DIRECTORY - STEP 2
+// Cache collapse container and toggle button for Bank Directory.
+bankDirectoryCardCollapse: document.getElementById("bankDirectoryCardCollapse"),
+toggleBankDirectoryCardBtn: document.getElementById("toggleBankDirectoryCardBtn"),
+
+// BANK DIRECTORY - STEP 4
+// Cache controlled bank directory fields.
+bankDirectoryForm: document.getElementById("bankDirectoryForm"),
+bankName: document.getElementById("bankName"),
+bankCode: document.getElementById("bankCode"),
+bankStatus: document.getElementById("bankStatus"),
+
+// BANK DIRECTORY - STEP 8H
+bankDirectorySubmitLabel: document.getElementById("bankDirectorySubmitLabel"),
+cancelBankDirectoryEditBtn: document.getElementById("cancelBankDirectoryEditBtn"),
+
+// BANK DIRECTORY - STEP 5
+// Cache records/search elements for local save and filtering.
+bankDirectorySearchInput: document.getElementById("bankDirectorySearchInput"),
+bankDirectoryEmptyState: document.getElementById("bankDirectoryEmptyState"),
+bankDirectoryTableWrapper: document.getElementById("bankDirectoryTableWrapper"),
+bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
 
     payrollMasterFormModeBadge: document.getElementById("payrollMasterFormModeBadge"),
     editingPayrollMasterId: document.getElementById("editingPayrollMasterId"),
@@ -604,12 +647,51 @@ function bindEvents() {
     await handlePayrollMasterRecordsRefresh();
   });
 
-  // DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
-  // Bind collapsible behavior for the Payroll Master Data card.
-  bindCardCollapseToggle(
-    state.dom.togglePayrollMasterCardBtn,
-    state.dom.payrollMasterCardCollapse,
-  );
+// DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
+// Bind collapsible behavior for the Payroll Master Data card.
+bindCardCollapseToggle(
+  state.dom.togglePayrollMasterCardBtn,
+  state.dom.payrollMasterCardCollapse,
+);
+
+// BANK DIRECTORY - STEP 2
+// Bind collapsible behaviour for the Bank Directory card.
+bindCardCollapseToggle(
+  state.dom.toggleBankDirectoryCardBtn,
+  state.dom.bankDirectoryCardCollapse,
+);
+
+// BANK DIRECTORY - STEP 4
+// Auto-fill bank code when HR selects a bank name.
+state.dom.bankName?.addEventListener("change", () => {
+  const selectedOption = state.dom.bankName.selectedOptions?.[0];
+  const bankCode = selectedOption?.dataset?.bankCode || "";
+
+  if (state.dom.bankCode) {
+    state.dom.bankCode.value = bankCode;
+  }
+});
+
+// BANK DIRECTORY - STEP 7B
+// Prevent page refresh and save Bank Directory record to Supabase.
+state.dom.bankDirectoryForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await handleBankDirectorySave();
+});
+
+// BANK DIRECTORY - STEP 5
+// Filter the local Bank Directory records as HR types.
+state.dom.bankDirectorySearchInput?.addEventListener("input", () => {
+  applyBankDirectorySearch();
+});
+
+// BANK DIRECTORY - STEP 8H
+// Cancel edit and reset form to create mode.
+state.dom.cancelBankDirectoryEditBtn?.addEventListener("click", () => {
+  state.currentEditingBankDirectory = null;
+  resetBankDirectoryForm();
+  setBankDirectoryCreateMode();
+});
 
   // =========================================================
   // DESCRIPTION ITEM 2
@@ -1858,6 +1940,268 @@ async function handlePayrollRecordsRefresh() {
   } finally {
     setWorkspaceRefreshLoading(button, false);
   }
+}
+
+// BANK DIRECTORY - STEP 7B
+// Save selected bank into Supabase so it remains after page refresh.
+async function handleBankDirectorySave() {
+  const bankName = String(state.dom.bankName?.value || "").trim();
+  const bankCode = String(state.dom.bankCode?.value || "").trim();
+  const status = String(state.dom.bankStatus?.value || "Active").trim();
+
+  if (!bankName || !bankCode) {
+    showPageAlert("warning", "Please select a bank to save.");
+    return;
+  }
+
+const editingId = String(state.currentEditingBankDirectory?.id || "").trim();
+
+const exists = state.bankDirectoryRecords.some(
+  (bank) =>
+    String(bank.id) !== editingId &&
+    (normalizeText(bank.bank_name) === normalizeText(bankName) ||
+      normalizeText(bank.bank_code) === normalizeText(bankCode)),
+);
+
+if (exists) {
+  showPageAlert("warning", "This bank already exists in the directory.");
+  return;
+}
+
+try {
+  const supabase = getSupabaseClient();
+
+  const payload = {
+    bank_name: bankName,
+    bank_code: bankCode,
+    status,
+    updated_by: state.currentUser?.id || null,
+  };
+
+  let response;
+
+  if (editingId) {
+    response = await supabase
+      .from("bank_directory")
+      .update(payload)
+      .eq("id", editingId);
+  } else {
+    response = await supabase.from("bank_directory").insert([
+      {
+        ...payload,
+        created_by: state.currentUser?.id || null,
+      },
+    ]);
+  }
+
+  const { error } = response;
+
+    if (error) throw error;
+
+    showPageAlert("success", `${escapeHtml(bankName)} added to Bank Directory.`);
+
+    resetBankDirectoryForm();
+    await refreshBankDirectoryWorkspace();
+  } catch (error) {
+    console.error("Error saving bank directory record:", error);
+    showPageAlert(
+      "danger",
+      error.message || "Bank Directory record could not be saved.",
+    );
+  }
+}
+
+// Reset form after save
+function resetBankDirectoryForm() {
+  if (state.dom.bankDirectoryForm) {
+    state.dom.bankDirectoryForm.reset();
+  }
+
+  if (state.dom.bankCode) {
+    state.dom.bankCode.value = "";
+  }
+
+  state.currentEditingBankDirectory = null;
+
+  setBankDirectoryCreateMode();
+}
+  if (state.dom.bankDirectoryForm) {
+    state.dom.bankDirectoryForm.reset();
+  }
+
+  if (state.dom.bankCode) {
+    state.dom.bankCode.value = "";
+  }
+
+// BANK DIRECTORY - STEP 8H
+// Switch UI to Create mode
+function setBankDirectoryCreateMode() {
+  if (state.dom.bankDirectorySubmitLabel) {
+    state.dom.bankDirectorySubmitLabel.textContent = "Save Bank";
+  }
+
+  state.dom.cancelBankDirectoryEditBtn?.classList.add("d-none");
+
+  if (state.dom.bankName) state.dom.bankName.disabled = false;
+  if (state.dom.bankCode) state.dom.bankCode.disabled = false;
+}
+
+// Switch UI to Edit mode
+function setBankDirectoryEditMode() {
+  if (state.dom.bankDirectorySubmitLabel) {
+    state.dom.bankDirectorySubmitLabel.textContent = "Update Bank";
+  }
+
+  state.dom.cancelBankDirectoryEditBtn?.classList.remove("d-none");
+
+  // Lock fields during edit
+  if (state.dom.bankName) state.dom.bankName.disabled = true;
+  if (state.dom.bankCode) state.dom.bankCode.disabled = true;
+}
+
+// BANK DIRECTORY - STEP 8F
+// Activate edit mode so Save Bank updates instead of creating duplicate.
+function startBankDirectoryEdit(bankId) {
+  const record = state.bankDirectoryRecords.find(
+    (bank) => String(bank.id) === String(bankId),
+  );
+
+  if (!record) {
+    showPageAlert(
+      "warning",
+      "The selected bank record could not be found. Please refresh and try again.",
+    );
+    return;
+  }
+
+  // 🔴 CRITICAL: set edit mode
+  state.currentEditingBankDirectory = record;
+  setBankDirectoryEditMode();
+
+  if (state.dom.bankName) {
+    state.dom.bankName.value = record.bank_name || "";
+  }
+
+  if (state.dom.bankCode) {
+    state.dom.bankCode.value = record.bank_code || "";
+  }
+
+  if (state.dom.bankStatus) {
+    state.dom.bankStatus.value = record.status || "Active";
+  }
+
+// BANK DIRECTORY - STEP 8G
+// Scroll to the top of the Bank Directory card so the heading remains visible.
+setTimeout(() => {
+  const target =
+    state.dom.bankDirectoryForm?.closest(".dashboard-section-card") ||
+    state.dom.bankDirectoryForm;
+
+  if (!target) return;
+
+  const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
+
+  window.scrollTo({
+    top: targetTop,
+    behavior: "smooth",
+  });
+}, 150);
+
+  showPageAlert("info", "Editing bank. Update status and click Save Bank.");
+}
+
+// Apply search filter
+function applyBankDirectorySearch() {
+  const query = String(state.dom.bankDirectorySearchInput?.value || "")
+    .toLowerCase()
+    .trim();
+
+  state.filteredBankDirectoryRecords = state.bankDirectoryRecords.filter(
+    (bank) =>
+      bank.bank_name.toLowerCase().includes(query) ||
+      bank.bank_code.toLowerCase().includes(query),
+  );
+
+  renderBankDirectoryTable();
+}
+
+// BANK DIRECTORY - STEP 7A
+// Load saved bank directory records from Supabase.
+async function refreshBankDirectoryWorkspace() {
+  const supabase = getSupabaseClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("bank_directory")
+      .select("*")
+      .order("bank_name", { ascending: true });
+
+    if (error) throw error;
+
+    state.bankDirectoryRecords = Array.isArray(data) ? data : [];
+    applyBankDirectorySearch();
+  } catch (error) {
+    console.error("Error loading bank directory:", error);
+    showPageAlert(
+      "danger",
+      error.message || "Bank Directory records could not be loaded.",
+    );
+
+    state.bankDirectoryRecords = [];
+    state.filteredBankDirectoryRecords = [];
+    renderBankDirectoryTable();
+  }
+}
+
+// Render table
+function renderBankDirectoryTable() {
+  const records = state.filteredBankDirectoryRecords || [];
+  const tbody = state.dom.bankDirectoryTableBody;
+
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (!records.length) {
+    state.dom.bankDirectoryEmptyState?.classList.remove("d-none");
+    state.dom.bankDirectoryTableWrapper?.classList.add("d-none");
+    return;
+  }
+
+  state.dom.bankDirectoryEmptyState?.classList.add("d-none");
+  state.dom.bankDirectoryTableWrapper?.classList.remove("d-none");
+
+  records.forEach((bank) => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${escapeHtml(bank.bank_name)}</td>
+      <td>${escapeHtml(bank.bank_code)}</td>
+      <td>
+        <span class="badge ${
+          bank.status === "Active" ? "bg-success" : "bg-secondary"
+        }">
+          ${bank.status}
+        </span>
+      </td>
+<td class="text-center">
+  <!-- BANK DIRECTORY - STEP 8A
+       Keep Bank Directory actions visually consistent with Employee,
+       Payroll Master, Allowance, and Payroll Records tables. -->
+  <button
+    type="button"
+    class="btn btn-sm btn-outline-primary"
+    title="Edit bank directory record"
+    aria-label="Edit bank directory record"
+    onclick="window.hrEditBankDirectoryRecord('${String(bank.id).replaceAll("'", "\\'")}')"
+  >
+    <i class="bi bi-pencil-square"></i>
+  </button>
+</td>
+    `;
+
+    tbody.appendChild(row);
+  });
 }
 
 // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
