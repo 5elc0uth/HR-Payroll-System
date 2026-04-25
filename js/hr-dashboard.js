@@ -350,6 +350,31 @@ togglePayrollMasterCardBtn: document.getElementById("togglePayrollMasterCardBtn"
 bankDirectoryCardCollapse: document.getElementById("bankDirectoryCardCollapse"),
 toggleBankDirectoryCardBtn: document.getElementById("toggleBankDirectoryCardBtn"),
 
+// EMPLOYEE BANK DETAILS - STEP 3
+// Cache collapse container and toggle button for Employee Bank Details.
+// This makes the new Employee Bank Details card behave like Bank Directory.
+employeeBankDetailsCardCollapse: document.getElementById("employeeBankDetailsCardCollapse"),
+toggleEmployeeBankDetailsCardBtn: document.getElementById("toggleEmployeeBankDetailsCardBtn"),
+
+// EMPLOYEE BANK DETAILS - STEP 4
+// Cache Employee Bank Details form fields so the dropdowns can be populated
+// from existing HR employee records and active Bank Directory records.
+employeeBankDetailsForm: document.getElementById("employeeBankDetailsForm"),
+editingEmployeeBankDetailsId: document.getElementById("editingEmployeeBankDetailsId"),
+employeeBankEmployeeId: document.getElementById("employeeBankEmployeeId"),
+employeeBankBankId: document.getElementById("employeeBankBankId"),
+employeeBankCode: document.getElementById("employeeBankCode"),
+employeeBankAccountNumber: document.getElementById("employeeBankAccountNumber"),
+employeeBankAccountName: document.getElementById("employeeBankAccountName"),
+employeeBankStatus: document.getElementById("employeeBankStatus"),
+saveEmployeeBankDetailsBtn: document.getElementById("saveEmployeeBankDetailsBtn"),
+employeeBankDetailsSubmitLabel: document.getElementById("employeeBankDetailsSubmitLabel"),
+cancelEmployeeBankDetailsEditBtn: document.getElementById("cancelEmployeeBankDetailsEditBtn"),
+employeeBankDetailsSearchInput: document.getElementById("employeeBankDetailsSearchInput"),
+employeeBankDetailsEmptyState: document.getElementById("employeeBankDetailsEmptyState"),
+employeeBankDetailsTableWrapper: document.getElementById("employeeBankDetailsTableWrapper"),
+employeeBankDetailsTableBody: document.getElementById("employeeBankDetailsTableBody"),
+
 // BANK DIRECTORY - STEP 4
 // Cache controlled bank directory fields.
 bankDirectoryForm: document.getElementById("bankDirectoryForm"),
@@ -357,9 +382,12 @@ bankName: document.getElementById("bankName"),
 bankCode: document.getElementById("bankCode"),
 bankStatus: document.getElementById("bankStatus"),
 
-// BANK DIRECTORY - STEP 8H
-bankDirectorySubmitLabel: document.getElementById("bankDirectorySubmitLabel"),
+// BANK DIRECTORY - STEP 8HbankDirectorySubmitLabel: document.getElementById("bankDirectorySubmitLabel"),
 cancelBankDirectoryEditBtn: document.getElementById("cancelBankDirectoryEditBtn"),
+
+// BANK DIRECTORY - STEP 8I
+// Cache Save Bank button so it can be disabled until the form is valid.
+saveBankDirectoryBtn: document.getElementById("saveBankDirectoryBtn"),
 
 // BANK DIRECTORY - STEP 5
 // Cache records/search elements for local save and filtering.
@@ -661,15 +689,121 @@ bindCardCollapseToggle(
   state.dom.bankDirectoryCardCollapse,
 );
 
+// EMPLOYEE BANK DETAILS - STEP 3
+// Bind collapsible behaviour for the Employee Bank Details card.
+// This uses the same reusable collapse helper already used across HR cards.
+bindCardCollapseToggle(
+  state.dom.toggleEmployeeBankDetailsCardBtn,
+  state.dom.employeeBankDetailsCardCollapse,
+);
+
+// EMPLOYEE BANK DETAILS - STEP 6
+// Auto-fill the bank code when HR selects a bank from the Bank Directory dropdown,
+// then re-check whether the form is complete enough to enable Save.
+state.dom.employeeBankBankId?.addEventListener("change", () => {
+  const selectedOption = state.dom.employeeBankBankId.selectedOptions?.[0];
+  const bankCode = selectedOption?.dataset?.bankCode || "";
+
+  if (state.dom.employeeBankCode) {
+    state.dom.employeeBankCode.value = bankCode;
+  }
+
+  updateEmployeeBankDetailsSaveButtonState();
+});
+
+// EMPLOYEE BANK DETAILS - STEP 7
+// Save Employee Bank Details into Supabase when the form is submitted.
+state.dom.employeeBankDetailsForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await handleEmployeeBankDetailsSave();
+});
+
+// EMPLOYEE BANK DETAILS - STEP 5
+// Cancel clears the Employee Bank Details form without touching any saved data.
+state.dom.cancelEmployeeBankDetailsEditBtn?.addEventListener("click", () => {
+  resetEmployeeBankDetailsForm();
+});
+
+// EMPLOYEE BANK DETAILS - STEP 6
+// Re-check the Save button whenever HR completes or changes required fields.
+[
+  state.dom.employeeBankEmployeeId,
+  state.dom.employeeBankAccountNumber,
+  state.dom.employeeBankAccountName,
+  state.dom.employeeBankStatus,
+].forEach((field) => {
+  field?.addEventListener("input", updateEmployeeBankDetailsSaveButtonState);
+  field?.addEventListener("change", updateEmployeeBankDetailsSaveButtonState);
+});
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Keep Bank Directory, Payroll Master, Allowance Components,
+// and Submit Payroll buttons visually consistent as fields change.
+[
+  state.dom.bankName,
+  state.dom.bankCode,
+  state.dom.bankStatus,
+].forEach((field) => {
+  field?.addEventListener("input", updateBankDirectorySaveButtonState);
+  field?.addEventListener("change", updateBankDirectorySaveButtonState);
+});
+
+[
+  state.dom.payrollMasterEmployeeId,
+  state.dom.payrollMasterGrade,
+  state.dom.payrollMasterBasicSalary,
+  state.dom.payrollMasterEffectiveDate,
+  state.dom.payrollMasterPayCycle,
+  state.dom.payrollMasterStatus,
+].forEach((field) => {
+  field?.addEventListener("input", updatePayrollMasterSaveButtonState);
+  field?.addEventListener("change", updatePayrollMasterSaveButtonState);
+});
+
+[
+  state.dom.payrollAllowanceMasterRecordId,
+  state.dom.payrollAllowanceType,
+  state.dom.payrollAllowanceAmount,
+  state.dom.payrollAllowanceEffectiveDate,
+  state.dom.payrollAllowanceStatus,
+].forEach((field) => {
+  field?.addEventListener("input", updatePayrollAllowanceSaveButtonState);
+  field?.addEventListener("change", updatePayrollAllowanceSaveButtonState);
+});
+
+[
+  state.dom.payrollEmployeeId,
+  state.dom.payrollPayCycle,
+  state.dom.payrollPayDate,
+  state.dom.payrollGrossPay,
+  state.dom.payrollTotalDeductions,
+  state.dom.payrollNetPay,
+].forEach((field) => {
+  field?.addEventListener("input", updatePayrollSubmitButtonState);
+  field?.addEventListener("change", updatePayrollSubmitButtonState);
+});
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Set the initial state immediately after the event bindings are attached.
+updateBankDirectorySaveButtonState();
+updateEmployeeBankDetailsSaveButtonState();
+updatePayrollMasterSaveButtonState();
+updatePayrollAllowanceSaveButtonState();
+updatePayrollSubmitButtonState();
+
 // BANK DIRECTORY - STEP 4
 // Auto-fill bank code when HR selects a bank name.
 state.dom.bankName?.addEventListener("change", () => {
   const selectedOption = state.dom.bankName.selectedOptions?.[0];
   const bankCode = selectedOption?.dataset?.bankCode || "";
 
-  if (state.dom.bankCode) {
-    state.dom.bankCode.value = bankCode;
-  }
+if (state.dom.bankCode) {
+  state.dom.bankCode.value = bankCode;
+}
+
+// BANK DIRECTORY - STEP 8I
+// Enable Save Bank only after a valid bank selection has populated the bank code.
+updateBankDirectorySaveButtonState();
 });
 
 // BANK DIRECTORY - STEP 7B
@@ -841,6 +975,21 @@ function waitForMinimumLoadingFeedback(startedAt, minimumMs = 300) {
   return new Promise((resolve) => {
     setTimeout(resolve, minimumMs - elapsed);
   });
+}
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// One shared helper for form action buttons.
+// Incomplete form = grey and disabled.
+// Complete form = blue and enabled.
+// This keeps Bank Directory, Employee Bank Details, Payroll Master,
+// Allowance Components, and Submit Payroll visually consistent.
+function setPrimaryActionButtonReadyState(button, canSubmit) {
+  if (!button) return;
+
+  button.disabled = !canSubmit;
+
+  button.classList.toggle("btn-primary", canSubmit);
+  button.classList.toggle("btn-secondary", !canSubmit);
 }
 
 async function handleEmployeeRecordsRefresh() {
@@ -1128,6 +1277,11 @@ function resetPayrollMasterForm() {
     `;
     state.dom.savePayrollMasterBtnText = document.getElementById("savePayrollMasterBtnText");
   }
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Return Payroll Master action button to grey/disabled after clear or save.
+updatePayrollMasterSaveButtonState();
+
 }
 
 function exitPayrollMasterEditMode() {
@@ -1666,6 +1820,10 @@ function resetPayrollAllowanceForm() {
     `;
     state.dom.savePayrollAllowanceBtnText = document.getElementById("savePayrollAllowanceBtnText");
   }
+
+  // HR BUTTON UNIFORMITY - STEP 6B
+// Return Allowance action button to grey/disabled after clear or save.
+updatePayrollAllowanceSaveButtonState();
 }
 
 function exitPayrollAllowanceEditMode() {
@@ -2033,17 +2191,38 @@ function resetBankDirectoryForm() {
     state.dom.bankCode.value = "";
   }
 
+// BANK DIRECTORY - STEP 8I
+// Keep Save Bank disabled until the form has a selected bank and code.
+// HR BUTTON UNIFORMITY - STEP 6B
+// Bank Directory follows the same disabled/active button pattern
+// as the rest of the HR payroll setup forms.
+function updateBankDirectorySaveButtonState() {
+  const hasBankName = Boolean(String(state.dom.bankName?.value || "").trim());
+  const hasBankCode = Boolean(String(state.dom.bankCode?.value || "").trim());
+
+  setPrimaryActionButtonReadyState(
+    state.dom.saveBankDirectoryBtn,
+    hasBankName && hasBankCode,
+  );
+}
+
 // BANK DIRECTORY - STEP 8H
 // Switch UI to Create mode
+// BANK DIRECTORY - STEP 6C
+// Switch UI to Create mode while keeping Cancel visible.
+// Cancel now behaves as a clear/reset action in create mode,
+// matching Employee Bank Details.
 function setBankDirectoryCreateMode() {
   if (state.dom.bankDirectorySubmitLabel) {
     state.dom.bankDirectorySubmitLabel.textContent = "Save Bank";
   }
 
-  state.dom.cancelBankDirectoryEditBtn?.classList.add("d-none");
+  state.dom.cancelBankDirectoryEditBtn?.classList.remove("d-none");
 
   if (state.dom.bankName) state.dom.bankName.disabled = false;
   if (state.dom.bankCode) state.dom.bankCode.disabled = false;
+
+  updateBankDirectorySaveButtonState();
 }
 
 // Switch UI to Edit mode
@@ -2138,8 +2317,14 @@ async function refreshBankDirectoryWorkspace() {
 
     if (error) throw error;
 
-    state.bankDirectoryRecords = Array.isArray(data) ? data : [];
-    applyBankDirectorySearch();
+state.bankDirectoryRecords = Array.isArray(data) ? data : [];
+
+// EMPLOYEE BANK DETAILS - STEP 4
+// Keep the Employee Bank Details bank dropdown in sync with the
+// saved Bank Directory records from Supabase.
+populateEmployeeBankBankOptions();
+
+applyBankDirectorySearch();
   } catch (error) {
     console.error("Error loading bank directory:", error);
     showPageAlert(
@@ -2962,11 +3147,16 @@ async function refreshEmployeeWorkspace() {
   await loadEmployees();
 
   // =========================================================
-  // Keep both payroll dropdowns in sync with the employee list.
-  // Existing payroll form uses one dropdown; payroll master uses another.
+  // Keep payroll and employee bank dropdowns in sync with the
+  // employee list loaded from the HR employee source.
   // =========================================================
   populatePayrollEmployeeOptions();
   populatePayrollMasterEmployeeOptions();
+
+  // EMPLOYEE BANK DETAILS - STEP 4
+  // Populate the Employee Bank Details employee dropdown from the same
+  // HR employee records used by payroll.
+  populateEmployeeBankEmployeeOptions();
 }
 
 async function loadAllEmployeeDocuments() {
@@ -4414,6 +4604,419 @@ function renderPayrollSelectedEmployeeReference(employeeId = "") {
   }
 }
 
+// EMPLOYEE BANK DETAILS - STEP 6
+// Keep Save disabled until all required Employee Bank Details fields are populated.
+// Bank code is included because it confirms a real Bank Directory record was selected.
+// HR BUTTON UNIFORMITY - STEP 6B
+// Employee Bank Details uses the same grey/blue action behaviour
+// as every other HR payroll form.
+function updateEmployeeBankDetailsSaveButtonState() {
+  const hasEmployee = Boolean(String(state.dom.employeeBankEmployeeId?.value || "").trim());
+  const hasBank = Boolean(String(state.dom.employeeBankBankId?.value || "").trim());
+  const hasBankCode = Boolean(String(state.dom.employeeBankCode?.value || "").trim());
+  const hasAccountNumber = Boolean(String(state.dom.employeeBankAccountNumber?.value || "").trim());
+  const hasAccountName = Boolean(String(state.dom.employeeBankAccountName?.value || "").trim());
+  const hasStatus = Boolean(String(state.dom.employeeBankStatus?.value || "").trim());
+
+  setPrimaryActionButtonReadyState(
+    state.dom.saveEmployeeBankDetailsBtn,
+    hasEmployee &&
+      hasBank &&
+      hasBankCode &&
+      hasAccountNumber &&
+      hasAccountName &&
+      hasStatus,
+  );
+}
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Payroll Master Data button state.
+// Required fields match validatePayrollMasterForm().
+function updatePayrollMasterSaveButtonState() {
+  const hasEmployee = Boolean(String(state.dom.payrollMasterEmployeeId?.value || "").trim());
+  const hasGrade = Boolean(String(state.dom.payrollMasterGrade?.value || "").trim());
+  const hasSalary = Boolean(String(state.dom.payrollMasterBasicSalary?.value || "").trim());
+  const hasEffectiveDate = Boolean(String(state.dom.payrollMasterEffectiveDate?.value || "").trim());
+  const hasPayCycle = Boolean(String(state.dom.payrollMasterPayCycle?.value || "").trim());
+  const hasStatus = Boolean(String(state.dom.payrollMasterStatus?.value || "").trim());
+
+  const salaryValue = Number(state.dom.payrollMasterBasicSalary?.value || 0);
+  const salaryIsValid = Number.isFinite(salaryValue) && salaryValue >= 0;
+
+  setPrimaryActionButtonReadyState(
+    state.dom.savePayrollMasterBtn,
+    hasEmployee &&
+      hasGrade &&
+      hasSalary &&
+      salaryIsValid &&
+      hasEffectiveDate &&
+      hasPayCycle &&
+      hasStatus,
+  );
+}
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Allowance Components button state.
+// Required fields match validatePayrollAllowanceForm().
+function updatePayrollAllowanceSaveButtonState() {
+  const hasMasterRecord = Boolean(String(state.dom.payrollAllowanceMasterRecordId?.value || "").trim());
+  const hasType = Boolean(String(state.dom.payrollAllowanceType?.value || "").trim());
+  const hasAmount = Boolean(String(state.dom.payrollAllowanceAmount?.value || "").trim());
+  const hasEffectiveDate = Boolean(String(state.dom.payrollAllowanceEffectiveDate?.value || "").trim());
+  const hasStatus = Boolean(String(state.dom.payrollAllowanceStatus?.value || "").trim());
+
+  const amountValue = Number(state.dom.payrollAllowanceAmount?.value || 0);
+  const amountIsValid = Number.isFinite(amountValue) && amountValue >= 0;
+
+  setPrimaryActionButtonReadyState(
+    state.dom.savePayrollAllowanceBtn,
+    hasMasterRecord &&
+      hasType &&
+      hasAmount &&
+      amountIsValid &&
+      hasEffectiveDate &&
+      hasStatus,
+  );
+}
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Submit Payroll button state.
+// This supports single employee payroll and the existing batch-payroll flow.
+function updatePayrollSubmitButtonState() {
+  const selectedBatchEmployeeIds = Array.from(
+    state.selectedEmployeesForPayroll || [],
+  ).filter(Boolean);
+
+  const hasSingleEmployee = Boolean(String(state.dom.payrollEmployeeId?.value || "").trim());
+  const hasBatchEmployees = selectedBatchEmployeeIds.length > 1 && !hasSingleEmployee;
+
+  const hasPayCycle = Boolean(String(state.dom.payrollPayCycle?.value || "").trim());
+  const hasPayDate = Boolean(String(state.dom.payrollPayDate?.value || "").trim());
+  const hasGrossPay = Boolean(String(state.dom.payrollGrossPay?.value || "").trim());
+  const hasTotalDeductions = Boolean(String(state.dom.payrollTotalDeductions?.value || "").trim());
+  const hasNetPay = Boolean(String(state.dom.payrollNetPay?.value || "").trim());
+
+  const canSubmit =
+    (hasSingleEmployee || hasBatchEmployees) &&
+    hasPayCycle &&
+    hasPayDate &&
+    hasGrossPay &&
+    hasTotalDeductions &&
+    hasNetPay;
+
+  setPrimaryActionButtonReadyState(state.dom.savePayrollBtn, canSubmit);
+  setPrimaryActionButtonReadyState(state.dom.topSubmitPayrollBtn, canSubmit);
+}
+
+// EMPLOYEE BANK DETAILS - STEP 7
+// Validate the Employee Bank Details form before saving to Supabase.
+function validateEmployeeBankDetailsForm() {
+  let isValid = true;
+  let firstInvalidField = null;
+
+  const requiredFields = [
+    state.dom.employeeBankEmployeeId,
+    state.dom.employeeBankBankId,
+    state.dom.employeeBankCode,
+    state.dom.employeeBankAccountNumber,
+    state.dom.employeeBankAccountName,
+    state.dom.employeeBankStatus,
+  ];
+
+  requiredFields.forEach((field) => {
+    const value = String(field?.value || "").trim();
+
+    if (!value) {
+      field?.classList.add("is-invalid");
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = field;
+    } else {
+      field?.classList.remove("is-invalid");
+    }
+  });
+
+  if (!isValid && firstInvalidField?.focus) {
+    firstInvalidField.focus();
+  }
+
+  return isValid;
+}
+
+// EMPLOYEE BANK DETAILS - STEP 7
+// Build the Supabase payload using the employee, selected bank,
+// copied bank code, account number, account name, and status.
+function buildEmployeeBankDetailsPayload() {
+  return {
+    employee_id: String(state.dom.employeeBankEmployeeId?.value || "").trim(),
+    bank_id: String(state.dom.employeeBankBankId?.value || "").trim(),
+    bank_code: String(state.dom.employeeBankCode?.value || "").trim(),
+    account_number: String(state.dom.employeeBankAccountNumber?.value || "").trim(),
+    account_name: String(state.dom.employeeBankAccountName?.value || "").trim(),
+    status: String(state.dom.employeeBankStatus?.value || "Active").trim(),
+  };
+}
+
+// EMPLOYEE BANK DETAILS - STEP 7
+// Show save feedback while Supabase insert is running.
+function setEmployeeBankDetailsSaveLoading(isLoading) {
+  const button = state.dom.saveEmployeeBankDetailsBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Saving Employee Bank Details...
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+    state.dom.employeeBankDetailsSubmitLabel = document.getElementById(
+      "employeeBankDetailsSubmitLabel",
+    );
+  }
+
+  updateEmployeeBankDetailsSaveButtonState();
+}
+
+// EMPLOYEE BANK DETAILS - STEP 7
+// Persist new employee bank details to Supabase.
+// Edit/update will be added separately after create has been tested.
+async function handleEmployeeBankDetailsSave() {
+  clearPageAlert();
+
+  if (!validateEmployeeBankDetailsForm()) {
+    showPageAlert(
+      "warning",
+      "Please complete all required employee bank details before saving.",
+    );
+    return;
+  }
+
+  const payload = buildEmployeeBankDetailsPayload();
+
+  try {
+    setEmployeeBankDetailsSaveLoading(true);
+
+    const supabase = getSupabaseClient();
+
+    const { error } = await supabase
+      .from("employee_bank_details")
+      .insert([payload]);
+
+    if (error) throw error;
+
+    showPageAlert(
+      "success",
+      "Employee bank details were saved successfully.",
+    );
+
+    resetEmployeeBankDetailsForm();
+  } catch (error) {
+    console.error("Error saving employee bank details:", error);
+
+    if (
+      String(error.message || "").toLowerCase().includes("duplicate key value") ||
+      String(error.message || "").toLowerCase().includes("employee_bank_details_unique_account")
+    ) {
+      showPageAlert(
+        "warning",
+        "This employee already has this bank account saved.",
+      );
+      return;
+    }
+
+    showPageAlert(
+      "danger",
+      error.message || "Employee bank details could not be saved.",
+    );
+  } finally {
+    setEmployeeBankDetailsSaveLoading(false);
+  }
+}
+
+// EMPLOYEE BANK DETAILS - STEP 5
+// Reset only the Employee Bank Details form.
+// This clears selected employee, selected bank, auto-filled bank code,
+// account number, account name, status, and any validation styling.
+function resetEmployeeBankDetailsForm() {
+  if (state.dom.employeeBankDetailsForm) {
+    state.dom.employeeBankDetailsForm.reset();
+  }
+
+  if (state.dom.editingEmployeeBankDetailsId) {
+    state.dom.editingEmployeeBankDetailsId.value = "";
+  }
+
+  if (state.dom.employeeBankCode) {
+    state.dom.employeeBankCode.value = "";
+  }
+
+  if (state.dom.employeeBankStatus) {
+    state.dom.employeeBankStatus.value = "Active";
+  }
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Keep Bank Directory, Payroll Master, Allowance Components,
+// and Submit Payroll buttons visually consistent as fields change.
+[
+  state.dom.bankName,
+  state.dom.bankCode,
+  state.dom.bankStatus,
+].forEach((field) => {
+  field?.addEventListener("input", updateBankDirectorySaveButtonState);
+  field?.addEventListener("change", updateBankDirectorySaveButtonState);
+});
+
+[
+  state.dom.payrollMasterEmployeeId,
+  state.dom.payrollMasterGrade,
+  state.dom.payrollMasterBasicSalary,
+  state.dom.payrollMasterEffectiveDate,
+  state.dom.payrollMasterPayCycle,
+  state.dom.payrollMasterStatus,
+].forEach((field) => {
+  field?.addEventListener("input", updatePayrollMasterSaveButtonState);
+  field?.addEventListener("change", updatePayrollMasterSaveButtonState);
+});
+
+[
+  state.dom.payrollAllowanceMasterRecordId,
+  state.dom.payrollAllowanceType,
+  state.dom.payrollAllowanceAmount,
+  state.dom.payrollAllowanceEffectiveDate,
+  state.dom.payrollAllowanceStatus,
+].forEach((field) => {
+  field?.addEventListener("input", updatePayrollAllowanceSaveButtonState);
+  field?.addEventListener("change", updatePayrollAllowanceSaveButtonState);
+});
+
+[
+  state.dom.payrollEmployeeId,
+  state.dom.payrollPayCycle,
+  state.dom.payrollPayDate,
+  state.dom.payrollGrossPay,
+  state.dom.payrollTotalDeductions,
+  state.dom.payrollNetPay,
+].forEach((field) => {
+  field?.addEventListener("input", updatePayrollSubmitButtonState);
+  field?.addEventListener("change", updatePayrollSubmitButtonState);
+});
+
+// HR BUTTON UNIFORMITY - STEP 6B
+// Set the initial state immediately after the event bindings are attached.
+updateBankDirectorySaveButtonState();
+updateEmployeeBankDetailsSaveButtonState();
+updatePayrollMasterSaveButtonState();
+updatePayrollAllowanceSaveButtonState();
+updatePayrollSubmitButtonState();
+
+// EMPLOYEE BANK DETAILS - STEP 6
+// Recalculate button state after clearing the form.
+// This keeps Save disabled after Cancel.
+updateEmployeeBankDetailsSaveButtonState();
+
+  if (state.dom.employeeBankDetailsSubmitLabel) {
+    state.dom.employeeBankDetailsSubmitLabel.textContent = "Save Employee Bank Details";
+  }
+}
+
+// EMPLOYEE BANK DETAILS - STEP 4
+// Populate Employee Bank Details employee dropdown from loaded HR employees.
+function populateEmployeeBankEmployeeOptions() {
+  const select = state.dom.employeeBankEmployeeId;
+  if (!select) return;
+
+  const currentValue = select.value;
+
+  const employees = [...state.employees].sort((a, b) => {
+    const nameA = `${a.first_name || ""} ${a.last_name || ""}`.trim().toLowerCase();
+    const nameB = `${b.first_name || ""} ${b.last_name || ""}`.trim().toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  select.innerHTML = `<option value="">Select employee</option>`;
+
+  employees.forEach((employee) => {
+    const option = document.createElement("option");
+    option.value = employee.id;
+    option.textContent =
+      `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+      employee.work_email ||
+      "Unnamed Employee";
+
+    select.appendChild(option);
+  });
+
+  if (currentValue) {
+    const stillExists = Array.from(select.options).some(
+      (option) => option.value === currentValue,
+    );
+
+    if (stillExists) {
+      select.value = currentValue;
+    }
+  }
+}
+
+// EMPLOYEE BANK DETAILS - STEP 4
+// Populate Employee Bank Details bank dropdown from active Bank Directory records.
+function populateEmployeeBankBankOptions() {
+  const select = state.dom.employeeBankBankId;
+  if (!select) return;
+
+  const currentValue = select.value;
+
+  const activeBanks = [...state.bankDirectoryRecords]
+    .filter((bank) => normalizeText(bank.status) === "active")
+    .sort((a, b) =>
+      String(a.bank_name || "").localeCompare(String(b.bank_name || "")),
+    );
+
+  select.innerHTML = `<option value="">Select bank from Bank Directory</option>`;
+
+  if (!activeBanks.length) {
+    select.innerHTML = `<option value="">Add active banks in Bank Directory first</option>`;
+
+    if (state.dom.employeeBankCode) {
+      state.dom.employeeBankCode.value = "";
+    }
+
+    return;
+  }
+
+  activeBanks.forEach((bank) => {
+    const option = document.createElement("option");
+    option.value = bank.id;
+    option.textContent = bank.bank_name || "Unnamed Bank";
+    option.dataset.bankCode = bank.bank_code || "";
+
+    select.appendChild(option);
+  });
+
+  if (currentValue) {
+    const stillExists = Array.from(select.options).some(
+      (option) => option.value === currentValue,
+    );
+
+    if (stillExists) {
+      select.value = currentValue;
+
+      const selectedOption = select.selectedOptions?.[0];
+      if (state.dom.employeeBankCode) {
+        state.dom.employeeBankCode.value = selectedOption?.dataset?.bankCode || "";
+      }
+    }
+  }
+}
+
 function populatePayrollEmployeeOptions() {
   const select = state.dom.payrollEmployeeId;
   if (!select) return;
@@ -4902,6 +5505,10 @@ function updatePayDateFromPayCycle() {
   const dd = String(lastDayOfMonth.getDate()).padStart(2, "0");
 
   state.dom.payrollPayDate.value = `${yyyy}-${mm}-${dd}`;
+
+  // HR BUTTON UNIFORMITY - STEP 6B
+// Pay date is auto-filled from pay cycle, so re-check Submit Payroll state.
+updatePayrollSubmitButtonState();
 }
 
 function resetPayrollForm() {

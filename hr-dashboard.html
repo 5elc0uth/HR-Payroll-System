@@ -746,166 +746,338 @@
         </div>
       </section>
 
-<!-- BANK DIRECTORY - STEP 1
+      <!-- BANK DIRECTORY - STEP 1
      System payroll setup area for maintaining bank names and bank codes.
      This will later support employee bank details and bank-ready payroll exports. -->
-<!-- BANK DIRECTORY - STEP 2B
+      <!-- BANK DIRECTORY - STEP 2B
      Add bottom spacing so the collapsed setup card does not touch the next payroll card. -->
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+              <h2 class="section-heading h4 mb-1">Bank Directory</h2>
+              <p class="section-subtext mb-0">
+                Maintain approved banks and bank codes for payroll payment processing.
+              </p>
+            </div>
+
+            <button type="button" id="toggleBankDirectoryCardBtn"
+              class="btn btn-outline-secondary dashboard-action-btn text-nowrap" aria-expanded="false">
+              <i class="bi bi-chevron-down me-2"></i>
+              <span>Expand</span>
+            </button>
+          </div>
+
+          <!-- BANK DIRECTORY - STEP 2A
+     Keep Bank Directory collapsed by default until HR expands it. -->
+          <!-- BANK DIRECTORY - STEP 3
+     UI only: form + records table. Save/load logic comes next. -->
+          <div id="bankDirectoryCardCollapse" class="d-none mt-4">
+            <form id="bankDirectoryForm" class="dashboard-form">
+              <div class="row g-4">
+                <!-- BANK DIRECTORY - STEP 4
+     Bank name is selected from a controlled Nigerian bank list.
+     Bank code is auto-filled so HR does not manually type payment codes. -->
+                <div class="col-md-5">
+                  <label for="bankName" class="form-label fw-semibold">
+                    Bank Name <span class="text-danger">*</span>
+                  </label>
+                  <select id="bankName" class="form-select dashboard-input" required>
+                    <option value="">Select bank</option>
+                    <option value="Access Bank" data-bank-code="044">Access Bank</option>
+                    <option value="Citibank Nigeria" data-bank-code="023">Citibank Nigeria</option>
+                    <option value="Ecobank Nigeria" data-bank-code="050">Ecobank Nigeria</option>
+                    <option value="Fidelity Bank" data-bank-code="070">Fidelity Bank</option>
+                    <option value="First Bank of Nigeria" data-bank-code="011">First Bank of Nigeria</option>
+                    <option value="First City Monument Bank" data-bank-code="214">First City Monument Bank</option>
+                    <option value="Globus Bank" data-bank-code="00103">Globus Bank</option>
+                    <option value="Guaranty Trust Bank" data-bank-code="058">Guaranty Trust Bank</option>
+                    <option value="Heritage Bank" data-bank-code="030">Heritage Bank</option>
+                    <option value="Keystone Bank" data-bank-code="082">Keystone Bank</option>
+                    <option value="Parallex Bank" data-bank-code="104">Parallex Bank</option>
+                    <option value="Polaris Bank" data-bank-code="076">Polaris Bank</option>
+                    <option value="PremiumTrust Bank" data-bank-code="105">PremiumTrust Bank</option>
+                    <option value="Providus Bank" data-bank-code="101">Providus Bank</option>
+                    <option value="Sterling Bank" data-bank-code="090556">Signature Bank</option>
+                    <option value="Stanbic IBTC Bank" data-bank-code="221">Stanbic IBTC Bank</option>
+                    <option value="Standard Chartered Bank Nigeria" data-bank-code="068">Standard Chartered Bank Nigeria
+                    </option>
+                    <option value="Sterling Bank" data-bank-code="232">Sterling Bank</option>
+                    <option value="SunTrust Bank" data-bank-code="100">SunTrust Bank</option>
+                    <option value="Titan Trust Bank" data-bank-code="102">Titan Trust Bank</option>
+                    <option value="Union Bank of Nigeria" data-bank-code="032">Union Bank of Nigeria</option>
+                    <option value="United Bank for Africa" data-bank-code="033">United Bank for Africa</option>
+                    <option value="Unity Bank" data-bank-code="215">Unity Bank</option>
+                    <option value="Wema Bank" data-bank-code="035">Wema Bank</option>
+                    <option value="Zenith Bank" data-bank-code="057">Zenith Bank</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4">
+                  <label for="bankCode" class="form-label fw-semibold">
+                    Bank Code <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="bankCode" class="form-control dashboard-input"
+                    placeholder="Auto-filled from selected bank" readonly required />
+                </div>
+
+                <div class="col-md-3">
+                  <label for="bankStatus" class="form-label fw-semibold">
+                    Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="bankStatus" class="form-select dashboard-input" required>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
+                <!-- BANK DIRECTORY - STEP 8H
+     Button switches between Save and Update depending on mode -->
+                <button type="submit" id="saveBankDirectoryBtn" class="btn btn-primary dashboard-action-btn">
+                  <i class="bi bi-save me-2"></i>
+                  <span id="bankDirectorySubmitLabel">Save Bank</span>
+                </button>
+
+<!-- BANK DIRECTORY - STEP 6C
+     Keep Cancel visible in create mode as well as edit mode,
+     so Bank Directory matches Employee Bank Details UX. -->
+<button
+  type="button"
+  id="cancelBankDirectoryEditBtn"
+  class="btn btn-outline-secondary dashboard-action-btn"
+>
+  <i class="bi bi-x-circle me-2"></i>Cancel
+</button>
+              </div>
+            </form>
+
+            <hr class="my-4" />
+
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+              <div>
+                <h3 class="h6 fw-bold mb-1">Bank Directory Records</h3>
+                <p class="text-secondary small mb-0">
+                  Approved bank names and codes available for payroll payment setup.
+                </p>
+              </div>
+
+              <div>
+                <label for="bankDirectorySearchInput" class="form-label fw-semibold">
+                  Search banks
+                </label>
+                <input type="search" id="bankDirectorySearchInput" class="form-control dashboard-input"
+                  placeholder="Search by bank name or code..." />
+              </div>
+            </div>
+
+            <div id="bankDirectoryEmptyState" class="alert alert-light border mb-0">
+              No banks have been added yet.
+            </div>
+
+            <div id="bankDirectoryTableWrapper" class="table-responsive d-none">
+              <table class="table align-middle dashboard-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Bank Name</th>
+                    <th>Bank Code</th>
+                    <th>Status</th>
+                    <!-- BANK DIRECTORY - STEP 8B
+     Center the action header to match the icon-only edit button. -->
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="bankDirectoryTableBody"></tbody>
+              </table>
+            </div>
+</div>
+  </div>
+</section>
+
+<!-- =========================================================
+     EMPLOYEE BANK DETAILS - STEP 2
+     UI shell for linking employees to approved banks.
+     This section will feed Payroll, Payslip, and Bank Export later.
+========================================================== -->
 <section class="card dashboard-section-card mb-4">
   <div class="card-body p-4 p-lg-5">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
       <div>
-        <h2 class="section-heading h4 mb-1">Bank Directory</h2>
+        <h2 class="section-heading h4 mb-1">Employee Bank Details</h2>
         <p class="section-subtext mb-0">
-          Maintain approved banks and bank codes for payroll payment processing.
+          Link employees to approved bank accounts for payroll payment processing.
         </p>
       </div>
 
       <button
         type="button"
-        id="toggleBankDirectoryCardBtn"
+        id="toggleEmployeeBankDetailsCardBtn"
         class="btn btn-outline-secondary dashboard-action-btn text-nowrap"
         aria-expanded="false"
+        aria-controls="employeeBankDetailsCardCollapse"
       >
         <i class="bi bi-chevron-down me-2"></i>
         <span>Expand</span>
       </button>
     </div>
 
-<!-- BANK DIRECTORY - STEP 2A
-     Keep Bank Directory collapsed by default until HR expands it. -->
-<!-- BANK DIRECTORY - STEP 3
-     UI only: form + records table. Save/load logic comes next. -->
-<div id="bankDirectoryCardCollapse" class="d-none mt-4">
-  <form id="bankDirectoryForm" class="dashboard-form">
-    <div class="row g-4">
-<!-- BANK DIRECTORY - STEP 4
-     Bank name is selected from a controlled Nigerian bank list.
-     Bank code is auto-filled so HR does not manually type payment codes. -->
-<div class="col-md-5">
-  <label for="bankName" class="form-label fw-semibold">
-    Bank Name <span class="text-danger">*</span>
-  </label>
-  <select id="bankName" class="form-select dashboard-input" required>
-    <option value="">Select bank</option>
-    <option value="Access Bank" data-bank-code="044">Access Bank</option>
-    <option value="Citibank Nigeria" data-bank-code="023">Citibank Nigeria</option>
-    <option value="Ecobank Nigeria" data-bank-code="050">Ecobank Nigeria</option>
-    <option value="Fidelity Bank" data-bank-code="070">Fidelity Bank</option>
-    <option value="First Bank of Nigeria" data-bank-code="011">First Bank of Nigeria</option>
-    <option value="First City Monument Bank" data-bank-code="214">First City Monument Bank</option>
-    <option value="Globus Bank" data-bank-code="00103">Globus Bank</option>
-    <option value="Guaranty Trust Bank" data-bank-code="058">Guaranty Trust Bank</option>
-    <option value="Heritage Bank" data-bank-code="030">Heritage Bank</option>
-    <option value="Keystone Bank" data-bank-code="082">Keystone Bank</option>
-    <option value="Parallex Bank" data-bank-code="104">Parallex Bank</option>
-    <option value="Polaris Bank" data-bank-code="076">Polaris Bank</option>
-    <option value="PremiumTrust Bank" data-bank-code="105">PremiumTrust Bank</option>
-    <option value="Providus Bank" data-bank-code="101">Providus Bank</option>
-    <option value="Sterling Bank" data-bank-code="">Signature Bank</option>
-    <option value="Stanbic IBTC Bank" data-bank-code="221">Stanbic IBTC Bank</option>
-    <option value="Standard Chartered Bank Nigeria" data-bank-code="068">Standard Chartered Bank Nigeria</option>
-    <option value="Sterling Bank" data-bank-code="232">Sterling Bank</option>
-    <option value="SunTrust Bank" data-bank-code="100">SunTrust Bank</option>
-    <option value="Titan Trust Bank" data-bank-code="102">Titan Trust Bank</option>
-    <option value="Union Bank of Nigeria" data-bank-code="032">Union Bank of Nigeria</option>
-    <option value="United Bank for Africa" data-bank-code="033">United Bank for Africa</option>
-    <option value="Unity Bank" data-bank-code="215">Unity Bank</option>
-    <option value="Wema Bank" data-bank-code="035">Wema Bank</option>
-    <option value="Zenith Bank" data-bank-code="057">Zenith Bank</option>
-  </select>
-</div>
+    <!-- EMPLOYEE BANK DETAILS - STEP 2
+         Keep this collapsed by default so Payroll workspace remains tidy. -->
+    <div id="employeeBankDetailsCardCollapse" class="d-none mt-4">
+      <form id="employeeBankDetailsForm" class="dashboard-form" novalidate>
+        <input type="hidden" id="editingEmployeeBankDetailsId" />
 
-<div class="col-md-4">
-  <label for="bankCode" class="form-label fw-semibold">
-    Bank Code <span class="text-danger">*</span>
-  </label>
-  <input
-    type="text"
-    id="bankCode"
-    class="form-control dashboard-input"
-    placeholder="Auto-filled from selected bank"
-    readonly
-    required
-  />
-</div>
+        <div class="row g-4">
+          <div class="col-md-6 col-xl-4">
+            <label for="employeeBankEmployeeId" class="form-label fw-semibold">
+              Employee <span class="text-danger">*</span>
+            </label>
+            <select id="employeeBankEmployeeId" class="form-select dashboard-input" required>
+              <option value="">Select employee</option>
+            </select>
+            <div class="invalid-feedback">Please select an employee.</div>
+          </div>
 
-      <div class="col-md-3">
-        <label for="bankStatus" class="form-label fw-semibold">
-          Status <span class="text-danger">*</span>
-        </label>
-        <select id="bankStatus" class="form-select dashboard-input" required>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-      </div>
-    </div>
+          <div class="col-md-6 col-xl-4">
+            <label for="employeeBankBankId" class="form-label fw-semibold">
+              Bank Name <span class="text-danger">*</span>
+            </label>
+            <select id="employeeBankBankId" class="form-select dashboard-input" required>
+              <option value="">Select bank from Bank Directory</option>
+            </select>
+            <div class="invalid-feedback">Please select a bank.</div>
+          </div>
 
-    <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
-<!-- BANK DIRECTORY - STEP 8H
-     Button switches between Save and Update depending on mode -->
+          <div class="col-md-6 col-xl-4">
+            <label for="employeeBankCode" class="form-label fw-semibold">
+              Bank Code <span class="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              id="employeeBankCode"
+              class="form-control dashboard-input"
+              placeholder="Auto-filled from selected bank"
+              readonly
+              required
+            />
+            <div class="invalid-feedback">Bank code is required.</div>
+          </div>
+
+          <div class="col-md-6 col-xl-4">
+            <label for="employeeBankAccountNumber" class="form-label fw-semibold">
+              Account Number <span class="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              id="employeeBankAccountNumber"
+              class="form-control dashboard-input"
+              placeholder="Enter account number"
+              inputmode="numeric"
+              required
+            />
+            <div class="invalid-feedback">Account number is required.</div>
+          </div>
+
+          <div class="col-md-6 col-xl-4">
+            <label for="employeeBankAccountName" class="form-label fw-semibold">
+              Account Name <span class="text-danger">*</span>
+            </label>
+            <input
+              type="text"
+              id="employeeBankAccountName"
+              class="form-control dashboard-input"
+              placeholder="Enter account name"
+              required
+            />
+            <div class="invalid-feedback">Account name is required.</div>
+          </div>
+
+          <div class="col-md-6 col-xl-4">
+            <label for="employeeBankStatus" class="form-label fw-semibold">
+              Status <span class="text-danger">*</span>
+            </label>
+            <select id="employeeBankStatus" class="form-select dashboard-input" required>
+              <option value="Active" selected>Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <div class="invalid-feedback">Status is required.</div>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
+          <!-- EMPLOYEE BANK DETAILS - STEP 2
+               Disabled until save logic is wired in the next step. -->
+<!-- EMPLOYEE BANK DETAILS - STEP 7
+     Make the button submit the Employee Bank Details form.
+     The JS save handler will persist the record to Supabase. -->
 <button
   type="submit"
-  id="saveBankDirectoryBtn"
+  id="saveEmployeeBankDetailsBtn"
   class="btn btn-primary dashboard-action-btn"
+  disabled
 >
   <i class="bi bi-save me-2"></i>
-  <span id="bankDirectorySubmitLabel">Save Bank</span>
+  <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
 </button>
 
+<!-- EMPLOYEE BANK DETAILS - STEP 5
+     Keep a visible Cancel button so HR can abandon account entry
+     before saving anything to Supabase. -->
 <button
   type="button"
-  id="cancelBankDirectoryEditBtn"
-  class="btn btn-outline-secondary dashboard-action-btn d-none"
+  id="cancelEmployeeBankDetailsEditBtn"
+  class="btn btn-outline-secondary dashboard-action-btn"
 >
-  Cancel Edit
+  <i class="bi bi-x-circle me-2"></i>Cancel
 </button>
+        </div>
+      </form>
+
+      <hr class="my-4" />
+
+      <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+        <div>
+          <h3 class="h6 fw-bold mb-1">Employee Bank Records</h3>
+          <p class="text-secondary small mb-0">
+            Employee bank accounts saved for payroll and payment export.
+          </p>
+        </div>
+
+        <div>
+          <label for="employeeBankDetailsSearchInput" class="form-label fw-semibold">
+            Search employee bank records
+          </label>
+          <input
+            type="search"
+            id="employeeBankDetailsSearchInput"
+            class="form-control dashboard-input"
+            placeholder="Search by employee, bank, account..."
+          />
+        </div>
+      </div>
+
+      <div id="employeeBankDetailsEmptyState" class="alert alert-light border mb-0">
+        No employee bank details have been added yet.
+      </div>
+
+      <div id="employeeBankDetailsTableWrapper" class="table-responsive d-none">
+        <table class="table align-middle dashboard-table mb-0">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Bank</th>
+              <th>Bank Code</th>
+              <th>Account Number</th>
+              <th>Account Name</th>
+              <th>Status</th>
+              <th class="text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="employeeBankDetailsTableBody"></tbody>
+        </table>
+      </div>
     </div>
-  </form>
-
-  <hr class="my-4" />
-
-  <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
-    <div>
-      <h3 class="h6 fw-bold mb-1">Bank Directory Records</h3>
-      <p class="text-secondary small mb-0">
-        Approved bank names and codes available for payroll payment setup.
-      </p>
-    </div>
-
-    <div>
-      <label for="bankDirectorySearchInput" class="form-label fw-semibold">
-        Search banks
-      </label>
-      <input
-        type="search"
-        id="bankDirectorySearchInput"
-        class="form-control dashboard-input"
-        placeholder="Search by bank name or code..."
-      />
-    </div>
-  </div>
-
-  <div id="bankDirectoryEmptyState" class="alert alert-light border mb-0">
-    No banks have been added yet.
-  </div>
-
-  <div id="bankDirectoryTableWrapper" class="table-responsive d-none">
-    <table class="table align-middle dashboard-table mb-0">
-      <thead>
-        <tr>
-          <th>Bank Name</th>
-          <th>Bank Code</th>
-          <th>Status</th>
-          <!-- BANK DIRECTORY - STEP 8B
-     Center the action header to match the icon-only edit button. -->
-<th class="text-center">Action</th>
-        </tr>
-      </thead>
-      <tbody id="bankDirectoryTableBody"></tbody>
-    </table>
-  </div>
-</div>
   </div>
 </section>
 
