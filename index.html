@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HR & Payroll System</title>
+
+    <!--
+    ==============================================================
+    BOOTSTRAP CSS
+    --------------------------------------------------------------
+    Bootstrap is used as requested for layout, spacing, buttons,
+    navbar, cards, modal, and responsive behavior.
+    ==============================================================
+  -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- Bootstrap Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+
+    <!--
+    ==============================================================
+    CUSTOM STYLESHEET
+    --------------------------------------------------------------
+    This contains the mockup-inspired design system and all custom
+    styling for the landing page and sign-in experience.
+    ==============================================================
+  -->
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="icon" type="image/x-icon" href="assets/favicon.png">
+  </head>
+  <body>
+    <!--
+    ==============================================================
+    NAVBAR
+    --------------------------------------------------------------
+    Public top navigation for the landing page.
+    "Sign In" opens the authentication modal.
+    ==============================================================
+  -->
+    <nav class="navbar navbar-expand-lg fixed-top hr-navbar">
+      <div class="container">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="#home">
+          <span class="hr-brand-mark">HR</span>
+          <span class="hr-brand-text">HR & Payroll System</span>
+        </a>
+
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#mainNav"
+          aria-controls="mainNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNav">
+          <ul class="navbar-nav ms-auto me-lg-3 mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="#features">Features</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#roles">Roles</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#access">Access</a>
+            </li>
+          </ul>
+
+          <div class="d-flex gap-2">
+            <!--
+            This button launches the sign-in modal.
+            User stays on the landing page until they choose to sign in.
+          -->
+            <button
+              class="btn btn-outline-secondary rounded-pill px-4"
+              data-bs-toggle="modal"
+              data-bs-target="#signInModal"
+            >
+              Sign In
+            </button>
+
+            <a href="#features" class="btn hr-btn-primary"> Explore System </a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!--
+    ==============================================================
+    HERO SECTION
+    --------------------------------------------------------------
+    Main public landing section.
+    This is visually inspired by the uploaded mockup:
+    - warm amber tones
+    - polished premium look
+    - strong headline
+    - soft cards and rounded corners
+    ==============================================================
+  -->
+    <section class="hr-hero-section" id="home">
+      <div class="container">
+        <div class="row align-items-center g-4 g-lg-5">
+          <div class="col-lg-6">
+            <span class="hr-hero-badge mb-3">Modern HR Platform</span>
+
+            <h1 class="hr-hero-title mb-4">
+              Secure HR operations with a <span class="accent">clean</span>,
+              role-based experience.
+            </h1>
+
+            <p class="hr-hero-copy mb-4">
+              A polished HR and Payroll system for Employees, Managers, HR
+              Officers, Payroll Officers, Leadership, System Administrators, and
+              Auditors. Built for access control, structure, and clarity from
+              the first screen.
+            </p>
+
+            <div class="d-flex flex-column flex-sm-row gap-3 mb-4">
+              <button
+                class="btn hr-btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#signInModal"
+              >
+                <i class="bi bi-box-arrow-in-right me-2"></i>Sign In Securely
+              </button>
+
+              <a href="#roles" class="btn hr-btn-secondary">
+                <i class="bi bi-diagram-3 me-2"></i>View User Roles
+              </a>
+            </div>
+
+            <!-- Quick summary cards -->
+            <div class="row g-3">
+              <div class="col-sm-4">
+                <div class="hr-mini-card p-3 h-100">
+                  <div class="small text-secondary">Access</div>
+                  <div class="fw-bold">Role-Based</div>
+                </div>
+              </div>
+              <div class="col-sm-4">
+                <div class="hr-mini-card p-3 h-100">
+                  <div class="small text-secondary">Foundation</div>
+                  <div class="fw-bold">Secure Sign-In</div>
+                </div>
+              </div>
+              <div class="col-sm-4">
+                <div class="hr-mini-card p-3 h-100">
+                  <div class="small text-secondary">Visibility</div>
+                  <div class="fw-bold">Audit Ready</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="hr-hero-panel p-4 p-md-5 h-100">
+              <div>
+                <span class="badge text-bg-light rounded-pill mb-3"
+                  >Built for Modern HR Teams</span
+                >
+                <h2 class="fw-bold mb-3">
+                  A smarter way to manage people, access, and operations.
+                </h2>
+                <p class="text-white-50 mb-0">
+                  Bring employees, managers, HR, payroll, leadership,
+                  administrators, and auditors into one structured platform with
+                  clear access and a polished experience.
+                </p>
+              </div>
+
+              <div class="row g-3 mt-4">
+                <div class="col-12">
+                  <div class="hr-panel-box p-3 rounded-4">
+                    <div class="fw-semibold mb-1">Secure Access</div>
+                    <small class="text-white-50">
+                      Give each user the right entry point with role-aware
+                      access and a clean sign-in experience.
+                    </small>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="hr-panel-box p-3 rounded-4 h-100">
+                    <div class="fw-semibold mb-1">Employee Self Service</div>
+                    <small class="text-white-50"
+                      >Support everyday staff needs with a simple, guided
+                      experience.</small
+                    >
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="hr-panel-box p-3 rounded-4 h-100">
+                    <div class="fw-semibold mb-1">HR & Payroll Operations</div>
+                    <small class="text-white-50"
+                      >Create space for employee administration, approvals,
+                      payroll processing, records, and oversight.</small
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES SECTION -->
+    <section class="py-5" id="features">
+      <div class="container py-4">
+        <div class="text-center mb-5">
+          <h2 class="hr-section-title mb-3">
+            Built for structured HR delivery
+          </h2>
+          <p class="hr-section-copy mx-auto">
+            This foundation supports secure access, role separation, employee
+            operations, managerial review, HR administration, payroll workflows,
+            leadership oversight, system administration, and audit visibility.
+          </p>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-md-6 col-xl-3">
+            <div class="hr-feature-card p-4 h-100">
+              <div class="hr-feature-icon mb-3">
+                <i class="bi bi-shield-lock"></i>
+              </div>
+              <h5 class="fw-bold">Secure Access</h5>
+              <p class="text-secondary mb-0">
+                A clean entry point into the HR application with protected
+                sign-in.
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-xl-3">
+            <div class="hr-feature-card p-4 h-100">
+              <div class="hr-feature-icon mb-3">
+                <i class="bi bi-people"></i>
+              </div>
+              <h5 class="fw-bold">People Operations</h5>
+              <p class="text-secondary mb-0">
+                Designed for employee, manager, HR, payroll, executive, admin,
+                and auditor experiences.
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-xl-3">
+            <div class="hr-feature-card p-4 h-100">
+              <div class="hr-feature-icon mb-3">
+                <i class="bi bi-person-check"></i>
+              </div>
+              <h5 class="fw-bold">Role Permissions</h5>
+              <p class="text-secondary mb-0">
+                Access is aligned to assigned roles so users only see permitted
+                functions.
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-xl-3">
+            <div class="hr-feature-card p-4 h-100">
+              <div class="hr-feature-icon mb-3">
+                <i class="bi bi-clipboard-data"></i>
+              </div>
+              <h5 class="fw-bold">Audit Support</h5>
+              <p class="text-secondary mb-0">
+                Foundation is prepared for tracking sign-in outcomes and
+                security events.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROLES SECTION -->
+    <section class="py-5" id="roles">
+      <div class="container py-4">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-5">
+            <h2 class="hr-section-title mb-3">
+              Roles supported by the HR & Payroll System
+            </h2>
+            <p class="hr-section-copy mb-0">
+              The system is organized so each role accesses only the right
+              functions.
+            </p>
+          </div>
+
+          <div class="col-lg-7">
+            <div class="row g-3">
+              <div class="col-sm-6 col-xl-4">
+                <div class="hr-role-card p-3 h-100 fw-semibold">
+                  Employee
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-4">
+                <div class="hr-role-card p-3 h-100 fw-semibold">
+                  Manager
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-4">
+                <div class="hr-role-card p-3 h-100 fw-semibold">HR Officer</div>
+              </div>
+              <div class="col-sm-6 col-xl-4">
+                <div class="hr-role-card p-3 h-100 fw-semibold">
+                  Payroll Officer
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-4">
+                <div class="hr-role-card p-3 h-100 fw-semibold">
+                  Executive User
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-4">
+                <div class="hr-role-card p-3 h-100 fw-semibold">
+                  System Administrator
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-4">
+                <div class="hr-role-card p-3 h-100 fw-semibold">Auditor</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCESS / CALL TO ACTION SECTION -->
+    <section class="py-5" id="access">
+      <div class="container py-4">
+        <div class="hr-access-card p-4 p-md-5">
+          <div class="row g-4 align-items-center">
+            <div class="col-lg-8">
+              <h2 class="hr-section-title mb-3">
+                Ready to enter the HR & Payroll System?
+              </h2>
+              <p class="hr-section-copy mb-0">
+                Sign in to continue to your secure workspace and access the
+                tools relevant to your role.
+              </p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+              <button
+                class="btn hr-btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#signInModal"
+              >
+                Open Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!--
+    ==============================================================
+    SIGN-IN MODAL
+    --------------------------------------------------------------
+    This is the sign-in UI for the first user story.
+    For now it is frontend only.
+    Later we will connect this form to Supabase authentication.
+    ==============================================================
+  -->
+    <div
+      class="modal fade"
+      id="signInModal"
+      tabindex="-1"
+      aria-labelledby="signInModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content hr-modal-shell border-0">
+          <div class="modal-body p-0">
+            <div class="row g-0">
+              <!-- Left side of modal -->
+              <div class="col-lg-5 d-none d-lg-block">
+                <div class="hr-modal-panel p-4 p-xl-5 h-100">
+                  <span class="badge text-bg-light rounded-pill mb-3"
+                    >Welcome Back</span
+                  >
+                  <h3 class="fw-bold mb-3">
+                    Sign in to your HR & Payroll workspace
+                  </h3>
+                  <p class="text-white-50 mb-4">
+                    Access your dashboard, tasks, payroll tools, and
+                    role-specific features through a secure sign-in experience.
+                  </p>
+
+                  <div class="hr-panel-box p-3 rounded-4 mb-3">
+                    <div class="fw-semibold mb-1">Secure access</div>
+                    <small class="text-white-50"
+                      >Valid credentials help the right users enter the right
+                      workspace.</small
+                    >
+                  </div>
+
+                  <div class="hr-panel-box p-3 rounded-4">
+                    <div class="fw-semibold mb-1">Protected entry</div>
+                    <small class="text-white-50"
+                      >Incorrect sign-in attempts are blocked to protect the
+                      application.</small
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right side of modal -->
+              <div class="col-lg-7">
+                <div class="p-4 p-md-5">
+                  <div
+                    class="d-flex justify-content-between align-items-start mb-3"
+                  >
+                    <div>
+                      <h2 class="fw-bold mb-1" id="signInModalLabel">
+                        Sign In
+                      </h2>
+                      <p class="text-secondary mb-0">
+                        Enter your details to continue.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="btn-close"
+                      data-bs-dismiss="modal"
+                      aria-label="Close"
+                    ></button>
+                  </div>
+
+                  <!--
+                  Alert container for sign-in messages.
+                  Messages such as invalid credentials or success will be shown here.
+                -->
+                  <div id="loginAlertContainer"></div>
+
+                  <!--
+                  SIGN-IN FORM
+                  ------------------------------------------------------
+                  This form will later be connected to Supabase auth.
+                  For now it validates the UI cleanly and simulates login behavior.
+                -->
+                  <form id="loginForm" novalidate>
+                    <div class="mb-3">
+                      <label for="email" class="form-label fw-semibold"
+                        >Email Address</label
+                      >
+                      <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                          <i class="bi bi-envelope"></i>
+                        </span>
+                        <input
+                          type="email"
+                          class="form-control border-start-0"
+                          id="email"
+                          placeholder="Enter your email"
+                          required
+                        />
+                      </div>
+                      <div class="invalid-feedback">
+                        Please enter your email address.
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label for="password" class="form-label fw-semibold"
+                        >Password</label
+                      >
+                      <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                          <i class="bi bi-shield-lock"></i>
+                        </span>
+                        <input
+                          type="password"
+                          class="form-control border-start-0 border-end-0"
+                          id="password"
+                          placeholder="Enter your password"
+                          required
+                        />
+                        <button
+                          class="btn btn-outline-secondary"
+                          type="button"
+                          id="togglePasswordBtn"
+                          aria-label="Toggle password visibility"
+                        >
+                          <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                        </button>
+                      </div>
+                      <div class="invalid-feedback">
+                        Please enter your password.
+                      </div>
+                    </div>
+
+                    <div
+                      class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4"
+                    >
+                      <div class="form-check">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          id="rememberMe"
+                        />
+                        <label class="form-check-label" for="rememberMe"
+                          >Remember me</label
+                        >
+                      </div>
+
+                      <a href="#" class="hr-link" id="forgotPasswordLink">Forgot password?</a>
+                    </div>
+
+                    <button type="submit" class="btn hr-btn-primary w-100 mb-3">
+                      <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </button>
+                  </form>
+
+                  <!--
+                  Developer note shown in UI.
+                  Makes clear that this is the frontend stage before Supabase wiring.
+                -->
+                  <div class="hr-dev-note p-3 mt-4 small text-secondary">
+                    <strong>Note:</strong> Password reset, profile roles, and
+                    role-based dashboards will be expanded in the next build
+                    steps.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="hr-footer py-4 mt-4">
+      <div
+        class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3"
+      >
+        <div class="d-flex align-items-center gap-2">
+          <span class="hr-brand-mark">HR</span>
+          <span class="hr-brand-text">HR & Payroll System</span>
+        </div>
+        <div class="text-secondary small">
+          © 2026 HR & Payroll System. All rights reserved.
+        </div>
+      </div>
+    </footer>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!--
+    ============================================================== 
+    SUPABASE JAVASCRIPT CLIENT
+    --------------------------------------------------------------
+    This is the browser client library used to authenticate users
+    with Supabase from plain HTML and JavaScript.
+    ============================================================== 
+  -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Custom JavaScript -->
+    <script src="js/app.js"></script>
+  </body>
+</html>

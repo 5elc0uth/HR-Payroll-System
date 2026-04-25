@@ -1,0 +1,760 @@
+:root {
+  --hr-primary: #904d00;
+  --hr-primary-soft: #ffa04b;
+  --hr-primary-dark: #6f3900;
+  --hr-background: #f8f9ff;
+  --hr-surface: #ffffff;
+  --hr-text: #121c2a;
+  --hr-muted: #5f6977;
+  --hr-border: #ead9c9;
+  --hr-soft-surface: #fff7ef;
+}
+
+/* Global page styling */
+body {
+  background-color: var(--hr-background);
+  color: var(--hr-text);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Smooth scroll for navbar anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
+/*
+  =====================================================================
+  NAVBAR
+  =====================================================================
+*/
+.hr-navbar {
+  background: rgba(248, 249, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(234, 217, 201, 0.75);
+}
+
+.hr-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  background: linear-gradient(135deg,
+      var(--hr-primary) 0%,
+      var(--hr-primary-soft) 100%);
+  box-shadow: 0 12px 28px rgba(144, 77, 0, 0.18);
+}
+
+.hr-brand-text {
+  color: var(--hr-primary-dark);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/*
+  =====================================================================
+  HERO SECTION
+  =====================================================================
+*/
+.hr-hero-section {
+  padding-top: 8rem;
+  padding-bottom: 5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hr-hero-section::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: rgba(255, 160, 75, 0.18);
+  filter: blur(10px);
+}
+
+.hr-hero-badge {
+  display: inline-block;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: #fff6ec;
+  color: var(--hr-primary);
+  border: 1px solid #f0d7b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hr-hero-title {
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.hr-hero-title .accent {
+  color: var(--hr-primary);
+  font-style: italic;
+}
+
+.hr-hero-copy {
+  color: var(--hr-muted);
+  font-size: 1.08rem;
+  line-height: 1.8;
+  max-width: 620px;
+}
+
+/* Right hero panel */
+.hr-hero-panel,
+.hr-modal-panel {
+  background: linear-gradient(145deg, #7a4100 0%, #904d00 45%, #ffa04b 100%);
+  color: #ffffff;
+  border-radius: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 55px rgba(18, 28, 42, 0.12);
+}
+
+.hr-hero-panel {
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hr-hero-panel::before,
+.hr-hero-panel::after,
+.hr-modal-panel::before,
+.hr-modal-panel::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hr-hero-panel::before,
+.hr-modal-panel::before {
+  width: 220px;
+  height: 220px;
+  top: -55px;
+  right: -55px;
+}
+
+.hr-hero-panel::after,
+.hr-modal-panel::after {
+  width: 160px;
+  height: 160px;
+  left: -30px;
+  bottom: -35px;
+}
+
+.hr-panel-box {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/*
+  =====================================================================
+  BUTTONS
+  =====================================================================
+*/
+.hr-btn-primary {
+  background: linear-gradient(135deg,
+      var(--hr-primary) 0%,
+      var(--hr-primary-soft) 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.95rem 1.6rem;
+  font-weight: 600;
+  box-shadow: 0 14px 30px rgba(144, 77, 0, 0.16);
+}
+
+.hr-btn-primary:hover,
+.hr-btn-primary:focus {
+  color: #ffffff;
+  opacity: 0.96;
+}
+
+.hr-btn-secondary {
+  background: #ffffff;
+  color: var(--hr-primary);
+  border: 1px solid var(--hr-border);
+  border-radius: 999px;
+  padding: 0.95rem 1.6rem;
+  font-weight: 600;
+}
+
+.hr-btn-secondary:hover,
+.hr-btn-secondary:focus {
+  color: var(--hr-primary-dark);
+}
+
+/*
+  =====================================================================
+  CARDS
+  =====================================================================
+*/
+.hr-mini-card,
+.hr-feature-card,
+.hr-role-card,
+.hr-access-card {
+  background: var(--hr-surface);
+  border: 1px solid rgba(234, 217, 201, 0.95);
+  border-radius: 1.35rem;
+  box-shadow: 0 18px 40px rgba(18, 28, 42, 0.06);
+}
+
+.hr-feature-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff2e5;
+  color: var(--hr-primary);
+  font-size: 1.35rem;
+}
+
+/*
+  =====================================================================
+  SECTION TYPOGRAPHY
+  =====================================================================
+*/
+.hr-section-title {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.hr-section-copy {
+  color: var(--hr-muted);
+  max-width: 680px;
+  line-height: 1.8;
+}
+
+/*
+  =====================================================================
+  MODAL / SIGN-IN
+  =====================================================================
+*/
+.hr-modal-shell {
+  border-radius: 1.5rem;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 24px 55px rgba(18, 28, 42, 0.14);
+}
+
+/* Custom input appearance */
+.form-control,
+.form-select,
+.input-group-text {
+  min-height: 50px;
+  border-color: var(--hr-border);
+}
+
+.form-control,
+.form-select {
+  border-radius: 0.9rem;
+}
+
+.input-group>.input-group-text {
+  border-radius: 0.9rem 0 0 0.9rem;
+}
+
+.input-group>.form-control:last-child,
+.input-group>.btn:last-child {
+  border-radius: 0 0.9rem 0.9rem 0;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--hr-primary-soft);
+  box-shadow: 0 0 0 0.25rem rgba(144, 77, 0, 0.15);
+}
+
+.hr-link {
+  color: var(--hr-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hr-link:hover {
+  text-decoration: underline;
+}
+
+.hr-dev-note {
+  border-left: 4px solid var(--hr-primary-soft);
+  background: var(--hr-soft-surface);
+  border-radius: 1rem;
+}
+
+/*
+  =====================================================================
+  FOOTER
+  =====================================================================
+*/
+.hr-footer {
+  background: #f2f4fb;
+  border-top: 1px solid rgba(234, 217, 201, 0.8);
+}
+
+/*
+  =====================================================================
+  RESPONSIVE TUNING
+  =====================================================================
+*/
+@media (max-width: 991.98px) {
+  .hr-hero-section {
+    padding-top: 7rem;
+  }
+
+  .hr-hero-panel {
+    min-height: auto;
+  }
+}
+
+/* =========================================================
+   DASHBOARD SHARED STYLES
+   These styles give the HR and Employee dashboards a more
+   polished product feel while keeping Bootstrap structure.
+   ========================================================= */
+
+.dashboard-page {
+  background: linear-gradient(180deg, #f7f4ef 0%, #f4f6f9 100%);
+  min-height: 100vh;
+}
+
+.dashboard-hero {
+  background: linear-gradient(135deg, #7a4300 0%, #b96a10 55%, #e7963a 100%);
+  color: #ffffff;
+  border-radius: 28px;
+  padding: 2rem;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-hero::before,
+.dashboard-hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-hero::before {
+  width: 220px;
+  height: 220px;
+  right: -60px;
+  top: -60px;
+}
+
+.dashboard-hero::after {
+  width: 160px;
+  height: 160px;
+  left: -40px;
+  bottom: -50px;
+}
+
+.dashboard-hero>* {
+  position: relative;
+  z-index: 2;
+}
+
+.dashboard-hero::before,
+.dashboard-hero::after {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.hero-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.hero-meta-card {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  padding: 1rem 1.1rem;
+  backdrop-filter: blur(4px);
+}
+
+.hero-meta-label {
+  font-size: 0.82rem;
+  opacity: 0.9;
+  margin-bottom: 0.35rem;
+}
+
+.hero-meta-value {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.dashboard-section-card {
+  border: 0;
+  border-radius: 24px;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.08);
+  background: #ffffff;
+}
+
+.dashboard-section-card .section-heading {
+  font-weight: 800;
+  color: #16233b;
+}
+
+.dashboard-section-card .section-subtext {
+  color: #667085;
+}
+
+.info-tile {
+  height: 100%;
+  border-radius: 22px;
+  border: 1px solid #e8edf3;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  padding: 1rem 1.1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.info-tile-label {
+  font-size: 0.86rem;
+  color: #667085;
+  margin-bottom: 0.45rem;
+}
+
+.info-tile-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #14213d;
+  word-break: break-word;
+}
+
+.dashboard-note {
+  border-radius: 22px;
+  background: linear-gradient(135deg, #fff7ed 0%, #fffbf5 100%);
+  border: 1px solid #f5d7b2;
+  padding: 1rem 1.1rem;
+  color: #8b5e25;
+}
+
+.dashboard-table-wrap {
+  border: 1px solid #edf1f5;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.dashboard-table-wrap .table {
+  margin-bottom: 0;
+}
+
+.dashboard-table-wrap thead th {
+  background: #f8fafc;
+  color: #475467;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-bottom: 1px solid #e9eef5;
+}
+
+.dashboard-table-wrap tbody td {
+  vertical-align: middle;
+}
+
+.dashboard-action-btn {
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+.dashboard-form-card .form-control,
+.dashboard-form-card .form-select {
+  border-radius: 16px;
+  min-height: 50px;
+}
+
+.dashboard-form-card .form-control:focus,
+.dashboard-form-card .form-select:focus {
+  box-shadow: 0 0 0 0.18rem rgba(233, 150, 59, 0.2);
+  border-color: #e7963a;
+}
+
+.dashboard-form-card .btn {
+  border-radius: 16px;
+  min-height: 48px;
+  font-weight: 700;
+}
+
+.dashboard-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #7a4300;
+  background: linear-gradient(135deg, #fff3e2 0%, #ffe2bd 100%);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 768px) {
+  .dashboard-hero {
+    padding: 1.4rem;
+    border-radius: 22px;
+  }
+
+  .dashboard-section-card {
+    border-radius: 20px;
+  }
+
+  .info-tile {
+    border-radius: 18px;
+  }
+}
+
+/* =========================================================
+   US006 - Leave Management additions
+   Keeps employee dashboard aligned with admin/hr dashboards
+========================================================= */
+
+.dashboard-page {
+  background-color: #f8f9fc;
+  min-height: 100vh;
+}
+
+.dashboard-navbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.dashboard-navbar .navbar-brand {
+  color: #212529;
+}
+
+.dashboard-navbar .nav-link {
+  color: #495057;
+  border: none;
+  background: transparent;
+}
+
+.dashboard-navbar .nav-link.active {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+.dashboard-header-card {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03);
+}
+
+.dashboard-card {
+  border: 1px solid #e9ecef;
+  border-radius: 1rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03);
+}
+
+.profile-avatar-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.profile-avatar {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #f1f3f5;
+}
+
+.dashboard-section {
+  animation: fadeInSection 0.2s ease-in-out;
+}
+
+@keyframes fadeInSection {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   DASHBOARD TOOLBAR PATCH
+   Keeps header actions inline on desktop and wraps cleanly
+   only when space is genuinely limited.
+   ========================================================= */
+.dashboard-toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  width: auto;
+  max-width: 100%;
+  margin-left: auto;
+}
+
+.dashboard-toolbar .dashboard-action-btn,
+.dashboard-toolbar .badge {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767.98px) {
+  .dashboard-toolbar {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+}
+
+/* =========================================================
+   HR FORM HEADER PATCH
+   Keeps the employee form title area stacked, while the
+   action controls stay on their own clean row.
+   ========================================================= */
+.hr-form-toolbar {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+@media (max-width: 767.98px) {
+  .hr-form-toolbar {
+    justify-content: flex-start;
+  }
+}
+
+/* =========================================================
+   SHARED MOBILE TABLE USABILITY PATCH
+   Applies across all role dashboards that use
+   .dashboard-table-wrap for responsive tables.
+
+   Purpose:
+   - Keep the last column visible on smaller screens
+   - Usually this is the Action column
+   - Preserve Bootstrap horizontal scrolling
+   - Improve mobile usability without changing desktop flow
+   ========================================================= */
+
+.dashboard-table-wrap {
+  position: relative;
+}
+
+/* Keep table readable and prevent cramped wrapping on smaller devices */
+@media (max-width: 991.98px) {
+  .dashboard-table-wrap {
+    position: relative;
+    padding-bottom: 0.25rem;
+  }
+
+  .dashboard-table-wrap table {
+    min-width: 920px;
+  }
+
+  .dashboard-table-wrap th,
+  .dashboard-table-wrap td {
+    vertical-align: middle;
+  }
+
+  /* Keep action buttons readable without forcing sticky clipping issues */
+  .dashboard-table-wrap td:last-child .btn,
+  .dashboard-table-wrap td:last-child .dashboard-action-btn {
+    white-space: nowrap;
+  }
+}
+
+/* Small phones: allow a little more scroll room and reduce density slightly */
+@media (max-width: 575.98px) {
+  .dashboard-table-wrap table {
+    min-width: 980px;
+  }
+
+  .dashboard-table-wrap th,
+  .dashboard-table-wrap td {
+    font-size: 0.95rem;
+  }
+}
+
+/* =========================================================
+   SHARED TABLE SCROLL USABILITY PATCH
+   Improves mobile/tablet horizontal table scrolling feel
+   across all dashboards using .dashboard-table-wrap.
+   ========================================================= */
+
+.dashboard-table-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.dashboard-table-wrap::-webkit-scrollbar {
+  height: 10px;
+}
+
+.dashboard-table-wrap::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
+}
+
+.dashboard-table-wrap::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.05);
+  border-radius: 999px;
+}
+
+/* =========================================================
+   SHARED MOBILE TABLE HINT ROW
+   This hint is shown above table wrappers only when a
+   dashboard section includes .dashboard-table-hint.
+   Safer than using ::before on the scroll container.
+   ========================================================= */
+.dashboard-table-hint {
+  display: none;
+}
+
+@media (max-width: 991.98px) {
+  .dashboard-table-hint {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+    padding-left: 0.125rem;
+  }
+}
+
+#employeeHeroImage.dashboard-avatar {
+  object-fit: cover;
+  display: inline-block;
+}

@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HR Dashboard | HR & Payroll System</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.png" />
+</head>
+
+<body class="dashboard-page">
+  <main class="container py-4 py-lg-5">
+    <section class="dashboard-hero mb-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-4">
+        <div>
+          <div class="hero-badge">
+            <i class="bi bi-people"></i>
+            HR Workspace
+          </div>
+          <h1 class="display-6 fw-bold mb-2">HR Dashboard</h1>
+          <p class="mb-0" style="max-width: 760px">
+            Manage your HR profile, employee records, supporting documents, and payroll records in one place.
+          </p>
+        </div>
+
+        <div class="d-flex flex-column align-items-lg-end gap-2">
+          <div class="position-relative">
+            <div class="dashboard-avatar" id="hrInitials">HR</div>
+            <img id="hrHeroImage" src="" alt="HR hero avatar" class="dashboard-avatar d-none"
+              style="width: 68px; height: 68px; object-fit: cover;" />
+          </div>
+
+          <button id="logoutBtn" class="btn btn-light dashboard-action-btn">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-meta-grid">
+        <div class="hero-meta-card">
+          <div class="hero-meta-label">Signed in as</div>
+          <div class="hero-meta-value text-break" id="hrEmail">Loading.</div>
+        </div>
+
+        <div class="hero-meta-card">
+          <div class="hero-meta-label">Role</div>
+          <div class="hero-meta-value" id="hrRole">hr</div>
+        </div>
+
+        <div class="hero-meta-card">
+          <div class="hero-meta-label">Current Workspace</div>
+          <div class="hero-meta-value" id="hrModuleValue">Profile</div>
+        </div>
+      </div>
+    </section>
+
+    <div id="pageAlert" class="alert d-none mb-4" role="alert"></div>
+
+    <section class="card dashboard-section-card mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+          <div>
+            <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 10
+       Shorten the workspace wording so the top-level navigation feels lighter
+       and aligns with the reduced tab labels. -->
+            <h2 class="section-heading h4 mb-1">HR Workspace</h2>
+            <p class="section-subtext mb-0">
+              Switch between your personal profile, employees, and payroll.
+            </p>
+          </div>
+
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 9
+     Remove the forced horizontal scroll from the HR workspace tabs.
+     Let the buttons wrap cleanly so the workspace switcher looks stable
+     and professional across widths. -->
+          <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-lg-end">
+            <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 10
+       Use shorter top-level tab labels so the HR workspace navigation
+       stays inline more naturally. -->
+            <button type="button" class="btn btn-primary dashboard-action-btn text-nowrap" id="hrTabProfileBtn">
+              <i class="bi bi-person-circle me-2"></i>Profile
+            </button>
+
+            <button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap"
+              id="hrTabEmployeesBtn">
+              <i class="bi bi-people me-2"></i>Employees
+            </button>
+
+            <button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap" id="hrTabPayrollBtn">
+              <i class="bi bi-cash-coin me-2"></i>Payroll
+            </button>
+
+            <!-- RUN PAYROLL - STEP 1
+     Add Run Payroll as a separate primary workflow action.
+     It does not replace the Payroll tab; it starts the payroll selection flow
+     from the existing Full Employee List. -->
+            <button type="button" class="btn btn-success dashboard-action-btn text-nowrap" id="runPayrollActionBtn">
+              <i class="bi bi-play-circle me-2"></i>Run Payroll
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="hrProfileSection" class="workspace-section">
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <div class="mb-4">
+            <h2 class="section-heading h4 mb-1">My Profile</h2>
+            <p class="section-subtext mb-0">
+              View and update your own HR profile details.
+            </p>
+          </div>
+
+          <div class="row g-4 align-items-start">
+            <div class="col-lg-4">
+              <div class="border rounded-4 p-4 h-100 text-center">
+                <div class="dashboard-avatar mx-auto mb-3" id="hrProfileAvatar">
+                  HR
+                </div>
+                <h3 class="h5 mb-1" id="hrProfileCardName">HR User</h3>
+                <p class="text-secondary mb-3 text-break" id="hrProfileCardEmail">
+                  --
+                </p>
+
+                <div class="small text-secondary mb-2">Profile Photo</div>
+
+                <div class="border rounded-4 p-3 bg-light-subtle">
+                  <div class="mb-3">
+                    <img id="hrProfileImagePreview" src="" alt="HR profile preview"
+                      class="img-fluid rounded-circle d-none" style="width: 96px; height: 96px; object-fit: cover;" />
+                  </div>
+
+                  <div class="d-grid gap-2">
+                    <input type="file" id="hrProfileImageInput" class="form-control" accept=".png,.jpg,.jpeg,.webp" />
+
+                    <button type="button" id="saveHrProfileImageBtn"
+                      class="btn btn-outline-primary dashboard-action-btn">
+                      <i class="bi bi-image me-2"></i>Upload Profile Photo
+                    </button>
+                  </div>
+
+                  <div class="text-secondary small mt-3">
+                    Allowed: PNG, JPG, JPEG, WEBP. Maximum file size: 5MB.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-8">
+              <form id="hrProfileForm" novalidate>
+                <div class="row g-4">
+                  <div class="col-md-6">
+                    <label for="hrProfileFullName" class="form-label fw-semibold">
+                      Full Name <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" id="hrProfileFullName" class="form-control" placeholder="Enter your full name"
+                      required />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="hrProfileEmail" class="form-label fw-semibold">
+                      Email
+                    </label>
+                    <input type="email" id="hrProfileEmail" class="form-control" readonly />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="hrProfileRole" class="form-label fw-semibold">
+                      Role
+                    </label>
+                    <input type="text" id="hrProfileRole" class="form-control" readonly />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="hrProfileDepartment" class="form-label fw-semibold">
+                      Department
+                    </label>
+                    <input type="text" id="hrProfileDepartment" class="form-control" placeholder="Enter department" />
+                  </div>
+
+                  <div class="col-12">
+                    <button type="submit" id="saveHrProfileBtn" class="btn btn-primary dashboard-action-btn">
+                      <i class="bi bi-save me-2"></i>
+                      <span id="saveHrProfileBtnText">Save Profile Changes</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="hrEmployeesSection" class="workspace-section d-none">
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <div class="mb-4">
+            <h2 class="section-heading h4 mb-1">Employee Management Summary</h2>
+            <p class="section-subtext mb-0">
+              Quick view of employee records currently stored in the system.
+            </p>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Total Employees</div>
+                <div class="summary-tile-value" id="totalEmployeesValue">0</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Active Employees</div>
+                <div class="summary-tile-value" id="activeEmployeesValue">0</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Departments</div>
+                <div class="summary-tile-value" id="departmentsValue">0</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Without Employee Number</div>
+                <div class="summary-tile-value" id="missingEmployeeNumberValue">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <!-- DESCRIPTION ITEM 1 - STEP 5
+     Add a persistent header row so the Create Employee Profile card
+     can collapse and expand without losing its title/action control. -->
+          <div class="mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+              <div>
+                <h2 class="section-heading h4 mb-1" id="employeeFormTitle">
+                  Create Employee Profile
+                </h2>
+                <p class="section-subtext mb-0" id="employeeFormSubtext">
+                  Enter employee bio data and employment details. Fields marked
+                  with <span class="text-danger">*</span> are required.
+                </p>
+              </div>
+
+              <button type="button" id="toggleEmployeeFormCardBtn"
+                class="btn btn-outline-secondary dashboard-action-btn align-self-start" aria-expanded="true"
+                aria-controls="employeeFormCardCollapse">
+                <i class="bi bi-chevron-up me-2"></i>
+                <span>Collapse</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="employeeFormCardCollapse">
+            <div class="dashboard-toolbar hr-form-toolbar mb-4">
+              <span id="employeeFormModeBadge" class="badge rounded-pill text-bg-light border px-3 py-2">
+                Create Mode
+              </span>
+
+              <button type="button" id="cancelEditBtn" class="btn btn-outline-danger dashboard-action-btn d-none">
+                <i class="bi bi-x-circle me-2"></i>Cancel Edit
+              </button>
+
+              <button type="button" id="resetEmployeeFormBtn" class="btn btn-outline-secondary dashboard-action-btn">
+                <i class="bi bi-arrow-counterclockwise me-2"></i>Clear Form
+              </button>
+
+              <button type="button" id="refreshEmployeesBtn" class="btn btn-outline-primary dashboard-action-btn">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh Records
+              </button>
+            </div>
+
+            <form id="employeeCreateForm" novalidate>
+              <input type="hidden" id="editingEmployeeId" />
+
+              <div class="row g-4">
+                <div class="col-12">
+                  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+                      <div>
+                        <h3 class="h6 fw-bold mb-2">Account Access &amp; Profile Setup</h3>
+                        <p class="text-secondary mb-0 small">
+                          This shows whether the employee record is already linked to a real
+                          sign-in account. Profile photo setup follows the same linkage flow.
+                        </p>
+                      </div>
+
+                      <div class="text-lg-end">
+                        <div class="small text-secondary mb-1">Account Status</div>
+                        <div id="employeeAccountStatusBadge">--</div>
+                      </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                      <div class="col-md-6">
+                        <div class="small text-secondary mb-1">Linked / Matched Email</div>
+                        <div class="fw-semibold text-break" id="employeeLinkedEmailValue">--</div>
+                      </div>
+
+                      <div class="col-md-6">
+                        <div class="small text-secondary mb-1">Profile Photo Setup</div>
+                        <div class="fw-semibold" id="employeePhotoSetupValue">
+                          Will follow account linkage
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-3">Bio Data</h3>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="firstName" class="form-label fw-semibold">
+                    First Name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="firstName" class="form-control" placeholder="Enter first name" required />
+                  <div class="invalid-feedback">First name is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="lastName" class="form-label fw-semibold">
+                    Last Name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="lastName" class="form-control" placeholder="Enter last name" required />
+                  <div class="invalid-feedback">Last name is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="workEmail" class="form-label fw-semibold">
+                    Work Email <span class="text-danger">*</span>
+                  </label>
+                  <input type="email" id="workEmail" class="form-control" placeholder="employee@company.com" required />
+                  <div class="form-text">
+                    This email must be unique because it supports sign-on and
+                    notifications.
+                  </div>
+                  <div class="invalid-feedback">A valid work email is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="phoneNumber" class="form-label fw-semibold">
+                    Phone Number
+                  </label>
+                  <input type="text" id="phoneNumber" class="form-control" placeholder="Enter phone number" />
+                </div>
+
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-3 mt-2">Employment Details</h3>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="department" class="form-label fw-semibold">
+                    Department <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="department" class="form-control" placeholder="Enter department" required />
+                  <div class="invalid-feedback">Department is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="jobTitle" class="form-label fw-semibold">
+                    Job Title <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="jobTitle" class="form-control" placeholder="Enter job title" required />
+                  <div class="invalid-feedback">Job title is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <!-- DESCRIPTION ITEM 5 - STEP 2
+       Capture grade level in the HR employee source so it can be shown
+       in the employee list without adding a separate table column. -->
+                  <label for="gradeLevel" class="form-label fw-semibold">
+                    Grade Level
+                  </label>
+                  <input type="text" id="gradeLevel" class="form-control" placeholder="e.g. GL07 / Junior Accountant" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="lineManager" class="form-label fw-semibold">
+                    Line Manager <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="lineManager" class="form-control" placeholder="Enter line manager name"
+                    required />
+                  <div class="invalid-feedback">Line manager is required.</div>
+                </div>
+
+                <!-- DESCRIPTION ITEM 5 - SYNC FOUNDATION STEP 3A
+     Remove stray text that was breaking the employee form grid layout
+     before continuing employee-to-payroll alignment work. -->
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="employmentDate" class="form-label fw-semibold">
+                    Employment Date <span class="text-danger">*</span>
+                  </label>
+                  <input type="date" id="employmentDate" class="form-control" required />
+                  <div class="invalid-feedback">Employment date is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="approverEmail" class="form-label fw-semibold">
+                    Approver Email <span class="text-danger">*</span>
+                  </label>
+                  <input type="email" id="approverEmail" class="form-control" placeholder="manager@company.com"
+                    required />
+                  <div class="form-text">
+                    This email is used for workflow routing and approvals.
+                  </div>
+                  <div class="invalid-feedback">A valid approver email is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeNumber" class="form-label fw-semibold">
+                    Employee Number
+                  </label>
+                  <input type="text" id="employeeNumber" class="form-control" placeholder="e.g. EMP001" />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employmentStatus" class="form-label fw-semibold">
+                    Default Status
+                  </label>
+                  <select id="employmentStatus" class="form-select">
+                    <option value="Active" selected>Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="systemRole" class="form-label fw-semibold">
+                    System Role
+                  </label>
+                  <select id="systemRole" class="form-select">
+                    <option value="">Select role (optional)</option>
+                    <option value="employee">Employee</option>
+                    <option value="manager">Manager</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="hr">HR</option>
+                    <option value="hr_manager">HR Manager</option>
+                    <option value="payroll">Payroll</option>
+                    <option value="payroll_manager">Payroll Manager</option>
+                    <option value="leadership">Leadership / Executive</option>
+                    <option value="system_admin">System Admin</option>
+                    <option value="auditor">Auditor</option>
+                    <option value="qa_analyst">QA Analyst</option>
+                  </select>
+                </div>
+
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-3 mt-2">Supporting Documents</h3>
+                </div>
+
+                <div class="col-12">
+                  <div class="border rounded-4 p-3 p-lg-4">
+                    <!-- =========================================================
+     UI POLISH
+     Keep file input and Clear Pending Files button inline.
+     Helper text now sits below both controls instead of
+     pushing the button lower than the input row.
+========================================================== -->
+                    <div class="row g-3 align-items-center">
+                      <!-- DESCRIPTION ITEM 10 - STEP 1
+       Add a document type selector so HR can classify each upload
+       before the file is submitted and saved. -->
+                      <div class="col-lg-5">
+                        <label for="employeeDocumentsInput" class="form-label fw-semibold">
+                          Attach Supporting Documents
+                        </label>
+                        <input type="file" id="employeeDocumentsInput" class="form-control" multiple
+                          accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
+                      </div>
+
+                      <div class="col-lg-4">
+                        <label for="employeeDocumentType" class="form-label fw-semibold">
+                          Document Type
+                        </label>
+                        <select id="employeeDocumentType" class="form-select">
+                          <option value="">Select document type</option>
+                          <option value="Birth Certificate">Birth Certificate</option>
+                          <option value="State of Origin">State of Origin</option>
+                          <option value="WAEC / NECO">WAEC / NECO</option>
+                          <option value="NYSC Certificate">NYSC Certificate</option>
+                          <option value="Degree Certificate">Degree Certificate</option>
+                          <option value="CV / Resume">CV / Resume</option>
+                          <option value="National ID">National ID</option>
+                          <option value="International Passport">International Passport</option>
+                          <option value="Offer Letter">Offer Letter</option>
+                          <option value="Employment Contract">Employment Contract</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div class="col-lg-3">
+                        <label class="form-label fw-semibold d-block opacity-0">
+                          Action
+                        </label>
+                        <button type="button" id="clearPendingDocumentsBtn"
+                          class="btn btn-outline-secondary dashboard-action-btn w-100 text-nowrap">
+                          <i class="bi bi-trash me-2"></i>Clear Pending Files
+                        </button>
+                      </div>
+
+                      <div class="col-12">
+                        <div class="form-text">
+                          Allowed: PDF, DOC, DOCX, PNG, JPG, JPEG. Maximum file size: 10MB per file.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mt-4">
+                      <div class="fw-semibold mb-2">Pending Uploads</div>
+                      <div class="text-secondary small mb-2">
+                        Files selected here are not saved yet. Click
+                        <strong>Create Employee Profile</strong> or
+                        <strong>Update Employee Profile</strong> to upload them.
+                      </div>
+                      <div id="pendingDocumentsEmptyState" class="text-secondary small">
+                        No files selected yet.
+                      </div>
+                      <div id="pendingDocumentsList" class="list-group d-none"></div>
+
+                      <hr class="my-4" />
+
+                      <div>
+                        <div class="fw-semibold mb-2">Attached Documents (Saved)</div>
+                        <div class="text-secondary small mb-2">
+                          Saved employee documents appear here after a successful create or update.
+                        </div>
+                        <div id="attachedDocumentsEmptyState" class="text-secondary small">
+                          No uploaded documents saved for this employee yet.
+                        </div>
+                        <div id="attachedDocumentsList" class="list-group d-none"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 pt-2">
+                    <button type="submit" id="saveEmployeeBtn" class="btn btn-primary dashboard-action-btn">
+                      <i class="bi bi-person-plus me-2"></i>
+                      <span id="saveEmployeeBtnText">Create Employee Profile</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <!-- DESCRIPTION ITEM 1 - BREAK FIX
+                 Close the employee form collapse wrapper cleanly,
+                 then close the card body before ending the section. -->
+          </div>
+        </div>
+      </section>
+
+      <section class="card dashboard-section-card">
+        <div class="card-body p-4 p-lg-5">
+          <!-- DESCRIPTION ITEM 1 - STEP 5A
+               Activate the Full Employee List collapse header.
+               The JS is already wired for these ids; this patch adds the missing HTML. -->
+          <div class="mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+              <div>
+                <h2 class="section-heading h4 mb-1">Full Employee List</h2>
+                <p class="section-subtext mb-0">
+                  Read-only employee reference pulled from the main HR database for HR visibility and later payroll use.
+                </p>
+              </div>
+
+              <button type="button" id="toggleEmployeeListCardBtn"
+                class="btn btn-outline-secondary dashboard-action-btn align-self-start" aria-expanded="true"
+                aria-controls="employeeListCardCollapse">
+                <i class="bi bi-chevron-up me-2"></i>
+                <span>Collapse</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="employeeListCardCollapse">
+            <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-start gap-4 mb-4">
+              <div class="flex-grow-1">
+                <!-- DESCRIPTION ITEM 1 - STEP 5A
+                     Keep the HR/payroll context chips inside the collapsible area. -->
+                <!-- DESCRIPTION ITEM 9 - STEP 3
+     Remove non-functional helper badges and replace them with
+     a live payroll selection summary for the current employee view. -->
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <span class="fw-semibold small text-dark">Payroll selection:</span>
+                  <span id="employeePayrollSelectionSummary" class="text-secondary small">
+                    0 employees selected for this month.
+                  </span>
+                </div>
+              </div>
+
+              <div class="w-100 w-xl-auto" style="max-width: 360px">
+                <label for="employeeSearchInput" class="form-label fw-semibold mb-2">
+                  Search employee list
+                </label>
+                <input type="text" id="employeeSearchInput" class="form-control"
+                  placeholder="Search by employee ID, name, email, department..." />
+              </div>
+            </div>
+
+            <!-- DESCRIPTION ITEM 1 - STEP 2
+     Keep a single subtle helper line above the table instead of duplicating
+     old summary/search content. -->
+            <p class="text-secondary small mb-4">
+              View employee records held in HR before they are used downstream for payroll processing.
+            </p>
+
+<!-- RUN PAYROLL - STEP 2
+     Hidden by default. Shown only when HR enters the Run Payroll flow
+     so the employee list clearly becomes a payroll selection workspace. -->
+<div id="runPayrollSelectionNotice" class="alert alert-primary d-none mb-4">
+  <div class="fw-semibold">Run Payroll Selection Mode</div>
+  <div class="small mb-3">
+    Select the employees to include in this payroll run, then continue with payroll processing.
+  </div>
+
+  <!-- RUN PAYROLL - STEP 3
+       Add a clear action row so the payroll run flow has a visible next step. -->
+  <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+    <div id="runPayrollSelectedCount" class="fw-semibold">
+      0 employees selected for this payroll run.
+    </div>
+
+    <button
+      type="button"
+      id="continueRunPayrollBtn"
+      class="btn btn-primary dashboard-action-btn text-nowrap"
+      disabled
+    >
+      <i class="bi bi-arrow-right-circle me-2"></i>Continue to Payroll
+    </button>
+  </div>
+</div>
+
+            <!-- DESCRIPTION ITEM 3 - PRE-CHECK FIX
+     Remove the duplicate empty-state wrapper and bring the Full Employee List
+     header back into sync with the current JS renderer, which already includes
+     the payroll selection checkbox column. -->
+            <div id="employeeRecordsEmptyState" class="text-center text-secondary py-4">
+              No employee records are available from HR yet.
+            </div>
+
+            <div class="dashboard-table-hint">Swipe to view more →</div>
+            <div id="employeeRecordsTableWrapper" class="dashboard-table-wrap table-responsive d-none">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th class="text-center">
+                      <div class="d-inline-flex align-items-center gap-2">
+                        <input type="checkbox" id="selectAllEmployeesForPayroll" class="form-check-input mt-0"
+                          aria-label="Select all visible employees for payroll" />
+                        <span>Pay</span>
+                      </div>
+                    </th>
+                    <!-- DESCRIPTION ITEM 5 - STEP 1
+       Remove the standalone Reporting column to create space for the
+       remaining HR details without choking the employee list table. -->
+                    <th>Employee</th>
+                    <th>Contact</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Account</th>
+                    <th>Docs</th>
+                    <th>Start Date</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="employeeRecordsTableBody">
+                  <tr>
+                    <!-- DESCRIPTION ITEM 5 - STEP 1
+     Colspan reduced because the standalone Reporting column has been removed. -->
+                    <td colspan="9" class="text-center text-secondary py-4">
+                      Loading employee records.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- DESCRIPTION ITEM 1 - STEP 5A
+               Close the Full Employee List collapsible content wrapper. -->
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="hrPayrollSection" class="workspace-section d-none">
+
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 2
+     Add a persistent header row so Payroll Overview can collapse and expand
+     cleanly like the employee management cards. -->
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 2 REVERT
+     Keep Payroll Overview permanently visible. -->
+          <div class="mb-4">
+            <h2 class="section-heading h4 mb-1">Payroll Overview</h2>
+            <p class="section-subtext mb-0">
+              Review, create, and update payroll records using the HR payroll workspace.
+            </p>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Payroll Records</div>
+                <div class="summary-tile-value" id="payrollRecordCountValue">0</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Finalised</div>
+                <div class="summary-tile-value" id="payrollFinalisedCountValue">0</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Gross Payroll</div>
+                <div class="summary-tile-value" id="payrollGrossTotalValue">NGN 0.00</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Net Payroll</div>
+                <div class="summary-tile-value" id="payrollNetTotalValue">NGN 0.00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- =========================================================
+           DESCRIPTION ITEM 1 - STEP 2A
+           Payroll master data section shell
+           This is the foundation UI for maintaining employee
+           salary structure master records.
+      ========================================================== -->
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
+     Make Payroll Master Data collapsible like the larger HR working cards.
+     The header stays visible; the form and records collapse underneath it. -->
+          <div class="mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+              <div>
+                <h2 class="section-heading h4 mb-1">Payroll Master Data</h2>
+                <p class="section-subtext mb-0">
+                  Create and maintain payroll master records for each employee.
+                </p>
+              </div>
+
+              <button type="button" id="togglePayrollMasterCardBtn"
+                class="btn btn-outline-secondary dashboard-action-btn align-self-start" aria-expanded="true"
+                aria-controls="payrollMasterCardCollapse">
+                <i class="bi bi-chevron-up me-2"></i>
+                <span>Collapse</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="payrollMasterCardCollapse">
+            <div class="dashboard-toolbar hr-form-toolbar mb-4">
+              <span id="payrollMasterFormModeBadge" class="badge rounded-pill text-bg-light border px-3 py-2">
+                Create Mode
+              </span>
+
+              <button type="button" id="cancelPayrollMasterEditBtn"
+                class="btn btn-outline-danger dashboard-action-btn d-none">
+                <i class="bi bi-x-circle me-2"></i>Cancel Edit
+              </button>
+
+              <button type="button" id="resetPayrollMasterFormBtn"
+                class="btn btn-outline-secondary dashboard-action-btn">
+                <i class="bi bi-arrow-counterclockwise me-2"></i>Clear Form
+              </button>
+
+              <button type="button" id="refreshPayrollMasterRecordsBtn"
+                class="btn btn-outline-primary dashboard-action-btn">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh Master Data
+              </button>
+            </div>
+
+            <form id="payrollMasterCreateForm" novalidate>
+              <!-- Hidden id used later for edit mode -->
+              <input type="hidden" id="editingPayrollMasterId" />
+
+              <div class="row g-4">
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollMasterEmployeeId" class="form-label fw-semibold">
+                    Employee <span class="text-danger">*</span>
+                  </label>
+                  <select id="payrollMasterEmployeeId" class="form-select" required>
+                    <option value="">Select employee</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollMasterGrade" class="form-label fw-semibold">
+                    Grade <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="payrollMasterGrade" class="form-control"
+                    placeholder="e.g. GL07 / Senior Associate" required />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollMasterBasicSalary" class="form-label fw-semibold">
+                    Basic Salary <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" id="payrollMasterBasicSalary" class="form-control" step="0.01" min="0"
+                    placeholder="Enter basic salary" required />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollMasterEffectiveDate" class="form-label fw-semibold">
+                    Salary Effective Date <span class="text-danger">*</span>
+                  </label>
+                  <input type="date" id="payrollMasterEffectiveDate" class="form-control" required />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollMasterPayCycle" class="form-label fw-semibold">
+                    Pay Cycle <span class="text-danger">*</span>
+                  </label>
+                  <select id="payrollMasterPayCycle" class="form-select" required>
+                    <option value="">Select pay cycle</option>
+                    <option value="Monthly">Monthly</option>
+                    <!-- <option value="Bi-Weekly">Bi-Weekly</option> -->
+                    <!-- <option value="Weekly">Weekly</option> -->
+                  </select>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollMasterStatus" class="form-label fw-semibold">
+                    Payroll Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="payrollMasterStatus" class="form-select" required>
+                    <option value="Active" selected>Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Draft">Draft</option>
+                  </select>
+                </div>
+                <!-- =========================================================
+                   DESCRIPTION ITEM 1 - STEP 2C
+                   Optional notes and save action for payroll master record
+              ========================================================== -->
+                <div class="col-12">
+                  <label for="payrollMasterNotes" class="form-label fw-semibold">
+                    Notes
+                  </label>
+                  <textarea id="payrollMasterNotes" class="form-control" rows="3"
+                    placeholder="Optional payroll master notes"></textarea>
+                </div>
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 pt-2">
+                    <button type="submit" id="savePayrollMasterBtn" class="btn btn-primary dashboard-action-btn">
+                      <i class="bi bi-save me-2"></i>
+                      <span id="savePayrollMasterBtnText">
+                        Create Payroll Master Record
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+            <hr class="my-4" />
+
+            <!-- =========================================================
+               DESCRIPTION ITEM 1 - STEP 2C
+               Payroll master search and records list shell
+               This will later be wired to load and maintain records.
+          ========================================================== -->
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+              <div>
+                <h3 class="h5 mb-1">Payroll Master Records</h3>
+                <p class="section-subtext mb-0">
+                  Review and maintain employee payroll master records by effective date.
+                </p>
+              </div>
+
+              <div class="w-100 w-lg-auto" style="max-width: 320px;">
+                <label for="payrollMasterSearchInput" class="form-label fw-semibold mb-2">
+                  Search payroll master data
+                </label>
+                <input type="text" id="payrollMasterSearchInput" class="form-control"
+                  placeholder="Search by employee, grade, pay cycle..." />
+              </div>
+            </div>
+
+            <div id="payrollMasterRecordsEmptyState" class="text-center text-secondary py-4">
+              No payroll master records found yet.
+            </div>
+
+            <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 11
+     Remove the old side-scroll hint from Payroll Master Records now that
+     the reduced table layout fits more naturally within the card. -->
+            <div id="payrollMasterRecordsTableWrapper" class="dashboard-table-wrap d-none">
+              <table class="table align-middle">
+                <thead>
+                  <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 6
+       Shorten Payroll Master Records headers so the table reads more cleanly
+       and aligns better with the employee list styling. -->
+                  <tr>
+                    <th>Employee</th>
+                    <th>Grade</th>
+                    <th>Salary</th>
+                    <th>Effective</th>
+                    <th>Cycle</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="payrollMasterRecordsTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center text-secondary py-4">
+                      Payroll master records will load here.
+                    </td>
+                  </tr>
+                </tbody>
+                <div id="payrollMasterRecordsTableWrapper" class="dashboard-table-wrap table-responsive d-none">
+                  <table class="table align-middle">
+                  </table>
+                </div>
+
+                <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
+     Close the collapsible content wrapper for Payroll Master Data. -->
+            </div>
+          </div>
+      </section>
+      <!-- =========================================================
+           DESCRIPTION ITEM 2 - STEP 2A
+           Allowance Components section shell
+           This will hold allowance entries linked to a payroll
+           master record, with amount and effective date.
+      ========================================================== -->
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 4
+     Make Allowance Components collapsible like the larger payroll working cards. -->
+          <div class="mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+              <div>
+                <h2 class="section-heading h4 mb-1">Allowance Components</h2>
+                <p class="section-subtext mb-0">
+                  Add and maintain allowance components against an employee payroll profile.
+                </p>
+              </div>
+
+              <button type="button" id="togglePayrollAllowanceCardBtn"
+                class="btn btn-outline-secondary dashboard-action-btn align-self-start" aria-expanded="true"
+                aria-controls="payrollAllowanceCardCollapse">
+                <i class="bi bi-chevron-up me-2"></i>
+                <span>Collapse</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="payrollAllowanceCardCollapse">
+            <div class="dashboard-toolbar hr-form-toolbar mb-4">
+              <span id="payrollAllowanceFormModeBadge" class="badge rounded-pill text-bg-light border px-3 py-2">
+                Create Mode
+              </span>
+
+              <button type="button" id="cancelPayrollAllowanceEditBtn"
+                class="btn btn-outline-danger dashboard-action-btn d-none">
+                <i class="bi bi-x-circle me-2"></i>Cancel Edit
+              </button>
+
+              <button type="button" id="resetPayrollAllowanceFormBtn"
+                class="btn btn-outline-secondary dashboard-action-btn">
+                <i class="bi bi-arrow-counterclockwise me-2"></i>Clear Form
+              </button>
+
+              <button type="button" id="refreshPayrollAllowanceRecordsBtn"
+                class="btn btn-outline-primary dashboard-action-btn">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh Allowances
+              </button>
+            </div>
+
+            <form id="payrollAllowanceCreateForm" novalidate>
+              <!-- Hidden id used later for edit mode -->
+              <input type="hidden" id="editingPayrollAllowanceId" />
+
+              <div class="row g-4">
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollAllowanceMasterRecordId" class="form-label fw-semibold">
+                    Payroll Master Record <span class="text-danger">*</span>
+                  </label>
+                  <select id="payrollAllowanceMasterRecordId" class="form-select" required>
+                    <option value="">Select payroll master record</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollAllowanceType" class="form-label fw-semibold">
+                    Allowance Type <span class="text-danger">*</span>
+                  </label>
+                  <select id="payrollAllowanceType" class="form-select" required>
+                    <option value="">Select allowance type</option>
+                    <option value="Housing">Housing</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Meal">Meal</option>
+                    <option value="Hazard">Hazard</option>
+                    <option value="Utility">Utility</option>
+                    <option value="Medical">Medical</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollAllowanceAmount" class="form-label fw-semibold">
+                    Allowance Amount <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" id="payrollAllowanceAmount" class="form-control" step="0.01" min="0"
+                    placeholder="Enter allowance amount" required />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollAllowanceEffectiveDate" class="form-label fw-semibold">
+                    Effective Date <span class="text-danger">*</span>
+                  </label>
+                  <input type="date" id="payrollAllowanceEffectiveDate" class="form-control" required />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollAllowanceStatus" class="form-label fw-semibold">
+                    Allowance Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="payrollAllowanceStatus" class="form-select" required>
+                    <option value="Active" selected>Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Draft">Draft</option>
+                  </select>
+                </div>
+
+                <div class="col-12">
+                  <label for="payrollAllowanceNotes" class="form-label fw-semibold">
+                    Notes
+                  </label>
+                  <textarea id="payrollAllowanceNotes" class="form-control" rows="3"
+                    placeholder="Optional allowance notes"></textarea>
+                </div>
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 pt-2">
+                    <button type="submit" id="savePayrollAllowanceBtn" class="btn btn-primary dashboard-action-btn">
+                      <i class="bi bi-save me-2"></i>
+                      <span id="savePayrollAllowanceBtnText">
+                        Create Allowance Component
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+            <hr class="my-4" />
+
+            <!-- =========================================================
+     DESCRIPTION ITEM 2 - STEP 2C
+     Allowance search and records list shell
+========================================================== -->
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+              <div>
+                <h3 class="h5 mb-1">Allowance Records</h3>
+                <p class="section-subtext mb-0">
+                  Review and maintain allowance components by type and effective date.
+                </p>
+              </div>
+
+              <div class="w-100 w-lg-auto" style="max-width: 320px;">
+                <label for="payrollAllowanceSearchInput" class="form-label fw-semibold mb-2">
+                  Search allowance records
+                </label>
+                <input type="text" id="payrollAllowanceSearchInput" class="form-control"
+                  placeholder="Search by type, status, effective date..." />
+              </div>
+            </div>
+
+            <div id="payrollAllowanceRecordsEmptyState" class="text-center text-secondary py-4">
+              No allowance components found yet.
+            </div>
+
+            <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 11
+     Remove the old side-scroll hint from Allowance Records now that
+     the reduced table layout fits more naturally within the card. -->
+            <div id="payrollAllowanceRecordsTableWrapper" class="dashboard-table-wrap d-none">
+              <table class="table align-middle">
+                <thead>
+                  <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 7
+       Shorten Allowance Records headers so the table reads more cleanly
+       and aligns with the reduced payroll table style. -->
+                  <tr>
+                    <th>Master Ref</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Effective</th>
+                    <th>Status</th>
+                    <th>Updated</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="payrollAllowanceRecordsTableBody">
+                  <tr>
+                    <td colspan="7" class="text-center text-secondary py-4">
+                      Allowance records will load here.
+                    </td>
+                  </tr>
+                </tbody>
+                <div id="payrollAllowanceRecordsTableWrapper" class="dashboard-table-wrap table-responsive d-none">
+                  <table class="table align-middle">
+                  </table>
+                </div>
+
+                <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 4
+     Close the collapsible content wrapper for Allowance Components. -->
+            </div>
+          </div>
+      </section>
+
+
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 5
+     Make Create Payroll Record collapsible like the larger payroll working cards. -->
+          <div class="mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+              <div>
+                <h2 class="section-heading h4 mb-1" id="payrollFormTitle">
+                  Create Payroll Record
+                </h2>
+                <p class="section-subtext mb-0" id="payrollFormSubtext">
+                  Enter payroll details for an employee. Core monetary fields use NGN.
+                </p>
+              </div>
+
+              <button type="button" id="togglePayrollRecordCardBtn"
+                class="btn btn-outline-secondary dashboard-action-btn align-self-start" aria-expanded="true"
+                aria-controls="payrollRecordCardCollapse">
+                <i class="bi bi-chevron-up me-2"></i>
+                <span>Collapse</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="payrollRecordCardCollapse">
+            <div class="dashboard-toolbar hr-form-toolbar mb-4">
+              <span id="payrollFormModeBadge" class="badge rounded-pill text-bg-light border px-3 py-2">
+                Create Mode
+              </span>
+
+              <button type="button" id="cancelPayrollEditBtn"
+                class="btn btn-outline-danger dashboard-action-btn d-none">
+                <i class="bi bi-x-circle me-2"></i>Cancel Edit
+              </button>
+
+              <!-- SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 3
+     Top shortcut for long payroll forms. It submits the same payroll form
+     as the bottom Submit Payroll button, without duplicating save logic. -->
+<button
+  type="button"
+  id="topSubmitPayrollBtn"
+  class="btn btn-primary dashboard-action-btn text-nowrap"
+>
+  <i class="bi bi-send-check me-2"></i>Submit Payroll
+</button>
+
+              <button type="button" id="resetPayrollFormBtn" class="btn btn-outline-secondary dashboard-action-btn">
+                <i class="bi bi-arrow-counterclockwise me-2"></i>Clear Form
+              </button>
+
+              <button type="button" id="refreshPayrollRecordsBtn" class="btn btn-outline-primary dashboard-action-btn">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh Payroll
+              </button>
+            </div>
+
+            <form id="payrollCreateForm" novalidate>
+              <input type="hidden" id="editingPayrollId" />
+
+              <div class="row g-4">
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollEmployeeId" class="form-label fw-semibold">
+                    Employee <span class="text-danger">*</span>
+                  </label>
+                  <select id="payrollEmployeeId" class="form-select" required>
+                    <option value="">Select employee</option>
+                  </select>
+                  <div class="invalid-feedback">Please select an employee.</div>
+                </div>
+
+                <div class="col-12">
+                  <!-- DESCRIPTION ITEM 2 - STEP 1
+       Read-only employee reference panel for payroll.
+       This makes it clear payroll is consuming employee data from HR,
+       not maintaining a separate employee record. -->
+                  <div id="payrollSelectedEmployeeReference" class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                      <div>
+                        <h3 class="h6 fw-bold mb-1">Selected Employee Reference</h3>
+                        <p class="text-secondary small mb-0">
+                          These details are pulled from the HR employee record and are shown here as read-only payroll
+                          reference data.
+                        </p>
+                      </div>
+                      <div class="small text-secondary">Source: HR employee record</div>
+                    </div>
+
+                    <div id="payrollSelectedEmployeeReferenceEmptyState" class="text-secondary small">
+                      Select an employee to view HR reference details for payroll.
+                    </div>
+
+                    <div id="payrollSelectedEmployeeReferenceDetails" class="row g-3 d-none">
+                      <div class="col-md-6 col-xl-3">
+                        <div class="small text-secondary mb-1">Employee Number</div>
+                        <div class="fw-semibold" id="payrollSelectedEmployeeNumber">--</div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <div class="small text-secondary mb-1">Work Email</div>
+                        <div class="fw-semibold text-break" id="payrollSelectedEmployeeEmail">--</div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <div class="small text-secondary mb-1">Department</div>
+                        <div class="fw-semibold" id="payrollSelectedEmployeeDepartment">--</div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <div class="small text-secondary mb-1">Job Title</div>
+                        <div class="fw-semibold" id="payrollSelectedEmployeeJobTitle">--</div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <div class="small text-secondary mb-1">Status</div>
+                        <div class="fw-semibold" id="payrollSelectedEmployeeStatus">--</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollPayCycle" class="form-label fw-semibold">
+                    Pay Cycle <span class="text-danger">*</span>
+                  </label>
+                  <!-- SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 4
+     Replace free typing with a controlled pay-cycle dropdown so HR selects
+     a valid month/year instead of entering inconsistent text. -->
+<!-- SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 5
+     Pay cycles are now generated by JavaScript so the year range updates
+     automatically instead of being hardcoded in the page markup. -->
+<select id="payrollPayCycle" class="form-select" required>
+  <option value="">Select pay cycle</option>
+</select>
+                  <div class="invalid-feedback">Pay cycle is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollPayDate" class="form-label fw-semibold">
+                    Pay Date <span class="text-danger">*</span>
+                  </label>
+                  <input type="date" id="payrollPayDate" class="form-control" required />
+                  <div class="invalid-feedback">Pay date is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollEmployeeGroup" class="form-label fw-semibold">
+                    Employee Group
+                  </label>
+                  <select id="payrollEmployeeGroup" class="form-select">
+                    <option value="">Select group</option>
+                    <option value="REGULAR">Regular</option>
+                    <option value="CONTRACT">Contract / Trainer</option>
+                    <option value="SUPPORT_STAFF">Support Staff</option>
+                    <option value="HVAC">HVAC</option>
+                    <option value="TEMPORARY">Temporary</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                  <div class="form-text">
+                    For this phase, use <strong>Regular</strong> for the Alpatech Regular model.
+                  </div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollModel" class="form-label fw-semibold">
+                    Payroll Model
+                  </label>
+                  <select id="payrollModel" class="form-select">
+                    <option value="">Auto from employee group</option>
+                    <option value="REGULAR">Regular</option>
+                    <option value="CONTRACTOR">Contractor</option>
+                    <option value="GENERIC">Generic</option>
+                  </select>
+                  <div class="form-text">
+                    Use this to control which payroll structure to run. For now, Regular remains the active structured
+                    model.
+                  </div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollStatus" class="form-label fw-semibold">
+                    Status
+                  </label>
+                  <select id="payrollStatus" class="form-select">
+                    <option value="Authorised">Authorised</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </div>
+
+                <div class="col-12 d-none" id="alpatechRegularRev2Section">
+                  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+                      <div>
+                        <h3 class="h6 fw-bold mb-2">Alpatech Regular Payroll Structure </h3>
+                        <p class="text-secondary small mb-0">
+                          This section follows the Alpatech Regular payroll model for regular employees.
+                        </p>
+                      </div>
+
+                      <div class="text-lg-end">
+                        <div class="small text-secondary mb-1">Source Model</div>
+                        <div class="fw-semibold">Alpatech Regular</div>
+                      </div>
+                    </div>
+
+                    <div class="row g-4">
+                      <div class="col-md-6 col-xl-3">
+                        <label for="regularIncrementPercent" class="form-label fw-semibold">Increment %</label>
+                        <input type="number" id="regularIncrementPercent" class="form-control" step="0.01" min="0"
+                          value="5" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="regularIncrementAmount" class="form-label fw-semibold">Increment Amount</label>
+                        <input type="number" id="regularIncrementAmount" class="form-control" step="0.01" min="0"
+                          readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="regularMeritIncrement" class="form-label fw-semibold">Merit Increment</label>
+                        <input type="number" id="regularMeritIncrement" class="form-control" step="0.01" min="0" />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="regularNewBaseSalary" class="form-label fw-semibold">New Base Salary</label>
+                        <input type="number" id="regularNewBaseSalary" class="form-control" step="0.01" min="0"
+                          readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <label for="regularBasicPercent" class="form-label fw-semibold">Basic %</label>
+                        <input type="number" id="regularBasicPercent" class="form-control" step="0.01" min="0"
+                          value="50" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <label for="regularHousingPercent" class="form-label fw-semibold">Housing %</label>
+                        <input type="number" id="regularHousingPercent" class="form-control" step="0.01" min="0"
+                          value="10" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <label for="regularTransportPercent" class="form-label fw-semibold">Transport %</label>
+                        <input type="number" id="regularTransportPercent" class="form-control" step="0.01" min="0"
+                          value="10" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <label for="regularUtilityPercent" class="form-label fw-semibold">Utility %</label>
+                        <input type="number" id="regularUtilityPercent" class="form-control" step="0.01" min="0"
+                          value="10" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <label for="regularOtherAllowancePercent" class="form-label fw-semibold">Other Allowance
+                          %</label>
+                        <input type="number" id="regularOtherAllowancePercent" class="form-control" step="0.01" min="0"
+                          value="20" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-2">
+                        <label for="regularBht" class="form-label fw-semibold">BHT</label>
+                        <input type="number" id="regularBht" class="form-control" step="0.01" min="0" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="regularNetSalary" class="form-label fw-semibold">Net Salary</label>
+                        <input type="number" id="regularNetSalary" class="form-control" step="0.01" min="0" readonly />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="regularMonthlySalaryPlusLogistics" class="form-label fw-semibold">Monthly Salary +
+                          Logistics</label>
+                        <input type="number" id="regularMonthlySalaryPlusLogistics" class="form-control" step="0.01"
+                          min="0" readonly />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-0">Earnings</h3>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollBaseSalary" class="form-label fw-semibold">Base Salary</label>
+                  <input type="number" id="payrollBaseSalary" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollBasicPay" class="form-label fw-semibold">Basic Pay</label>
+                  <input type="number" id="payrollBasicPay" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollHousingAllowance" class="form-label fw-semibold">Housing Allowance</label>
+                  <input type="number" id="payrollHousingAllowance" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollTransportAllowance" class="form-label fw-semibold">Transport Allowance</label>
+                  <input type="number" id="payrollTransportAllowance" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollUtilityAllowance" class="form-label fw-semibold">Utility Allowance</label>
+                  <input type="number" id="payrollUtilityAllowance" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollMedicalAllowance" class="form-label fw-semibold">Medical Allowance</label>
+                  <input type="number" id="payrollMedicalAllowance" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollOtherAllowance" class="form-label fw-semibold">Other Allowance</label>
+                  <input type="number" id="payrollOtherAllowance" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollBonus" class="form-label fw-semibold">Bonus</label>
+                  <input type="number" id="payrollBonus" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollOvertime" class="form-label fw-semibold">Overtime</label>
+                  <input type="number" id="payrollOvertime" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollLogisticsAllowance" class="form-label fw-semibold">Logistics Allowance</label>
+                  <input type="number" id="payrollLogisticsAllowance" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollDataAirtimeAllowance" class="form-label fw-semibold">Data & Airtime</label>
+                  <input type="number" id="payrollDataAirtimeAllowance" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollGrossPay" class="form-label fw-semibold">
+                    Gross Pay <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" id="payrollGrossPay" class="form-control" step="0.01" min="0" required
+                    readonly />
+                  <div class="invalid-feedback">Gross pay is required.</div>
+                </div>
+
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-0">Deductions</h3>
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollPayeTax" class="form-label fw-semibold">PAYE Tax</label>
+                  <input type="number" id="payrollPayeTax" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollWhtTax" class="form-label fw-semibold">WHT Tax</label>
+                  <input type="number" id="payrollWhtTax" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollEmployeePension" class="form-label fw-semibold">Employee Pension</label>
+                  <input type="number" id="payrollEmployeePension" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-3">
+                  <label for="payrollEmployerPension" class="form-label fw-semibold">Employer Pension</label>
+                  <input type="number" id="payrollEmployerPension" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollOtherDeductions" class="form-label fw-semibold">Other Deductions</label>
+                  <input type="number" id="payrollOtherDeductions" class="form-control" step="0.01" min="0" />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollTotalDeductions" class="form-label fw-semibold">
+                    Total Deductions <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" id="payrollTotalDeductions" class="form-control" step="0.01" min="0" required
+                    readonly />
+                  <div class="invalid-feedback">Total deductions is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollNetPay" class="form-label fw-semibold">
+                    Net Pay <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" id="payrollNetPay" class="form-control" step="0.01" min="0" required readonly />
+                  <div class="invalid-feedback">Net pay is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="payrollCurrency" class="form-label fw-semibold">Currency</label>
+                  <input type="text" id="payrollCurrency" class="form-control" value="NGN" />
+                </div>
+
+                <div class="col-md-6 col-xl-4 d-flex align-items-end">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="payrollIsFinalised" checked />
+                    <label class="form-check-label fw-semibold" for="payrollIsFinalised">
+                      Mark as Finalised
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label for="payrollNotes" class="form-label fw-semibold">Notes</label>
+                  <textarea id="payrollNotes" class="form-control" rows="3"
+                    placeholder="Optional payroll notes"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 pt-2">
+<!-- SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 1
+     Rename the existing payroll form action so the UI matches the new
+     Submit Payroll story while keeping the current save behaviour intact. -->
+<button type="submit" id="savePayrollBtn" class="btn btn-primary dashboard-action-btn">
+  <i class="bi bi-send-check me-2"></i>
+  <span id="savePayrollBtnText">Submit Payroll</span>
+</button>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 5
+               Close the collapsible content wrapper for Create Payroll Record. -->
+          </div>
+      </section>
+<!-- SUBMIT PAYROLL - DESCRIPTION ITEM 2
+     Stable target for redirecting HR to submitted payroll records. -->
+<section id="payrollRecordsCard" class="card dashboard-section-card">
+        <div class="card-body p-4 p-lg-5">
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+            <div>
+              <h2 class="section-heading h4 mb-1">Payroll Records</h2>
+              <p class="section-subtext mb-0">
+                Search payroll records by employee, pay cycle, department, group, or status.
+              </p>
+            </div>
+
+            <div class="d-flex flex-column flex-lg-row gap-3 w-100 justify-content-lg-end">
+              <div style="min-width: 220px;">
+                <label for="payrollSearchInput" class="form-label fw-semibold mb-2">
+                  Search payroll records
+                </label>
+                <input type="text" id="payrollSearchInput" class="form-control"
+                  placeholder="Name, pay cycle, department..." />
+              </div>
+
+              <div style="min-width: 180px;">
+                <label for="payrollStatusFilter" class="form-label fw-semibold mb-2">
+                  Status filter
+                </label>
+                <select id="payrollStatusFilter" class="form-select">
+                  <option value="">All statuses</option>
+                  <option value="authorised">Authorised</option>
+                  <option value="draft">Draft</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="payrollRecordsEmptyState" class="text-center text-secondary py-4">
+            No payroll records found yet.
+          </div>
+
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
+     Removed the horizontal-scroll hint because the payroll records table
+     is being reduced to fit within the card layout. -->
+          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 11
+     Keep Payroll Records in the same no-side-scroll pattern as the other
+     cleaned payroll list sections. -->
+          <div id="payrollRecordsTableWrapper" class="dashboard-table-wrap d-none">
+            <table class="table align-middle">
+              <thead>
+                <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
+       Reduce Payroll Records to a compact 6-column layout so the whole
+       table fits inside one card without horizontal scrolling. -->
+                <tr>
+                  <th>Employee</th>
+                  <th>Cycle</th>
+                  <th>Date</th>
+                  <th>Pay Summary</th>
+                  <th>Status</th>
+                  <th class="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="payrollRecordsTableBody">
+                <tr>
+                  <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
+     Colspan reduced to match the new compact payroll records layout. -->
+                  <td colspan="6" class="text-center text-secondary py-4">
+                    Loading payroll records.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/hr-dashboard.js"></script>
+</body>
+
+</html>

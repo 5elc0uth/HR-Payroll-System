@@ -1,0 +1,121 @@
+
+    :root {
+      --brand-primary: #904d00;
+      --brand-primary-soft: #ffa04b;
+      --brand-primary-dark: #6f3900;
+      --brand-bg: #f8f9ff;
+      --brand-text: #121c2a;
+      --brand-muted: #5f6977;
+      --brand-border: #ead9c9;
+      --brand-soft: #fff7ef;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f8f9ff 0%, #fff7ef 100%);
+      color: var(--brand-text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: rgba(248, 249, 255, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(234, 217, 201, 0.75);
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-soft) 100%);
+      box-shadow: 0 12px 28px rgba(144, 77, 0, 0.18);
+    }
+
+    .brand-text {
+      color: var(--brand-primary-dark);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-card,
+    .info-card,
+    .action-card {
+      border: 0;
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 45px rgba(18, 28, 42, 0.08);
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .hero-card {
+      background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-soft) 100%);
+      color: #fff;
+      position: relative;
+    }
+
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .soft-badge {
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .metric-label {
+      color: var(--brand-muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-value {
+      font-weight: 700;
+      font-size: 1rem;
+      word-break: break-word;
+    }
+
+    .action-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-soft);
+      color: var(--brand-primary);
+      font-size: 1.25rem;
+    }
+
+    .btn-brand {
+      background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-soft) 100%);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 0.85rem 1.4rem;
+      font-weight: 600;
+    }
+
+    .btn-brand:hover,
+    .btn-brand:focus {
+      color: #fff;
+      opacity: 0.96;
+    }
+
+    .muted-note {
+      background: var(--brand-soft);
+      border-left: 4px solid var(--brand-primary-soft);
+      border-radius: 1rem;
+    }
