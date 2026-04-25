@@ -17,13 +17,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderHrProfile(state.currentProfile, access.session.user);
     switchHrWorkspace("profile");
-resetEmployeeForm();
+    resetEmployeeForm();
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 5
-// Build the Pay Cycle dropdown dynamically before resetting the payroll form.
-populatePayrollPayCycleOptions();
+    // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 5
+    // Build the Pay Cycle dropdown dynamically before resetting the payroll form.
+    populatePayrollPayCycleOptions();
 
-resetPayrollForm();
+    resetPayrollForm();
 
     // =========================================================
     // DESCRIPTION ITEM 1
@@ -273,9 +273,9 @@ function cacheDomElements() {
     runPayrollSelectionNotice: document.getElementById("runPayrollSelectionNotice"),
 
     // RUN PAYROLL - STEP 3
-// Shows selected employee count and controls the next payroll action.
-runPayrollSelectedCount: document.getElementById("runPayrollSelectedCount"),
-continueRunPayrollBtn: document.getElementById("continueRunPayrollBtn"),
+    // Shows selected employee count and controls the next payroll action.
+    runPayrollSelectedCount: document.getElementById("runPayrollSelectedCount"),
+    continueRunPayrollBtn: document.getElementById("continueRunPayrollBtn"),
 
     employeeRecordsEmptyState: document.getElementById(
       "employeeRecordsEmptyState",
@@ -300,13 +300,19 @@ continueRunPayrollBtn: document.getElementById("continueRunPayrollBtn"),
 
     payrollSearchInput: document.getElementById("payrollSearchInput"),
     payrollStatusFilter: document.getElementById("payrollStatusFilter"),
+
+    // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4A FIX
+    // Cache export pay cycle selector and CSV button.
+    exportPayrollPayCycle: document.getElementById("exportPayrollPayCycle"),
+    exportPayrollCsvBtn: document.getElementById("exportPayrollCsvBtn"),
+
     refreshPayrollRecordsBtn: document.getElementById("refreshPayrollRecordsBtn"),
     payrollRecordsEmptyState: document.getElementById("payrollRecordsEmptyState"),
     payrollRecordsTableWrapper: document.getElementById("payrollRecordsTableWrapper"),
     payrollRecordsTableBody: document.getElementById("payrollRecordsTableBody"),
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2
-// Stable Payroll Records card target used after successful submit.
-payrollRecordsCard: document.getElementById("payrollRecordsCard"),
+    // SUBMIT PAYROLL - DESCRIPTION ITEM 2
+    // Stable Payroll Records card target used after successful submit.
+    payrollRecordsCard: document.getElementById("payrollRecordsCard"),
     // =========================================================
     // DESCRIPTION ITEM 1
     // Payroll master form DOM cache
@@ -388,8 +394,8 @@ payrollRecordsCard: document.getElementById("payrollRecordsCard"),
     savePayrollBtn: document.getElementById("savePayrollBtn"),
     savePayrollBtnText: document.getElementById("savePayrollBtnText"),
     // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 3
-// Top shortcut button for submitting long payroll forms.
-topSubmitPayrollBtn: document.getElementById("topSubmitPayrollBtn"),
+    // Top shortcut button for submitting long payroll forms.
+    topSubmitPayrollBtn: document.getElementById("topSubmitPayrollBtn"),
 
     payrollEmployeeId: document.getElementById("payrollEmployeeId"),
 
@@ -509,10 +515,10 @@ function bindEvents() {
   });
 
   // RUN PAYROLL - STEP 4
-// Continue from employee selection into the payroll workspace.
-state.dom.continueRunPayrollBtn?.addEventListener("click", () => {
-  continueRunPayrollToPayrollWorkspace();
-});
+  // Continue from employee selection into the payroll workspace.
+  state.dom.continueRunPayrollBtn?.addEventListener("click", () => {
+    continueRunPayrollToPayrollWorkspace();
+  });
 
   state.dom.hrProfileForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -650,26 +656,33 @@ state.dom.continueRunPayrollBtn?.addEventListener("click", () => {
     await handlePayrollRecordsRefresh();
   });
 
+  // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
+  // Connect the Payroll Records export button to the CSV export handler.
+  // The handler itself is added in the next patch.
+  state.dom.exportPayrollCsvBtn?.addEventListener("click", () => {
+    handlePayrollExportCsv();
+  });
+
   state.dom.payrollCreateForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     await handlePayrollSave();
   });
 
   // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 3
-// Submit the existing payroll form from the top toolbar shortcut.
-state.dom.topSubmitPayrollBtn?.addEventListener("click", () => {
-  state.dom.payrollCreateForm?.requestSubmit();
-});
+  // Submit the existing payroll form from the top toolbar shortcut.
+  state.dom.topSubmitPayrollBtn?.addEventListener("click", () => {
+    state.dom.payrollCreateForm?.requestSubmit();
+  });
 
   // DESCRIPTION ITEM 2 - STEP 1
   // Whenever payroll selects an employee, refresh the read-only HR reference panel.
-state.dom.payrollEmployeeId?.addEventListener("change", () => {
-  renderPayrollSelectedEmployeeReference();
+  state.dom.payrollEmployeeId?.addEventListener("change", () => {
+    renderPayrollSelectedEmployeeReference();
 
-  // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4
-  // Also populate payroll values when HR manually chooses one employee.
-  populatePayrollFormFromEmployeeMaster(state.dom.payrollEmployeeId?.value || "");
-});
+    // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4
+    // Also populate payroll values when HR manually chooses one employee.
+    populatePayrollFormFromEmployeeMaster(state.dom.payrollEmployeeId?.value || "");
+  });
 
   state.dom.resetPayrollFormBtn?.addEventListener("click", async () => {
     await handlePayrollFormClear();
@@ -686,11 +699,11 @@ state.dom.payrollEmployeeId?.addEventListener("change", () => {
     state.dom.payrollRecordCardCollapse,
   );
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 5
-// When HR selects a pay cycle, default the pay date to that month end.
-state.dom.payrollPayCycle?.addEventListener("change", () => {
-  updatePayDateFromPayCycle();
-});
+  // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 5
+  // When HR selects a pay cycle, default the pay date to that month end.
+  state.dom.payrollPayCycle?.addEventListener("change", () => {
+    updatePayDateFromPayCycle();
+  });
 
   state.dom.payrollEmployeeGroup?.addEventListener("change", () => {
     updatePayrollModelUi("group");
@@ -938,37 +951,33 @@ async function handlePayrollMasterSave() {
 
     await refreshPayrollMasterWorkspace();
 
-showPageAlert(
-  "success",
-  isEditMode
-    ? `Payroll master record was updated successfully for effective date <strong>${escapeHtml(
-      payload.salary_effective_date,
-    )}</strong>.`
-    : `Payroll master record was created successfully for effective date <strong>${escapeHtml(
-      payload.salary_effective_date,
-    )}</strong>.`,
-);
+    showPageAlert(
+      "success",
+      isEditMode
+        ? `Payroll master record was updated successfully for effective date <strong>${escapeHtml(
+          payload.salary_effective_date,
+        )}</strong>.`
+        : `Payroll master record was created successfully for effective date <strong>${escapeHtml(
+          payload.salary_effective_date,
+        )}</strong>.`,
+    );
 
-resetPayrollMasterForm();
+    resetPayrollMasterForm();
+    // PAYROLL MASTER SAVE REDIRECT - STEP 1E
+    // After create/update, scroll near the Payroll Master Records table,
+    // with enough offset to keep the records heading visible.
+    setTimeout(() => {
+      const recordsTable = state.dom.payrollMasterRecordsTableWrapper;
 
-// PAYROLL MASTER REDIRECT - STEP 1A
-// After creating or updating payroll master data, move HR back to the
-// Payroll Master Records heading area, not just the table, so the heading
-// remains visible and the section does not look cut off.
-setTimeout(() => {
-  const target =
-    state.dom.payrollMasterRecordsTableWrapper?.closest(".card-body") ||
-    state.dom.payrollMasterRecordsTableWrapper;
+      if (!recordsTable) return;
 
-  if (!target) return;
+      const targetTop = recordsTable.getBoundingClientRect().top + window.scrollY - 120;
 
-  const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
-
-  window.scrollTo({
-    top: targetTop,
-    behavior: "smooth",
-  });
-}, 350);
+      window.scrollTo({
+        top: targetTop,
+        behavior: "smooth",
+      });
+    }, 700);
   } catch (error) {
     console.error("Error saving payroll master record:", error);
 
@@ -1227,10 +1236,23 @@ function startPayrollMasterEdit(payrollMasterId) {
     state.dom.savePayrollMasterBtnText = document.getElementById("savePayrollMasterBtnText");
   }
 
-  state.dom.payrollMasterCreateForm?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+  // PAYROLL MASTER EDIT REDIRECT - STEP 1B
+  // When HR clicks edit, move to the top of the Payroll Master Data card,
+  // not the middle of the form.
+  setTimeout(() => {
+    const target =
+      state.dom.payrollMasterCreateForm?.closest(".dashboard-section-card") ||
+      state.dom.payrollMasterCreateForm;
+
+    if (!target) return;
+
+    const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
+
+    window.scrollTo({
+      top: targetTop,
+      behavior: "smooth",
+    });
+  }, 150);
 }
 // =========================================================
 // DESCRIPTION ITEM 2
@@ -1838,6 +1860,88 @@ async function handlePayrollRecordsRefresh() {
   }
 }
 
+// PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
+// Generate a CSV export from finalised Payroll Records for bank payment processing.
+function handlePayrollExportCsv() {
+  // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4C
+  // Export only finalised payroll records that match the Payroll Records
+  // export pay cycle dropdown, not the Create Payroll form pay cycle.
+  const selectedPayCycle = String(state.dom.exportPayrollPayCycle?.value || "").trim();
+
+  const records = (state.payrollRecords || []).filter((record) => {
+    const isFinalised = Boolean(record.is_finalised);
+    const recordPayCycle = String(record.pay_cycle || "").trim();
+
+    if (!selectedPayCycle) return isFinalised;
+
+    return isFinalised && recordPayCycle === selectedPayCycle;
+  });
+
+  if (!records.length) {
+    showPageAlert("warning", "No finalised payroll records are available for export.");
+    return;
+  }
+
+  // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 3
+  // Bank-ready export structure. Bank details are blank until employee
+  // bank account fields are added to the HR employee profile.
+  const headers = [
+    "Account Name",
+    "Account Number",
+    "Bank Code",
+    "Bank Name",
+    "Amount",
+    "Currency",
+    "Payment Reference",
+    "Employee Email",
+    "Pay Cycle",
+  ];
+
+  const rows = records.map((record) => {
+    const employeeName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
+
+    return [
+      employeeName || "Unknown Employee",
+      "",
+      "",
+      "",
+      Number(record.net_pay || 0).toFixed(2),
+      record.currency || "NGN",
+      `${record.pay_cycle || "Payroll"} - ${employeeName || "Employee"}`,
+      record.work_email || "",
+      record.pay_cycle || "",
+    ];
+  });
+
+  const csvContent = [headers, ...rows]
+    .map((row) =>
+      row
+        .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
+        .join(","),
+    )
+    .join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `payroll_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+
+  showPageAlert(
+    "success",
+    `${records.length} finalised payroll record(s) exported successfully.`,
+  );
+}
+
 async function handleEmployeeFormClear() {
   const button = state.dom.resetEmployeeFormBtn;
   const startedAt = Date.now();
@@ -1887,45 +1991,45 @@ function continueRunPayrollToPayrollWorkspace() {
 
   switchHrWorkspace("payroll");
 
-// RUN PAYROLL - STEP 5
-// If HR selected exactly one employee, prefill the payroll employee field
-// and refresh the read-only employee reference panel. If multiple employees
-// are selected, do not guess; batch handling will be added separately.
-if (selectedEmployeeIds.length === 1 && state.dom.payrollEmployeeId) {
   // RUN PAYROLL - STEP 5
-  // Single employee flow: prefill the payroll form with the selected employee.
-state.dom.payrollEmployeeId.value = selectedEmployeeIds[0];
-renderPayrollSelectedEmployeeReference(selectedEmployeeIds[0]);
+  // If HR selected exactly one employee, prefill the payroll employee field
+  // and refresh the read-only employee reference panel. If multiple employees
+  // are selected, do not guess; batch handling will be added separately.
+  if (selectedEmployeeIds.length === 1 && state.dom.payrollEmployeeId) {
+    // RUN PAYROLL - STEP 5
+    // Single employee flow: prefill the payroll form with the selected employee.
+    state.dom.payrollEmployeeId.value = selectedEmployeeIds[0];
+    renderPayrollSelectedEmployeeReference(selectedEmployeeIds[0]);
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4
-// For a single selected employee, prefill salary/model fields from payroll master data.
-populatePayrollFormFromEmployeeMaster(selectedEmployeeIds[0]);
-} else {
-  // RUN PAYROLL - STEP 6
-  // Multiple employee flow: do not randomly choose one employee.
-  // Keep the payroll employee field blank and notify HR that batch handling is next.
-  if (state.dom.payrollEmployeeId) {
-    state.dom.payrollEmployeeId.value = "";
-  }
+    // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4
+    // For a single selected employee, prefill salary/model fields from payroll master data.
+    populatePayrollFormFromEmployeeMaster(selectedEmployeeIds[0]);
+  } else {
+    // RUN PAYROLL - STEP 6
+    // Multiple employee flow: do not randomly choose one employee.
+    // Keep the payroll employee field blank and notify HR that batch handling is next.
+    if (state.dom.payrollEmployeeId) {
+      state.dom.payrollEmployeeId.value = "";
+    }
 
-  renderPayrollSelectedEmployeeReference("");
+    renderPayrollSelectedEmployeeReference("");
 
-// RUN PAYROLL - STEP 6 FIX
-// Show the batch-mode message directly inside the payroll reference card,
-// because the page alert may be above the current scroll position.
-if (state.dom.payrollSelectedEmployeeReferenceEmptyState) {
-  state.dom.payrollSelectedEmployeeReferenceEmptyState.innerHTML = `
+    // RUN PAYROLL - STEP 6 FIX
+    // Show the batch-mode message directly inside the payroll reference card,
+    // because the page alert may be above the current scroll position.
+    if (state.dom.payrollSelectedEmployeeReferenceEmptyState) {
+      state.dom.payrollSelectedEmployeeReferenceEmptyState.innerHTML = `
     <strong>${selectedEmployeeIds.length} employees selected for payroll.</strong>
     <br />
     Batch payroll processing will use the selected employee list. Select a single employee only if you want to create one payroll record manually.
   `;
-  state.dom.payrollSelectedEmployeeReferenceEmptyState.classList.remove("d-none");
-}
+      state.dom.payrollSelectedEmployeeReferenceEmptyState.classList.remove("d-none");
+    }
 
-if (state.dom.payrollSelectedEmployeeReferenceDetails) {
-  state.dom.payrollSelectedEmployeeReferenceDetails.classList.add("d-none");
-}
-}
+    if (state.dom.payrollSelectedEmployeeReferenceDetails) {
+      state.dom.payrollSelectedEmployeeReferenceDetails.classList.add("d-none");
+    }
+  }
 
   if (state.dom.payrollRecordCardCollapse) {
     state.dom.payrollRecordCardCollapse.classList.remove("d-none");
@@ -1969,18 +2073,18 @@ function startRunPayrollSelectionFlow() {
   }
 
   // RUN PAYROLL - STEP 2
-// Show a clear mode notice so HR understands this is now payroll selection.
-state.dom.runPayrollSelectionNotice?.classList.remove("d-none");
+  // Show a clear mode notice so HR understands this is now payroll selection.
+  state.dom.runPayrollSelectionNotice?.classList.remove("d-none");
 
-syncSelectAllEmployeesForPayrollCheckbox();
+  syncSelectAllEmployeesForPayrollCheckbox();
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - SCROLL FIX
-// Scroll to the selection notice instead of the table so the Run Payroll
-// header/context remains visible and does not look cut off.
-state.dom.runPayrollSelectionNotice?.scrollIntoView({
-  behavior: "smooth",
-  block: "start",
-});
+  // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - SCROLL FIX
+  // Scroll to the selection notice instead of the table so the Run Payroll
+  // header/context remains visible and does not look cut off.
+  state.dom.runPayrollSelectionNotice?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
 }
 
 function switchHrWorkspace(workspace) {
@@ -2710,17 +2814,17 @@ function syncSelectAllEmployeesForPayrollCheckbox() {
   }
 
   // RUN PAYROLL - STEP 3
-// Keep the Run Payroll action row in sync with current employee selections.
-if (state.dom.runPayrollSelectedCount) {
-  state.dom.runPayrollSelectedCount.textContent =
-    selectedVisibleCount === 1
-      ? "1 employee selected for this payroll run."
-      : `${selectedVisibleCount} employees selected for this payroll run.`;
-}
+  // Keep the Run Payroll action row in sync with current employee selections.
+  if (state.dom.runPayrollSelectedCount) {
+    state.dom.runPayrollSelectedCount.textContent =
+      selectedVisibleCount === 1
+        ? "1 employee selected for this payroll run."
+        : `${selectedVisibleCount} employees selected for this payroll run.`;
+  }
 
-if (state.dom.continueRunPayrollBtn) {
-  state.dom.continueRunPayrollBtn.disabled = selectedVisibleCount === 0;
-}
+  if (state.dom.continueRunPayrollBtn) {
+    state.dom.continueRunPayrollBtn.disabled = selectedVisibleCount === 0;
+  }
 
   if (!checkbox) return;
 
@@ -3871,6 +3975,11 @@ async function loadPayrollRecords() {
     });
 
     state.payrollRecords = rows;
+
+    // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4B
+    // Keep export pay cycle options in sync whenever Payroll Records reload.
+    populateExportPayrollPayCycleOptions(rows);
+
     applyPayrollSearch();
   } catch (error) {
     console.error("Error loading payroll records:", error);
@@ -4129,6 +4238,41 @@ function applyPayrollSearch() {
   renderPayrollRecords(rows);
 }
 
+// PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4B
+// Populate the export pay cycle dropdown from available finalised payroll records.
+// This lets HR export a specific payroll period instead of always exporting all records.
+function populateExportPayrollPayCycleOptions(records = []) {
+  const select = state.dom.exportPayrollPayCycle;
+  if (!select) return;
+
+  const currentValue = select.value;
+
+  const payCycles = Array.from(
+    new Set(
+      records
+        .filter((record) => Boolean(record.is_finalised))
+        .map((record) => String(record.pay_cycle || "").trim())
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
+  select.innerHTML = `<option value="">All cycles</option>`;
+
+  payCycles.forEach((payCycle) => {
+    const option = document.createElement("option");
+    option.value = payCycle;
+    option.textContent = payCycle;
+    select.appendChild(option);
+  });
+
+  if (
+    currentValue &&
+    Array.from(select.options).some((option) => option.value === currentValue)
+  ) {
+    select.value = currentValue;
+  }
+}
+
 function renderPayrollSummary(records) {
   const finalisedCount = records.filter((record) => Boolean(record.is_finalised)).length;
   const grossTotal = records.reduce(
@@ -4234,9 +4378,9 @@ function renderPayrollRecords(records) {
   <!-- TIMESTAMP = audit metadata (visually separated) -->
   <div class="text-secondary small" style="margin-top: 4px;">
     Submitted: ${new Date(record.updated_at || record.created_at).toLocaleTimeString(undefined, {
-  hour: "2-digit",
-  minute: "2-digit",
-})}
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
   </div>
 </td>
 
@@ -4354,28 +4498,28 @@ function populatePayrollFormFromEmployeeMaster(employeeId) {
     state.dom.payrollModel.value = "REGULAR";
   }
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4 FIX
-// Payroll master pay_cycle is pay frequency, e.g. Monthly.
-// Submit Payroll pay_cycle is the payroll period, e.g. Jan 2026.
-// Therefore, default the payroll period to the current month if HR has not selected one.
-if (state.dom.payrollPayCycle && !state.dom.payrollPayCycle.value) {
-  const monthLabels = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
+  // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4 FIX
+  // Payroll master pay_cycle is pay frequency, e.g. Monthly.
+  // Submit Payroll pay_cycle is the payroll period, e.g. Jan 2026.
+  // Therefore, default the payroll period to the current month if HR has not selected one.
+  if (state.dom.payrollPayCycle && !state.dom.payrollPayCycle.value) {
+    const monthLabels = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
 
-  const today = new Date();
-  const defaultPayCycle = `${monthLabels[today.getMonth()]} ${today.getFullYear()}`;
+    const today = new Date();
+    const defaultPayCycle = `${monthLabels[today.getMonth()]} ${today.getFullYear()}`;
 
-  const optionExists = Array.from(state.dom.payrollPayCycle.options || []).some(
-    (option) => option.value === defaultPayCycle,
-  );
+    const optionExists = Array.from(state.dom.payrollPayCycle.options || []).some(
+      (option) => option.value === defaultPayCycle,
+    );
 
-  if (optionExists) {
-    state.dom.payrollPayCycle.value = defaultPayCycle;
-    updatePayDateFromPayCycle();
+    if (optionExists) {
+      state.dom.payrollPayCycle.value = defaultPayCycle;
+      updatePayDateFromPayCycle();
+    }
   }
-}
 
   updatePayrollModelUi("group");
   recalculatePayrollFormTotals();
@@ -4423,44 +4567,44 @@ function resetPayrollForm() {
   state.currentEditingPayroll = null;
 
   // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - FINAL CLEANUP
-// Explicitly clear payroll form fields after create/update so the form
-// does not keep old payroll values after a successful submit.
-[
-  state.dom.payrollEmployeeId,
-  state.dom.payrollPayCycle,
-  state.dom.payrollPayDate,
-  state.dom.payrollEmployeeGroup,
-  state.dom.payrollModel,
-  state.dom.payrollReference,
-  state.dom.payrollBaseSalary,
-  state.dom.payrollBasicPay,
-  state.dom.payrollHousingAllowance,
-  state.dom.payrollTransportAllowance,
-  state.dom.payrollUtilityAllowance,
-  state.dom.payrollMedicalAllowance,
-  state.dom.payrollOtherAllowance,
-  state.dom.payrollBonus,
-  state.dom.payrollOvertime,
-  state.dom.payrollLogisticsAllowance,
-  state.dom.payrollDataAirtimeAllowance,
-  state.dom.payrollGrossPay,
-  state.dom.payrollPayeTax,
-  state.dom.payrollWhtTax,
-  state.dom.payrollEmployeePension,
-  state.dom.payrollEmployerPension,
-  state.dom.payrollOtherDeductions,
-  state.dom.payrollTotalDeductions,
-  state.dom.payrollNetPay,
-  state.dom.payrollNotes,
-  state.dom.regularIncrementAmount,
-  state.dom.regularMeritIncrement,
-  state.dom.regularNewBaseSalary,
-  state.dom.regularBht,
-  state.dom.regularNetSalary,
-  state.dom.regularMonthlySalaryPlusLogistics,
-].forEach((field) => {
-  if (field) field.value = "";
-});
+  // Explicitly clear payroll form fields after create/update so the form
+  // does not keep old payroll values after a successful submit.
+  [
+    state.dom.payrollEmployeeId,
+    state.dom.payrollPayCycle,
+    state.dom.payrollPayDate,
+    state.dom.payrollEmployeeGroup,
+    state.dom.payrollModel,
+    state.dom.payrollReference,
+    state.dom.payrollBaseSalary,
+    state.dom.payrollBasicPay,
+    state.dom.payrollHousingAllowance,
+    state.dom.payrollTransportAllowance,
+    state.dom.payrollUtilityAllowance,
+    state.dom.payrollMedicalAllowance,
+    state.dom.payrollOtherAllowance,
+    state.dom.payrollBonus,
+    state.dom.payrollOvertime,
+    state.dom.payrollLogisticsAllowance,
+    state.dom.payrollDataAirtimeAllowance,
+    state.dom.payrollGrossPay,
+    state.dom.payrollPayeTax,
+    state.dom.payrollWhtTax,
+    state.dom.payrollEmployeePension,
+    state.dom.payrollEmployerPension,
+    state.dom.payrollOtherDeductions,
+    state.dom.payrollTotalDeductions,
+    state.dom.payrollNetPay,
+    state.dom.payrollNotes,
+    state.dom.regularIncrementAmount,
+    state.dom.regularMeritIncrement,
+    state.dom.regularNewBaseSalary,
+    state.dom.regularBht,
+    state.dom.regularNetSalary,
+    state.dom.regularMonthlySalaryPlusLogistics,
+  ].forEach((field) => {
+    if (field) field.value = "";
+  });
 
   const fieldsToReset = [
     state.dom.payrollEmployeeId,
@@ -4514,15 +4658,15 @@ function resetPayrollForm() {
     state.dom.cancelPayrollEditBtn.classList.add("d-none");
   }
 
-if (state.dom.savePayrollBtn) {
-  // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 1
-  // Keep the default payroll action aligned with the new story wording.
-  state.dom.savePayrollBtn.innerHTML = `
+  if (state.dom.savePayrollBtn) {
+    // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 1
+    // Keep the default payroll action aligned with the new story wording.
+    state.dom.savePayrollBtn.innerHTML = `
     <i class="bi bi-send-check me-2"></i>
     <span id="savePayrollBtnText">Submit Payroll</span>
   `;
-  state.dom.savePayrollBtnText = document.getElementById("savePayrollBtnText");
-}
+    state.dom.savePayrollBtnText = document.getElementById("savePayrollBtnText");
+  }
 
   // DESCRIPTION ITEM 2 - STEP 1
   // Clear the read-only payroll employee reference when the payroll form resets.
@@ -4723,26 +4867,26 @@ function validatePayrollForm() {
   let isValid = true;
   let firstInvalidField = null;
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 1
-// Support both single payroll submission and batch payroll submission.
-// For batch payroll, the employee dropdown can remain blank because the
-// selected employees come from the Full Employee List checkbox selection.
-const selectedBatchEmployeeIds = Array.from(
-  state.selectedEmployeesForPayroll || [],
-).filter(Boolean);
+  // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 1
+  // Support both single payroll submission and batch payroll submission.
+  // For batch payroll, the employee dropdown can remain blank because the
+  // selected employees come from the Full Employee List checkbox selection.
+  const selectedBatchEmployeeIds = Array.from(
+    state.selectedEmployeesForPayroll || [],
+  ).filter(Boolean);
 
-const isBatchPayrollSubmission =
-  selectedBatchEmployeeIds.length > 1 &&
-  !String(state.dom.payrollEmployeeId?.value || "").trim();
+  const isBatchPayrollSubmission =
+    selectedBatchEmployeeIds.length > 1 &&
+    !String(state.dom.payrollEmployeeId?.value || "").trim();
 
-const requiredFields = [
-  ...(isBatchPayrollSubmission ? [] : [state.dom.payrollEmployeeId]),
-  state.dom.payrollPayCycle,
-  state.dom.payrollPayDate,
-  state.dom.payrollGrossPay,
-  state.dom.payrollTotalDeductions,
-  state.dom.payrollNetPay,
-];
+  const requiredFields = [
+    ...(isBatchPayrollSubmission ? [] : [state.dom.payrollEmployeeId]),
+    state.dom.payrollPayCycle,
+    state.dom.payrollPayDate,
+    state.dom.payrollGrossPay,
+    state.dom.payrollTotalDeductions,
+    state.dom.payrollNetPay,
+  ];
 
   requiredFields.forEach((field) => {
     const value = String(field?.value || "").trim();
@@ -5205,21 +5349,21 @@ function buildPayrollPayload() {
 
   return {
     // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 2
-// Only include employee_id for single payroll.
-// Batch payroll will handle employee IDs in the loop later.
-...(String(state.dom.payrollEmployeeId?.value || "").trim()
-  ? { employee_id: String(state.dom.payrollEmployeeId.value).trim() }
-  : {}),
+    // Only include employee_id for single payroll.
+    // Batch payroll will handle employee IDs in the loop later.
+    ...(String(state.dom.payrollEmployeeId?.value || "").trim()
+      ? { employee_id: String(state.dom.payrollEmployeeId.value).trim() }
+      : {}),
     pay_cycle: String(state.dom.payrollPayCycle?.value || "").trim(),
     pay_date: state.dom.payrollPayDate?.value || null,
     employee_group: employeeGroupForPayload,
     ...payrollModelFields,
 
     // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 2
-// A submitted payroll should be stored as a completed/finalised payroll entry.
-// Keep "Authorised" because this is the current valid status used by the app,
-// while final completion is represented by is_finalised = true below.
-status: "Authorised",
+    // A submitted payroll should be stored as a completed/finalised payroll entry.
+    // Keep "Authorised" because this is the current valid status used by the app,
+    // while final completion is represented by is_finalised = true below.
+    status: "Authorised",
     payroll_reference:
       String(state.dom.payrollReference?.value || "").trim() || null,
 
@@ -5250,8 +5394,8 @@ status: "Authorised",
       String(state.dom.payrollCurrency?.value || "NGN").trim().toUpperCase() ||
       "NGN",
     // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 2
-// Force submitted payroll entries to be finalised/completed at save time.
-is_finalised: true,
+    // Force submitted payroll entries to be finalised/completed at save time.
+    is_finalised: true,
     notes: String(state.dom.payrollNotes?.value || "").trim() || null,
     processed_by: state.currentUser?.id || null,
     approved_by: Boolean(state.dom.payrollIsFinalised?.checked)
@@ -5305,62 +5449,62 @@ async function handlePayrollSave() {
   try {
     setPayrollSaveLoading(true, isEditMode);
 
-payrollPayload = buildPayrollPayload();
+    payrollPayload = buildPayrollPayload();
 
-const supabase = getSupabaseClient();
-let response;
+    const supabase = getSupabaseClient();
+    let response;
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 3
-// Batch payroll: when multiple employees were selected from the Full Employee List,
-// create one completed payroll record for each selected employee.
-const selectedBatchEmployeeIds = Array.from(
-  state.selectedEmployeesForPayroll || [],
-).filter(Boolean);
+    // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 3
+    // Batch payroll: when multiple employees were selected from the Full Employee List,
+    // create one completed payroll record for each selected employee.
+    const selectedBatchEmployeeIds = Array.from(
+      state.selectedEmployeesForPayroll || [],
+    ).filter(Boolean);
 
-const isBatchPayrollSubmission =
-  selectedBatchEmployeeIds.length > 1 &&
-  !String(state.dom.payrollEmployeeId?.value || "").trim() &&
-  !isEditMode;
+    const isBatchPayrollSubmission =
+      selectedBatchEmployeeIds.length > 1 &&
+      !String(state.dom.payrollEmployeeId?.value || "").trim() &&
+      !isEditMode;
 
-if (isBatchPayrollSubmission) {
-  const batchPayload = selectedBatchEmployeeIds.map((employeeId) => ({
-    ...payrollPayload,
-    employee_id: employeeId,
-  }));
+    if (isBatchPayrollSubmission) {
+      const batchPayload = selectedBatchEmployeeIds.map((employeeId) => ({
+        ...payrollPayload,
+        employee_id: employeeId,
+      }));
 
-  response = await supabase
-    .from("payroll_records")
-    .insert(batchPayload)
-    .select("*");
+      response = await supabase
+        .from("payroll_records")
+        .insert(batchPayload)
+        .select("*");
 
-  if (response.error) {
-    throw new Error(response.error.message);
-  }
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
 
-await refreshPayrollWorkspace();
+      await refreshPayrollWorkspace();
 
-showPageAlert(
-  "success",
-  `${selectedBatchEmployeeIds.length} payroll records for <strong>${escapeHtml(
-    payrollPayload.pay_cycle,
-  )}</strong> were created successfully.`,
-);
+      showPageAlert(
+        "success",
+        `${selectedBatchEmployeeIds.length} payroll records for <strong>${escapeHtml(
+          payrollPayload.pay_cycle,
+        )}</strong> were created successfully.`,
+      );
 
-resetPayrollForm();
+      resetPayrollForm();
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - BATCH CLEANUP
-// Clear selected employees after a successful batch payroll run.
-state.selectedEmployeesForPayroll.clear();
-syncSelectAllEmployeesForPayrollCheckbox();
+      // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - BATCH CLEANUP
+      // Clear selected employees after a successful batch payroll run.
+      state.selectedEmployeesForPayroll.clear();
+      syncSelectAllEmployeesForPayrollCheckbox();
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - SCROLL FIX FINAL
-// After batch submit, move HR to Payroll Records to confirm created records.
-scrollToPayrollRecordsAfterSubmit();
+      // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - SCROLL FIX FINAL
+      // After batch submit, move HR to Payroll Records to confirm created records.
+      scrollToPayrollRecordsAfterSubmit();
 
-return;
-}
+      return;
+    }
 
-if (isEditMode) {
+    if (isEditMode) {
       response = await supabase
         .from("payroll_records")
         .update(payrollPayload)
@@ -5390,9 +5534,9 @@ if (isEditMode) {
 
     resetPayrollForm();
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - SCROLL FIX FINAL
-// After successful single payroll submit/update, move HR to Payroll Records.
-scrollToPayrollRecordsAfterSubmit();
+    // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - SCROLL FIX FINAL
+    // After successful single payroll submit/update, move HR to Payroll Records.
+    scrollToPayrollRecordsAfterSubmit();
   } catch (error) {
     console.error("Error saving payroll record:", error);
     showPageAlert(
