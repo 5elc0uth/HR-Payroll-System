@@ -1958,18 +1958,19 @@
             No payroll records found yet.
           </div>
 
-          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
-     Removed the horizontal-scroll hint because the payroll records table
-     is being reduced to fit within the card layout. -->
-          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 11
-     Keep Payroll Records in the same no-side-scroll pattern as the other
-     cleaned payroll list sections. -->
-          <div id="payrollRecordsTableWrapper" class="dashboard-table-wrap d-none">
-            <table class="table align-middle">
-              <thead>
-                <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
-       Reduce Payroll Records to a compact 6-column layout so the whole
-       table fits inside one card without horizontal scrolling. -->
+<!-- DESCRIPTION ITEM 4 - STEP 5C
+     Keep Payroll Records visible for HR review, but contain long record lists
+     inside a controlled scroll panel so the whole page does not become too long. -->
+<div
+  id="payrollRecordsTableWrapper"
+  class="dashboard-table-wrap table-responsive d-none"
+  style="max-height: 620px; overflow-y: auto;"
+>
+  <table class="table align-middle mb-0">
+<!-- DESCRIPTION ITEM 4 - STEP 5C
+     Sticky table header keeps payroll columns visible while HR scrolls
+     through many payroll records inside the contained panel. -->
+<thead class="position-sticky top-0 bg-light" style="z-index: 2;">
                 <tr>
                   <th>Employee</th>
                   <th>Cycle</th>
@@ -1990,8 +1991,103 @@
               </tbody>
             </table>
           </div>
+
+          <hr class="my-4" />
+
+<!-- DESCRIPTION ITEM 4 - STEP 5B
+     Compact collapsible Payslip Email Status panel.
+     This keeps payroll records as the primary table while allowing HR
+     to expand status details only when they need to review prepared,
+     sent, or failed payslip emails. -->
+<div id="payslipEmailStatusSection">
+  <div class="border rounded-4 p-3 bg-light-subtle">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <div>
+        <h3 class="h5 mb-1">Payslip Email Status</h3>
+        <p class="section-subtext mb-0">
+          Track prepared payslip email records for the selected payroll action cycle.
+        </p>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <!-- DESCRIPTION ITEM 4 - STEP 5B
+             Summary badges are placeholders for now.
+             JS will update these when payslip email logs are loaded. -->
+        <span class="badge rounded-pill text-bg-secondary px-3 py-2">
+          Pending: <span id="payslipEmailPendingCount">0</span>
+        </span>
+
+        <span class="badge rounded-pill text-bg-success px-3 py-2">
+          Sent: <span id="payslipEmailSentCount">0</span>
+        </span>
+
+        <span class="badge rounded-pill text-bg-danger px-3 py-2">
+          Failed: <span id="payslipEmailFailedCount">0</span>
+        </span>
+
+        <button
+          type="button"
+          id="togglePayslipEmailLogsBtn"
+          class="btn btn-outline-secondary dashboard-action-btn text-nowrap"
+          aria-expanded="false"
+          aria-controls="payslipEmailLogsCollapse"
+        >
+          <i class="bi bi-chevron-down me-2"></i>
+          <span>View Status</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- DESCRIPTION ITEM 4 - STEP 5B
+         Detailed status area remains collapsed by default so the Payroll
+         Records card stays compact. -->
+    <div id="payslipEmailLogsCollapse" class="d-none mt-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+        <div class="small text-secondary">
+          Detailed payslip email logs will appear here after status loading is wired.
         </div>
-      </section>
+
+<!-- DESCRIPTION ITEM 4 - STEP 6
+     Refresh payslip email logs from Supabase.
+     This only loads audit/status records; it does not send emails. -->
+<button
+  type="button"
+  id="refreshPayslipEmailLogsBtn"
+  class="btn btn-outline-primary dashboard-action-btn text-nowrap"
+  title="Refresh prepared payslip email status records"
+>
+  <i class="bi bi-arrow-clockwise me-2"></i>
+  Refresh Status
+</button>
+      </div>
+
+      <div id="payslipEmailLogsEmptyState" class="alert alert-light border mb-0">
+        No payslip email logs have been prepared yet.
+      </div>
+
+      <div id="payslipEmailLogsTableWrapper" class="dashboard-table-wrap d-none">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Employee / Recipient</th>
+              <th>Pay Cycle</th>
+              <th>Status</th>
+              <th>Sent At</th>
+              <th>Error Message</th>
+            </tr>
+          </thead>
+          <tbody id="payslipEmailLogsTableBody">
+            <tr>
+              <td colspan="5" class="text-center text-secondary py-4">
+                Payslip email logs will load here.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
     </section>
   </main>
 

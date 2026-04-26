@@ -125,6 +125,13 @@ const state = {
   payrollRecords: [],
   filteredPayrollRecords: [],
 
+  // DESCRIPTION ITEM 4 - STEP 6
+// Holds payslip email audit/status logs loaded from Supabase.
+// These records are created by Send Payslips and later move from
+// Pending to Sent/Failed when real email delivery is configured.
+payslipEmailLogs: [],
+filteredPayslipEmailLogs: [],
+
   // =========================================================
   // DESCRIPTION ITEM 1
   // Payroll master record state holders
@@ -353,6 +360,19 @@ exportPayrollCsvBtn: document.getElementById("exportPayrollCsvBtn"),
 // Cache Send Payslips button so it can be enabled only when
 // finalised payroll records exist for the selected action cycle.
 sendPayslipsEmailBtn: document.getElementById("sendPayslipsEmailBtn"),
+
+// DESCRIPTION ITEM 4 - STEP 5B
+// Cache Payslip Email Status compact panel controls.
+// These are only for expand/collapse and future summary counts.
+togglePayslipEmailLogsBtn: document.getElementById("togglePayslipEmailLogsBtn"),
+payslipEmailLogsCollapse: document.getElementById("payslipEmailLogsCollapse"),
+payslipEmailPendingCount: document.getElementById("payslipEmailPendingCount"),
+payslipEmailSentCount: document.getElementById("payslipEmailSentCount"),
+payslipEmailFailedCount: document.getElementById("payslipEmailFailedCount"),
+refreshPayslipEmailLogsBtn: document.getElementById("refreshPayslipEmailLogsBtn"),
+payslipEmailLogsEmptyState: document.getElementById("payslipEmailLogsEmptyState"),
+payslipEmailLogsTableWrapper: document.getElementById("payslipEmailLogsTableWrapper"),
+payslipEmailLogsTableBody: document.getElementById("payslipEmailLogsTableBody"),
 
     refreshPayrollRecordsBtn: document.getElementById("refreshPayrollRecordsBtn"),
     payrollRecordsEmptyState: document.getElementById("payrollRecordsEmptyState"),
@@ -924,12 +944,28 @@ state.dom.sendPayslipsEmailBtn?.addEventListener("click", async () => {
   await handleSendPayslipsEmailRequest();
 });
 
-// DESCRIPTION ITEM 4 - STEP 3A
-// Payroll action cycle now controls the visible Payroll Records list as well
-// as CSV/Payslip actions. This keeps HR actions aligned with the records shown.
-state.dom.exportPayrollPayCycle?.addEventListener("change", () => {
+// DESCRIPTION ITEM 4 - STEP 6
+// When HR changes the payroll action cycle, keep Payroll Records and
+// Payslip Email Status aligned to the same selected cycle.
+state.dom.exportPayrollPayCycle?.addEventListener("change", async () => {
   applyPayrollSearch();
   updateSendPayslipsButtonState();
+  await refreshPayslipEmailLogs();
+});
+
+// DESCRIPTION ITEM 4 - STEP 5B
+// Make Payslip Email Status collapsible so audit details do not permanently
+// lengthen the Payroll Records card.
+bindCardCollapseToggle(
+  state.dom.togglePayslipEmailLogsBtn,
+  state.dom.payslipEmailLogsCollapse,
+);
+
+// DESCRIPTION ITEM 4 - STEP 6
+// Refresh the Payslip Email Status panel from Supabase.
+// This reads audit rows only; it does not send any email.
+state.dom.refreshPayslipEmailLogsBtn?.addEventListener("click", async () => {
+  await refreshPayslipEmailLogs({ showAlert: true });
 });
 
   state.dom.payrollCreateForm?.addEventListener("submit", async (event) => {
@@ -5819,6 +5855,210 @@ function setSendPayslipsEmailLoading(isLoading) {
   updateSendPayslipsButtonState();
 }
 
+// DESCRIPTION ITEM 4 - STEP 6
+// Show loading feedback inside the Payslip Email Status table.
+function renderPayslipEmailLogsLoadingState() {
+  const tbody = state.dom.payslipEmailLogsTableBody;
+  if (!tbody) return;
+
+  state.dom.payslipEmailLogsEmptyState?.classList.add("d-none");
+  state.dom.payslipEmailLogsTableWrapper?.classList.remove("d-none");
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="5" class="text-center text-secondary py-4">
+        Loading payslip email status records.
+      </td>
+    </tr>
+  `;
+}
+
+// DESCRIPTION ITEM 4 - STEP 6
+// Keep Refresh Status from being clicked repeatedly while Supabase is loading.
+function setPayslipEmailLogsRefreshLoading(isLoading) {
+  const button = state.dom.refreshPayslipEmailLogsBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Refreshing...
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  button.disabled = false;
+}
+
+// DESCRIPTION ITEM 4 - STEP 6
+// Badge colours for payslip email delivery/audit statuses.
+function getPayslipEmailLogStatusBadgeClass(status) {
+  const normalisedStatus = normalizeText(status);
+
+  if (normalisedStatus === "sent") return "text-bg-success";
+  if (normalisedStatus === "failed") return "text-bg-danger";
+  if (normalisedStatus === "pending") return "text-bg-secondary";
+
+  return "text-bg-light border text-dark";
+}
+
+// DESCRIPTION ITEM 4 - STEP 6
+// Update compact status counts from the loaded payslip email logs.
+function updatePayslipEmailStatusCounts(records = []) {
+  const pendingCount = records.filter(
+    (record) => normalizeText(record.status) === "pending",
+  ).length;
+
+  const sentCount = records.filter(
+    (record) => normalizeText(record.status) === "sent",
+  ).length;
+
+  const failedCount = records.filter(
+    (record) => normalizeText(record.status) === "failed",
+  ).length;
+
+  if (state.dom.payslipEmailPendingCount) {
+    state.dom.payslipEmailPendingCount.textContent = String(pendingCount);
+  }
+
+  if (state.dom.payslipEmailSentCount) {
+    state.dom.payslipEmailSentCount.textContent = String(sentCount);
+  }
+
+  if (state.dom.payslipEmailFailedCount) {
+    state.dom.payslipEmailFailedCount.textContent = String(failedCount);
+  }
+}
+
+// DESCRIPTION ITEM 4 - STEP 6
+// Render payslip email audit rows in the compact status panel.
+function renderPayslipEmailLogs(records = []) {
+  const tbody = state.dom.payslipEmailLogsTableBody;
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  updatePayslipEmailStatusCounts(records);
+
+  if (!records.length) {
+    state.dom.payslipEmailLogsEmptyState?.classList.remove("d-none");
+    state.dom.payslipEmailLogsTableWrapper?.classList.add("d-none");
+    return;
+  }
+
+  state.dom.payslipEmailLogsEmptyState?.classList.add("d-none");
+  state.dom.payslipEmailLogsTableWrapper?.classList.remove("d-none");
+
+  records.forEach((record) => {
+    const employee = record.employees || {};
+
+    const employeeName =
+      `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+      record.recipient_email ||
+      "Unknown Employee";
+
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>
+        <div class="fw-semibold">${escapeHtml(employeeName)}</div>
+        <div class="text-secondary small text-break">
+          ${escapeHtml(record.recipient_email || "--")}
+        </div>
+      </td>
+
+      <td>${escapeHtml(record.pay_cycle || "--")}</td>
+
+      <td>
+        <span class="badge ${getPayslipEmailLogStatusBadgeClass(record.status)}">
+          ${escapeHtml(formatStatusLabel(record.status || "Pending"))}
+        </span>
+      </td>
+
+      <td>${record.sent_at ? formatDate(record.sent_at) : "--"}</td>
+
+      <td class="text-break">
+        ${escapeHtml(record.error_message || "--")}
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
+// DESCRIPTION ITEM 4 - STEP 6
+// Load payslip email logs for the selected Payroll action cycle.
+// If All cycles is selected, it loads all prepared payslip email logs.
+async function refreshPayslipEmailLogs(options = {}) {
+  const { showAlert = false } = options;
+  const selectedPayCycle = String(state.dom.exportPayrollPayCycle?.value || "").trim();
+
+  try {
+    setPayslipEmailLogsRefreshLoading(true);
+    renderPayslipEmailLogsLoadingState();
+
+    const supabase = getSupabaseClient();
+
+    let query = supabase
+      .from("payslip_email_logs")
+      .select(`
+        *,
+        employees (
+          id,
+          first_name,
+          last_name,
+          work_email,
+          employee_number
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (selectedPayCycle) {
+      query = query.eq("pay_cycle", selectedPayCycle);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    state.payslipEmailLogs = Array.isArray(data) ? data : [];
+    state.filteredPayslipEmailLogs = [...state.payslipEmailLogs];
+
+    renderPayslipEmailLogs(state.filteredPayslipEmailLogs);
+
+    if (showAlert) {
+      showPageAlert(
+        "success",
+        `${state.filteredPayslipEmailLogs.length} payslip email status record(s) loaded.`,
+      );
+    }
+  } catch (error) {
+    console.error("Error loading payslip email logs:", error);
+
+    state.payslipEmailLogs = [];
+    state.filteredPayslipEmailLogs = [];
+
+    renderPayslipEmailLogs([]);
+
+    showPageAlert(
+      "danger",
+      error.message || "Payslip email status records could not be loaded.",
+    );
+  } finally {
+    setPayslipEmailLogsRefreshLoading(false);
+  }
+}
+
 // DESCRIPTION ITEM 4 - STEP 4
 // Resolve a readable employee name for validation and messages.
 function getPayrollRecordEmployeeName(record) {
@@ -5945,10 +6185,15 @@ async function handleSendPayslipsEmailRequest() {
 
     if (upsertError) throw upsertError;
 
-    showPageAlert(
-      "success",
-      `${recordsToPrepare.length} payslip email log(s) prepared for the selected payroll action cycle. ${alreadyPendingCount} record(s) were already pending and ${alreadySentCount} record(s) were already sent.`,
-    );
+showPageAlert(
+  "success",
+  `${recordsToPrepare.length} payslip email log(s) prepared for the selected payroll action cycle. ${alreadyPendingCount} record(s) were already pending and ${alreadySentCount} record(s) were already sent.`,
+);
+
+// DESCRIPTION ITEM 4 - STEP 6
+// Reload the status panel immediately after preparing logs so HR can see
+// the Pending records without manually refreshing.
+await refreshPayslipEmailLogs();
   } catch (error) {
     console.error("Error preparing payslip email logs:", error);
 
