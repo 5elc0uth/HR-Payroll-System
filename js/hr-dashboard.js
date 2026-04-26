@@ -43,6 +43,12 @@ await refreshPayrollWorkspace();
 // Load saved banks from Supabase so Bank Directory records survive page refresh.
 await refreshBankDirectoryWorkspace();
 
+// EMPLOYEE BANK DETAILS - STEP 8A
+// Load saved employee bank details on page start after employees and banks
+// are already available, so the Employee Bank Records table is populated
+// when HR opens the payroll workspace.
+await refreshEmployeeBankDetailsWorkspace();
+
     window.hrEditEmployee = (employeeId) => {
       startEmployeeEdit(employeeId);
     };
@@ -85,6 +91,13 @@ await refreshBankDirectoryWorkspace();
 window.hrEditBankDirectoryRecord = (bankId) => {
   startBankDirectoryEdit(bankId);
 };
+
+// EMPLOYEE BANK DETAILS - STEP 9
+// Expose Employee Bank Details edit action for the table button.
+window.hrEditEmployeeBankDetailsRecord = (employeeBankDetailsId) => {
+  startEmployeeBankDetailsEdit(employeeBankDetailsId);
+};
+
   } catch (error) {
     console.error("Error initialising HR dashboard:", error);
     showPageAlert(
@@ -134,6 +147,12 @@ filteredPayrollAllowanceComponents: [],
 bankDirectoryRecords: [],
 filteredBankDirectoryRecords: [],
 
+// EMPLOYEE BANK DETAILS - STEP 8
+// Holds employee bank account records loaded from Supabase
+// so the records table can reflect saved bank details immediately.
+employeeBankDetailsRecords: [],
+filteredEmployeeBankDetailsRecords: [],
+
   currentEditingEmployee: null,
   currentEditingPayroll: null,
 
@@ -152,6 +171,10 @@ filteredBankDirectoryRecords: [],
 // BANK DIRECTORY - STEP 8D
 // Tracks the bank currently being edited so Save Bank can update instead of creating a duplicate.
 currentEditingBankDirectory: null,
+// EMPLOYEE BANK DETAILS - STEP 9
+// Tracks the employee bank detail currently being edited so Save updates
+// the existing row instead of creating another bank account record.
+currentEditingEmployeeBankDetails: null,
 
   pendingFiles: [],
   attachedDocuments: [],
@@ -321,10 +344,15 @@ function cacheDomElements() {
     payrollSearchInput: document.getElementById("payrollSearchInput"),
     payrollStatusFilter: document.getElementById("payrollStatusFilter"),
 
-    // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4A FIX
-    // Cache export pay cycle selector and CSV button.
-    exportPayrollPayCycle: document.getElementById("exportPayrollPayCycle"),
-    exportPayrollCsvBtn: document.getElementById("exportPayrollCsvBtn"),
+// PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4A FIX
+// Cache export pay cycle selector and CSV button.
+exportPayrollPayCycle: document.getElementById("exportPayrollPayCycle"),
+exportPayrollCsvBtn: document.getElementById("exportPayrollCsvBtn"),
+
+// DESCRIPTION ITEM 4 - STEP 3
+// Cache Send Payslips button so it can be enabled only when
+// finalised payroll records exist for the selected action cycle.
+sendPayslipsEmailBtn: document.getElementById("sendPayslipsEmailBtn"),
 
     refreshPayrollRecordsBtn: document.getElementById("refreshPayrollRecordsBtn"),
     payrollRecordsEmptyState: document.getElementById("payrollRecordsEmptyState"),
@@ -382,7 +410,11 @@ bankName: document.getElementById("bankName"),
 bankCode: document.getElementById("bankCode"),
 bankStatus: document.getElementById("bankStatus"),
 
-// BANK DIRECTORY - STEP 8HbankDirectorySubmitLabel: document.getElementById("bankDirectorySubmitLabel"),
+// BANK DIRECTORY - STEP 10B
+// Cache the Save/Update Bank label correctly.
+// This was previously swallowed by a comment, so edit/create label changes
+// were not reliably controlled by JavaScript.
+bankDirectorySubmitLabel: document.getElementById("bankDirectorySubmitLabel"),
 cancelBankDirectoryEditBtn: document.getElementById("cancelBankDirectoryEditBtn"),
 
 // BANK DIRECTORY - STEP 8I
@@ -724,6 +756,12 @@ state.dom.cancelEmployeeBankDetailsEditBtn?.addEventListener("click", () => {
   resetEmployeeBankDetailsForm();
 });
 
+// EMPLOYEE BANK DETAILS - STEP 8
+// Filter the Employee Bank Details records as HR types in the search box.
+state.dom.employeeBankDetailsSearchInput?.addEventListener("input", () => {
+  applyEmployeeBankDetailsSearch();
+});
+
 // EMPLOYEE BANK DETAILS - STEP 6
 // Re-check the Save button whenever HR completes or changes required fields.
 [
@@ -872,12 +910,27 @@ state.dom.cancelBankDirectoryEditBtn?.addEventListener("click", () => {
     await handlePayrollRecordsRefresh();
   });
 
-  // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
-  // Connect the Payroll Records export button to the CSV export handler.
-  // The handler itself is added in the next patch.
-  state.dom.exportPayrollCsvBtn?.addEventListener("click", () => {
-    handlePayrollExportCsv();
-  });
+// PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
+// Connect the Payroll Records export button to the CSV export handler.
+state.dom.exportPayrollCsvBtn?.addEventListener("click", () => {
+  handlePayrollExportCsv();
+});
+
+// DESCRIPTION ITEM 4 - STEP 4
+// Start the payslip email workflow from Payroll Records.
+// This first creates auditable Pending rows in payslip_email_logs.
+// Actual email delivery will be handled by the secure email function next.
+state.dom.sendPayslipsEmailBtn?.addEventListener("click", async () => {
+  await handleSendPayslipsEmailRequest();
+});
+
+// DESCRIPTION ITEM 4 - STEP 3A
+// Payroll action cycle now controls the visible Payroll Records list as well
+// as CSV/Payslip actions. This keeps HR actions aligned with the records shown.
+state.dom.exportPayrollPayCycle?.addEventListener("change", () => {
+  applyPayrollSearch();
+  updateSendPayslipsButtonState();
+});
 
   state.dom.payrollCreateForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2100,8 +2153,10 @@ async function handlePayrollRecordsRefresh() {
   }
 }
 
-// BANK DIRECTORY - STEP 7B
-// Save selected bank into Supabase so it remains after page refresh.
+// BANK DIRECTORY - STEP 10A
+// Save selected bank into Supabase and show a spinner while processing.
+// If the selected bank already exists, refresh and focus the table on the
+// existing matching row so HR can immediately see it.
 async function handleBankDirectorySave() {
   const bankName = String(state.dom.bankName?.value || "").trim();
   const bankCode = String(state.dom.bankCode?.value || "").trim();
@@ -2112,63 +2167,162 @@ async function handleBankDirectorySave() {
     return;
   }
 
-const editingId = String(state.currentEditingBankDirectory?.id || "").trim();
+  const editingId = String(state.currentEditingBankDirectory?.id || "").trim();
+  const isEditMode = Boolean(editingId);
 
-const exists = state.bankDirectoryRecords.some(
+  try {
+    setBankDirectorySaveLoading(
+      true,
+      isEditMode ? "Updating Bank..." : "Checking Bank...",
+    );
+
+// BANK DIRECTORY - STEP 10B
+// Check duplicate bank name and duplicate bank code separately.
+// This lets us correct a saved bank-code drift when the same bank name
+// already exists but its stored code no longer matches the controlled dropdown.
+const sameNameBank = state.bankDirectoryRecords.find(
   (bank) =>
     String(bank.id) !== editingId &&
-    (normalizeText(bank.bank_name) === normalizeText(bankName) ||
-      normalizeText(bank.bank_code) === normalizeText(bankCode)),
+    normalizeText(bank.bank_name) === normalizeText(bankName),
 );
 
-if (exists) {
-  showPageAlert("warning", "This bank already exists in the directory.");
-  return;
-}
+const sameCodeBank = state.bankDirectoryRecords.find(
+  (bank) =>
+    String(bank.id) !== editingId &&
+    normalizeText(bank.bank_code) === normalizeText(bankCode),
+);
 
-try {
-  const supabase = getSupabaseClient();
+// BANK DIRECTORY - STEP 10B
+// If the bank name already exists but the saved code is different,
+// correct the existing Supabase row instead of leaving the mismatch visible.
+if (!isEditMode && sameNameBank) {
+  const existingBankCode = String(sameNameBank.bank_code || "").trim();
 
-  const payload = {
-    bank_name: bankName,
-    bank_code: bankCode,
-    status,
-    updated_by: state.currentUser?.id || null,
-  };
+  if (existingBankCode !== bankCode) {
+    const supabase = getSupabaseClient();
 
-  let response;
-
-  if (editingId) {
-    response = await supabase
+    const { error } = await supabase
       .from("bank_directory")
-      .update(payload)
-      .eq("id", editingId);
-  } else {
-    response = await supabase.from("bank_directory").insert([
-      {
-        ...payload,
-        created_by: state.currentUser?.id || null,
-      },
-    ]);
-  }
-
-  const { error } = response;
+      .update({
+        bank_code: bankCode,
+        status,
+        updated_by: state.currentUser?.id || null,
+      })
+      .eq("id", sameNameBank.id);
 
     if (error) throw error;
 
-    showPageAlert("success", `${escapeHtml(bankName)} added to Bank Directory.`);
+// BANK DIRECTORY - STEP 10C
+// Clear the search after automatic correction so the redirected records area
+// still shows the full Bank Directory list.
+if (state.dom.bankDirectorySearchInput) {
+  state.dom.bankDirectorySearchInput.value = "";
+}
 
-    resetBankDirectoryForm();
-    await refreshBankDirectoryWorkspace();
+resetBankDirectoryForm();
+await refreshBankDirectoryWorkspace();
+applyBankDirectorySearch();
+
+    // BANK DIRECTORY - STEP 10B
+    // Keep Employee Bank Details bank dropdown aligned with the corrected
+    // Bank Directory value.
+    await refreshEmployeeBankDetailsWorkspace();
+
+    showPageAlert(
+      "success",
+      `${escapeHtml(bankName)} already existed. Its saved bank code was corrected from <strong>${escapeHtml(
+        existingBankCode || "--",
+      )}</strong> to <strong>${escapeHtml(bankCode)}</strong>.`,
+    );
+
+    scrollToBankDirectoryRecords();
+    return;
+  }
+}
+
+const duplicateBank = sameNameBank || sameCodeBank;
+
+if (duplicateBank) {
+  await refreshBankDirectoryWorkspace();
+
+  if (state.dom.bankDirectorySearchInput) {
+    state.dom.bankDirectorySearchInput.value =
+      duplicateBank.bank_name || duplicateBank.bank_code || bankName;
+  }
+
+  applyBankDirectorySearch();
+
+  showPageAlert(
+    "warning",
+    `${escapeHtml(duplicateBank.bank_name || bankName)} already exists in the Bank Directory.`,
+  );
+
+  scrollToBankDirectoryRecords();
+  return;
+}
+
+    setBankDirectorySaveLoading(
+      true,
+      isEditMode ? "Updating Bank..." : "Saving Bank...",
+    );
+
+    const supabase = getSupabaseClient();
+
+    const payload = {
+      bank_name: bankName,
+      bank_code: bankCode,
+      status,
+      updated_by: state.currentUser?.id || null,
+    };
+
+    const response = isEditMode
+      ? await supabase
+          .from("bank_directory")
+          .update(payload)
+          .eq("id", editingId)
+      : await supabase.from("bank_directory").insert([
+          {
+            ...payload,
+            created_by: state.currentUser?.id || null,
+          },
+        ]);
+
+    if (response.error) throw response.error;
+
+    showPageAlert(
+      "success",
+      isEditMode
+        ? `${escapeHtml(bankName)} was updated successfully.`
+        : `${escapeHtml(bankName)} was added to Bank Directory.`,
+    );
+
+resetBankDirectoryForm();
+
+// BANK DIRECTORY - STEP 10C
+// After a successful save/update, clear the search filter so HR lands
+// on Bank Directory Records and sees the full approved bank list.
+if (state.dom.bankDirectorySearchInput) {
+  state.dom.bankDirectorySearchInput.value = "";
+}
+
+await refreshBankDirectoryWorkspace();
+applyBankDirectorySearch();
+
+// BANK DIRECTORY - STEP 10C
+// Keep Employee Bank Details bank dropdown/table aligned after Bank Directory changes.
+await refreshEmployeeBankDetailsWorkspace();
+
+scrollToBankDirectoryRecords();
   } catch (error) {
     console.error("Error saving bank directory record:", error);
     showPageAlert(
       "danger",
       error.message || "Bank Directory record could not be saved.",
     );
+  } finally {
+    setBankDirectorySaveLoading(false);
   }
 }
-
 // Reset form after save
 function resetBankDirectoryForm() {
   if (state.dom.bankDirectoryForm) {
@@ -2204,6 +2358,57 @@ function updateBankDirectorySaveButtonState() {
     state.dom.saveBankDirectoryBtn,
     hasBankName && hasBankCode,
   );
+}
+
+// BANK DIRECTORY - STEP 10A
+// Shows visible feedback while Save Bank is checking/saving/updating.
+// This keeps Bank Directory consistent with the other HR save buttons.
+function setBankDirectorySaveLoading(isLoading, loadingText = "Saving Bank...") {
+  const button = state.dom.saveBankDirectoryBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      ${loadingText}
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  // BANK DIRECTORY - STEP 10A
+  // Recalculate enabled/disabled styling after the spinner is removed.
+  updateBankDirectorySaveButtonState();
+}
+
+// BANK DIRECTORY - STEP 10B
+// Move the user down to Bank Directory Records after save,
+// duplicate detection, or automatic bank-code correction.
+function scrollToBankDirectoryRecords() {
+  setTimeout(() => {
+    const target =
+      state.dom.bankDirectoryTableWrapper ||
+      state.dom.bankDirectoryEmptyState ||
+      state.dom.bankDirectorySearchInput;
+
+    if (!target) return;
+
+    const targetTop = target.getBoundingClientRect().top + window.scrollY - 120;
+
+    window.scrollTo({
+      top: targetTop,
+      behavior: "smooth",
+    });
+  }, 150);
 }
 
 // BANK DIRECTORY - STEP 8H
@@ -2389,6 +2594,37 @@ function renderBankDirectoryTable() {
   });
 }
 
+// EMPLOYEE BANK DETAILS - STEP 10
+// Resolve the active employee bank record for a payroll export row.
+// Primary match is employee_id. Email fallback is included for safety
+// in case the payroll overview row does not expose employee_id in future.
+function getActiveEmployeeBankDetailsForPayrollRecord(record) {
+  const employeeId = String(record?.employee_id || "").trim();
+  const employeeEmail = normalizeText(record?.work_email || "");
+
+  const activeBankDetails = (state.employeeBankDetailsRecords || []).filter(
+    (bankDetail) => normalizeText(bankDetail.status) === "active",
+  );
+
+  let matchedBankDetail = null;
+
+  if (employeeId) {
+    matchedBankDetail = activeBankDetails.find(
+      (bankDetail) =>
+        String(bankDetail.employee_id || "").trim() === employeeId,
+    );
+  }
+
+  if (!matchedBankDetail && employeeEmail) {
+    matchedBankDetail = activeBankDetails.find(
+      (bankDetail) =>
+        normalizeText(bankDetail.employee_email || "") === employeeEmail,
+    );
+  }
+
+  return matchedBankDetail || null;
+}
+
 // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
 // Generate a CSV export from finalised Payroll Records for bank payment processing.
 function handlePayrollExportCsv() {
@@ -2406,15 +2642,42 @@ function handlePayrollExportCsv() {
     return isFinalised && recordPayCycle === selectedPayCycle;
   });
 
-  if (!records.length) {
-    showPageAlert("warning", "No finalised payroll records are available for export.");
-    return;
-  }
+if (!records.length) {
+  showPageAlert("warning", "No finalised payroll records are available for export.");
+  return;
+}
 
-  // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 3
-  // Bank-ready export structure. Bank details are blank until employee
-  // bank account fields are added to the HR employee profile.
-  const headers = [
+// EMPLOYEE BANK DETAILS - STEP 10
+// Block bank-ready export if any finalised payroll employee does not have
+// an active bank detail. This prevents producing a payment file with blank
+// account number, bank code, or bank name.
+const recordsMissingBankDetails = records.filter(
+  (record) => !getActiveEmployeeBankDetailsForPayrollRecord(record),
+);
+
+if (recordsMissingBankDetails.length) {
+  const missingEmployeeNames = recordsMissingBankDetails
+    .slice(0, 5)
+    .map((record) => {
+      const employeeName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
+      return employeeName || record.work_email || "Unknown Employee";
+    });
+
+  const extraCount = recordsMissingBankDetails.length - missingEmployeeNames.length;
+
+  showPageAlert(
+    "warning",
+    `CSV export stopped because ${recordsMissingBankDetails.length} finalised payroll record(s) do not have active employee bank details. Missing: <strong>${escapeHtml(
+      missingEmployeeNames.join(", "),
+    )}${extraCount > 0 ? `, and ${extraCount} more` : ""}</strong>.`,
+  );
+
+  return;
+}
+
+// EMPLOYEE BANK DETAILS - STEP 10
+// Bank-ready export structure now uses active employee bank details.
+const headers = [
     "Account Name",
     "Account Number",
     "Bank Code",
@@ -2426,21 +2689,22 @@ function handlePayrollExportCsv() {
     "Pay Cycle",
   ];
 
-  const rows = records.map((record) => {
-    const employeeName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
+const rows = records.map((record) => {
+  const employeeName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
+  const bankDetails = getActiveEmployeeBankDetailsForPayrollRecord(record);
 
-    return [
-      employeeName || "Unknown Employee",
-      "",
-      "",
-      "",
-      Number(record.net_pay || 0).toFixed(2),
-      record.currency || "NGN",
-      `${record.pay_cycle || "Payroll"} - ${employeeName || "Employee"}`,
-      record.work_email || "",
-      record.pay_cycle || "",
-    ];
-  });
+  return [
+    bankDetails?.account_name || employeeName || "Unknown Employee",
+    bankDetails?.account_number || "",
+    bankDetails?.bank_code || "",
+    bankDetails?.bank_name || "",
+    Number(record.net_pay || 0).toFixed(2),
+    record.currency || "NGN",
+    `${record.pay_cycle || "Payroll"} - ${employeeName || "Employee"}`,
+    record.work_email || "",
+    record.pay_cycle || "",
+  ];
+});
 
   const csvContent = [headers, ...rows]
     .map((row) =>
@@ -2465,10 +2729,10 @@ function handlePayrollExportCsv() {
 
   URL.revokeObjectURL(url);
 
-  showPageAlert(
-    "success",
-    `${records.length} finalised payroll record(s) exported successfully.`,
-  );
+showPageAlert(
+  "success",
+  `${records.length} finalised payroll record(s) exported successfully with employee bank details.`,
+);
 }
 
 async function handleEmployeeFormClear() {
@@ -4521,10 +4785,14 @@ async function loadPayrollRecords() {
       "danger",
       error.message || "Payroll records could not be loaded.",
     );
-    state.payrollRecords = [];
-    state.filteredPayrollRecords = [];
-    renderPayrollSummary([]);
-    renderPayrollRecords([]);
+state.payrollRecords = [];
+state.filteredPayrollRecords = [];
+renderPayrollSummary([]);
+renderPayrollRecords([]);
+
+// DESCRIPTION ITEM 4 - STEP 3
+// Keep Send Payslips disabled if payroll records fail to load.
+updateSendPayslipsButtonState();
   }
 }
 
@@ -4800,25 +5068,42 @@ async function handleEmployeeBankDetailsSave() {
     return;
   }
 
-  const payload = buildEmployeeBankDetailsPayload();
+const payload = buildEmployeeBankDetailsPayload();
+const editingId = String(state.dom.editingEmployeeBankDetailsId?.value || "").trim();
+const isEditMode = Boolean(editingId);
 
-  try {
-    setEmployeeBankDetailsSaveLoading(true);
+try {
+  setEmployeeBankDetailsSaveLoading(true);
 
-    const supabase = getSupabaseClient();
+  const supabase = getSupabaseClient();
 
-    const { error } = await supabase
-      .from("employee_bank_details")
-      .insert([payload]);
+  // EMPLOYEE BANK DETAILS - STEP 9
+  // Create a new employee bank record when no edit id exists.
+  // Update the selected existing record when edit mode is active.
+  const response = isEditMode
+    ? await supabase
+        .from("employee_bank_details")
+        .update(payload)
+        .eq("id", editingId)
+    : await supabase
+        .from("employee_bank_details")
+        .insert([payload]);
 
-    if (error) throw error;
+  if (response.error) throw response.error;
 
-    showPageAlert(
-      "success",
-      "Employee bank details were saved successfully.",
-    );
+// EMPLOYEE BANK DETAILS - STEP 8
+// Reload the records table after save so the newly saved account appears
+// immediately under Employee Bank Records.
+await refreshEmployeeBankDetailsWorkspace();
 
-    resetEmployeeBankDetailsForm();
+showPageAlert(
+  "success",
+  isEditMode
+    ? "Employee bank details were updated successfully."
+    : "Employee bank details were saved successfully.",
+);
+
+resetEmployeeBankDetailsForm();
   } catch (error) {
     console.error("Error saving employee bank details:", error);
 
@@ -4842,6 +5127,187 @@ async function handleEmployeeBankDetailsSave() {
   }
 }
 
+// EMPLOYEE BANK DETAILS - STEP 8
+// Show a temporary loading row while saved employee bank details
+// are being loaded from Supabase.
+function renderEmployeeBankDetailsLoadingState() {
+  const tbody = state.dom.employeeBankDetailsTableBody;
+  if (!tbody) return;
+
+  state.dom.employeeBankDetailsEmptyState?.classList.add("d-none");
+  state.dom.employeeBankDetailsTableWrapper?.classList.remove("d-none");
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="7" class="text-center text-secondary py-4">
+        Loading employee bank details.
+      </td>
+    </tr>
+  `;
+}
+
+// EMPLOYEE BANK DETAILS - STEP 8
+// Load employee bank details from Supabase and join employee/bank names
+// for a readable HR records table.
+async function refreshEmployeeBankDetailsWorkspace() {
+  renderEmployeeBankDetailsLoadingState();
+
+  const supabase = getSupabaseClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("employee_bank_details")
+      .select(`
+        *,
+        employees (
+          id,
+          first_name,
+          last_name,
+          work_email,
+          employee_number
+        ),
+        bank_directory (
+          id,
+          bank_name,
+          bank_code,
+          status
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    state.employeeBankDetailsRecords = Array.isArray(data)
+      ? data.map((record) => {
+          const employee = record.employees || {};
+          const bank = record.bank_directory || {};
+
+          const employeeName =
+            `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+            employee.work_email ||
+            "Unknown Employee";
+
+          return {
+            ...record,
+            employee_name: employeeName,
+            employee_email: employee.work_email || "",
+            employee_number: employee.employee_number || "",
+            bank_name: bank.bank_name || "",
+            bank_directory_status: bank.status || "",
+          };
+        })
+      : [];
+
+    applyEmployeeBankDetailsSearch();
+  } catch (error) {
+    console.error("Error loading employee bank details:", error);
+
+    showPageAlert(
+      "danger",
+      error.message || "Employee bank details could not be loaded.",
+    );
+
+    state.employeeBankDetailsRecords = [];
+    state.filteredEmployeeBankDetailsRecords = [];
+    renderEmployeeBankDetailsTable([]);
+  }
+}
+
+// EMPLOYEE BANK DETAILS - STEP 8
+// Client-side search for employee name, email, bank, account number,
+// account name, bank code, and status.
+function applyEmployeeBankDetailsSearch() {
+  const searchTerm = normalizeText(
+    state.dom.employeeBankDetailsSearchInput?.value || "",
+  );
+
+  let rows = [...state.employeeBankDetailsRecords];
+
+  if (searchTerm) {
+    rows = rows.filter((record) => {
+      const searchableText = [
+        record.employee_name,
+        record.employee_email,
+        record.employee_number,
+        record.bank_name,
+        record.bank_code,
+        record.account_number,
+        record.account_name,
+        record.status,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(searchTerm);
+    });
+  }
+
+  state.filteredEmployeeBankDetailsRecords = rows;
+  renderEmployeeBankDetailsTable(rows);
+}
+
+// EMPLOYEE BANK DETAILS - STEP 8
+// Render saved employee bank details under the Employee Bank Records table.
+// Edit action is intentionally disabled for now; edit mode comes next.
+function renderEmployeeBankDetailsTable(records) {
+  const tbody = state.dom.employeeBankDetailsTableBody;
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (!records.length) {
+    state.dom.employeeBankDetailsEmptyState?.classList.remove("d-none");
+    state.dom.employeeBankDetailsTableWrapper?.classList.add("d-none");
+    return;
+  }
+
+  state.dom.employeeBankDetailsEmptyState?.classList.add("d-none");
+  state.dom.employeeBankDetailsTableWrapper?.classList.remove("d-none");
+
+  records.forEach((record) => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>
+        <div class="fw-semibold">${escapeHtml(record.employee_name || "Unknown Employee")}</div>
+        <div class="text-secondary small text-break">
+          ${escapeHtml(record.employee_email || record.employee_number || "--")}
+        </div>
+      </td>
+
+      <td>${escapeHtml(record.bank_name || "--")}</td>
+
+      <td>${escapeHtml(record.bank_code || "--")}</td>
+
+      <td>${escapeHtml(record.account_number || "--")}</td>
+
+      <td>${escapeHtml(record.account_name || "--")}</td>
+
+      <td>
+        <span class="badge ${getStatusBadgeClass(record.status)}">
+          ${escapeHtml(formatStatusLabel(record.status))}
+        </span>
+      </td>
+
+<td class="text-center">
+  <!-- EMPLOYEE BANK DETAILS - STEP 9
+       Enable edit so HR can update employee bank details from the table. -->
+  <button
+    type="button"
+    class="btn btn-sm btn-outline-primary"
+    title="Edit employee bank details"
+    aria-label="Edit employee bank details"
+    onclick="window.hrEditEmployeeBankDetailsRecord('${String(record.id).replaceAll("'", "\\'")}')"
+  >
+    <i class="bi bi-pencil-square"></i>
+  </button>
+</td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
 // EMPLOYEE BANK DETAILS - STEP 5
 // Reset only the Employee Bank Details form.
 // This clears selected employee, selected bank, auto-filled bank code,
@@ -4855,6 +5321,10 @@ function resetEmployeeBankDetailsForm() {
     state.dom.editingEmployeeBankDetailsId.value = "";
   }
 
+  // EMPLOYEE BANK DETAILS - STEP 9
+// Leave edit mode when the form is cleared or after a successful update.
+state.currentEditingEmployeeBankDetails = null;
+
   if (state.dom.employeeBankCode) {
     state.dom.employeeBankCode.value = "";
   }
@@ -4863,60 +5333,6 @@ function resetEmployeeBankDetailsForm() {
     state.dom.employeeBankStatus.value = "Active";
   }
 
-// HR BUTTON UNIFORMITY - STEP 6B
-// Keep Bank Directory, Payroll Master, Allowance Components,
-// and Submit Payroll buttons visually consistent as fields change.
-[
-  state.dom.bankName,
-  state.dom.bankCode,
-  state.dom.bankStatus,
-].forEach((field) => {
-  field?.addEventListener("input", updateBankDirectorySaveButtonState);
-  field?.addEventListener("change", updateBankDirectorySaveButtonState);
-});
-
-[
-  state.dom.payrollMasterEmployeeId,
-  state.dom.payrollMasterGrade,
-  state.dom.payrollMasterBasicSalary,
-  state.dom.payrollMasterEffectiveDate,
-  state.dom.payrollMasterPayCycle,
-  state.dom.payrollMasterStatus,
-].forEach((field) => {
-  field?.addEventListener("input", updatePayrollMasterSaveButtonState);
-  field?.addEventListener("change", updatePayrollMasterSaveButtonState);
-});
-
-[
-  state.dom.payrollAllowanceMasterRecordId,
-  state.dom.payrollAllowanceType,
-  state.dom.payrollAllowanceAmount,
-  state.dom.payrollAllowanceEffectiveDate,
-  state.dom.payrollAllowanceStatus,
-].forEach((field) => {
-  field?.addEventListener("input", updatePayrollAllowanceSaveButtonState);
-  field?.addEventListener("change", updatePayrollAllowanceSaveButtonState);
-});
-
-[
-  state.dom.payrollEmployeeId,
-  state.dom.payrollPayCycle,
-  state.dom.payrollPayDate,
-  state.dom.payrollGrossPay,
-  state.dom.payrollTotalDeductions,
-  state.dom.payrollNetPay,
-].forEach((field) => {
-  field?.addEventListener("input", updatePayrollSubmitButtonState);
-  field?.addEventListener("change", updatePayrollSubmitButtonState);
-});
-
-// HR BUTTON UNIFORMITY - STEP 6B
-// Set the initial state immediately after the event bindings are attached.
-updateBankDirectorySaveButtonState();
-updateEmployeeBankDetailsSaveButtonState();
-updatePayrollMasterSaveButtonState();
-updatePayrollAllowanceSaveButtonState();
-updatePayrollSubmitButtonState();
 
 // EMPLOYEE BANK DETAILS - STEP 6
 // Recalculate button state after clearing the form.
@@ -4926,6 +5342,101 @@ updateEmployeeBankDetailsSaveButtonState();
   if (state.dom.employeeBankDetailsSubmitLabel) {
     state.dom.employeeBankDetailsSubmitLabel.textContent = "Save Employee Bank Details";
   }
+
+  // EMPLOYEE BANK DETAILS - STEP 9
+// Return the submit button wording to create/save mode after reset.
+if (state.dom.saveEmployeeBankDetailsBtn) {
+  state.dom.saveEmployeeBankDetailsBtn.innerHTML = `
+    <i class="bi bi-save me-2"></i>
+    <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
+  `;
+
+  state.dom.employeeBankDetailsSubmitLabel = document.getElementById(
+    "employeeBankDetailsSubmitLabel",
+  );
+}
+}
+
+// EMPLOYEE BANK DETAILS - STEP 9
+// Load the selected employee bank record into the form for editing.
+// Save will update the existing Supabase row because the hidden edit id is set.
+function startEmployeeBankDetailsEdit(employeeBankDetailsId) {
+  const record = state.employeeBankDetailsRecords.find(
+    (item) => String(item.id) === String(employeeBankDetailsId),
+  );
+
+  if (!record) {
+    showPageAlert(
+      "warning",
+      "The selected employee bank details record could not be found. Please refresh and try again.",
+    );
+    return;
+  }
+
+  clearPageAlert();
+
+  state.currentEditingEmployeeBankDetails = record;
+
+  if (state.dom.editingEmployeeBankDetailsId) {
+    state.dom.editingEmployeeBankDetailsId.value = record.id || "";
+  }
+
+  if (state.dom.employeeBankEmployeeId) {
+    state.dom.employeeBankEmployeeId.value = record.employee_id || "";
+  }
+
+  if (state.dom.employeeBankBankId) {
+    state.dom.employeeBankBankId.value = record.bank_id || "";
+  }
+
+  if (state.dom.employeeBankCode) {
+    state.dom.employeeBankCode.value = record.bank_code || "";
+  }
+
+  if (state.dom.employeeBankAccountNumber) {
+    state.dom.employeeBankAccountNumber.value = record.account_number || "";
+  }
+
+  if (state.dom.employeeBankAccountName) {
+    state.dom.employeeBankAccountName.value = record.account_name || "";
+  }
+
+  if (state.dom.employeeBankStatus) {
+    state.dom.employeeBankStatus.value = record.status || "Active";
+  }
+
+  if (state.dom.saveEmployeeBankDetailsBtn) {
+    state.dom.saveEmployeeBankDetailsBtn.innerHTML = `
+      <i class="bi bi-save me-2"></i>
+      <span id="employeeBankDetailsSubmitLabel">Update Employee Bank Details</span>
+    `;
+
+    state.dom.employeeBankDetailsSubmitLabel = document.getElementById(
+      "employeeBankDetailsSubmitLabel",
+    );
+  }
+
+  updateEmployeeBankDetailsSaveButtonState();
+
+  setTimeout(() => {
+    const target =
+      state.dom.employeeBankDetailsForm?.closest(".dashboard-section-card") ||
+      state.dom.employeeBankDetailsForm;
+
+    if (!target) return;
+
+    const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
+
+    window.scrollTo({
+      top: targetTop,
+      behavior: "smooth",
+    });
+  }, 150);
+
+  showPageAlert(
+    "info",
+    "Editing employee bank details. Make your changes and click Update Employee Bank Details.",
+  );
 }
 
 // EMPLOYEE BANK DETAILS - STEP 4
@@ -5148,11 +5659,25 @@ function populatePayrollMasterEmployeeOptions() {
   }
 }
 
+// DESCRIPTION ITEM 4 - STEP 3A
+// Payroll Records filtering now respects:
+// - free-text search
+// - status filter
+// - payroll action cycle
+// This ensures the list shown matches the payroll run HR is about to export
+// or send payslips for.
 function applyPayrollSearch() {
   const searchTerm = normalizeText(state.dom.payrollSearchInput?.value || "");
   const statusFilter = normalizeText(state.dom.payrollStatusFilter?.value || "");
+  const actionCycleFilter = String(state.dom.exportPayrollPayCycle?.value || "").trim();
 
   let rows = [...state.payrollRecords];
+
+  if (actionCycleFilter) {
+    rows = rows.filter(
+      (record) => String(record.pay_cycle || "").trim() === actionCycleFilter,
+    );
+  }
 
   if (searchTerm) {
     rows = rows.filter((record) => {
@@ -5180,9 +5705,14 @@ function applyPayrollSearch() {
     );
   }
 
-  state.filteredPayrollRecords = rows;
-  renderPayrollSummary(rows);
-  renderPayrollRecords(rows);
+state.filteredPayrollRecords = rows;
+renderPayrollSummary(rows);
+renderPayrollRecords(rows);
+
+// DESCRIPTION ITEM 4 - STEP 3A
+// Keep Send Payslips button state aligned with the currently selected
+// payroll action cycle after every table filter refresh.
+updateSendPayslipsButtonState();
 }
 
 // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4B
@@ -5218,8 +5748,218 @@ function populateExportPayrollPayCycleOptions(records = []) {
   ) {
     select.value = currentValue;
   }
+
+  // DESCRIPTION ITEM 4 - STEP 3
+  // After rebuilding the action-cycle dropdown, update the Send Payslips
+  // button so it reflects the available finalised payroll records.
+  updateSendPayslipsButtonState();
 }
 
+// DESCRIPTION ITEM 4 - STEP 3
+// Return finalised payroll records for the currently selected payroll action cycle.
+// This mirrors the CSV export cycle behaviour but does not send anything yet.
+function getFinalisedPayrollRecordsForSelectedActionCycle() {
+  const selectedPayCycle = String(state.dom.exportPayrollPayCycle?.value || "").trim();
+
+  return (state.payrollRecords || []).filter((record) => {
+    const isFinalised = Boolean(record.is_finalised);
+    const recordPayCycle = String(record.pay_cycle || "").trim();
+
+    if (!selectedPayCycle) return isFinalised;
+
+    return isFinalised && recordPayCycle === selectedPayCycle;
+  });
+}
+
+// DESCRIPTION ITEM 4 - STEP 3
+// Enable Send Payslips only when there are finalised payroll records
+// for the selected action cycle. This prevents HR from trying to send
+// payslips for an empty or non-finalised payroll run.
+function updateSendPayslipsButtonState() {
+  const button = state.dom.sendPayslipsEmailBtn;
+  if (!button) return;
+
+  const finalisedRecords = getFinalisedPayrollRecordsForSelectedActionCycle();
+  const canSend = finalisedRecords.length > 0;
+
+  button.disabled = !canSend;
+
+  button.title = canSend
+    ? `${finalisedRecords.length} finalised payroll record(s) available for payslip email.`
+    : "No finalised payroll records are available for the selected action cycle.";
+
+  button.classList.toggle("btn-outline-success", canSend);
+  button.classList.toggle("btn-secondary", !canSend);
+}
+// DESCRIPTION ITEM 4 - STEP 4
+// Loading state for Send Payslips.
+// Keeps the button from being clicked repeatedly while audit rows are created.
+function setSendPayslipsEmailLoading(isLoading) {
+  const button = state.dom.sendPayslipsEmailBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Preparing Payslips...
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  updateSendPayslipsButtonState();
+}
+
+// DESCRIPTION ITEM 4 - STEP 4
+// Resolve a readable employee name for validation and messages.
+function getPayrollRecordEmployeeName(record) {
+  return (
+    `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
+    record.work_email ||
+    "Unknown Employee"
+  );
+}
+
+// DESCRIPTION ITEM 4 - STEP 4
+// Build one audit payload for a payroll record.
+// The status is Pending because actual delivery is handled separately
+// by the secure email sending function.
+function buildPayslipEmailLogPayload(record) {
+  return {
+    payroll_record_id: record.id,
+    employee_id: record.employee_id,
+    recipient_email: String(record.work_email || "").trim().toLowerCase(),
+    pay_cycle: String(record.pay_cycle || "").trim(),
+    status: "Pending",
+    error_message: null,
+    sent_at: null,
+  };
+}
+
+// DESCRIPTION ITEM 4 - STEP 4
+// Prepare payslip email audit rows for the selected payroll action cycle.
+// This does not send emails yet. It validates the run and creates/updates
+// Pending logs so the next secure email step has a controlled queue to process.
+async function handleSendPayslipsEmailRequest() {
+  clearPageAlert();
+
+  const finalisedRecords = getFinalisedPayrollRecordsForSelectedActionCycle();
+
+  if (!finalisedRecords.length) {
+    showPageAlert(
+      "warning",
+      "No finalised payroll records are available for the selected action cycle.",
+    );
+    return;
+  }
+
+  const recordsMissingRequiredData = finalisedRecords.filter((record) => {
+    const hasPayrollRecordId = Boolean(String(record.id || "").trim());
+    const hasEmployeeId = Boolean(String(record.employee_id || "").trim());
+    const hasRecipientEmail = Boolean(String(record.work_email || "").trim());
+    const hasPayCycle = Boolean(String(record.pay_cycle || "").trim());
+
+    return !hasPayrollRecordId || !hasEmployeeId || !hasRecipientEmail || !hasPayCycle;
+  });
+
+  if (recordsMissingRequiredData.length) {
+    const names = recordsMissingRequiredData
+      .slice(0, 5)
+      .map((record) => getPayrollRecordEmployeeName(record));
+
+    const extraCount = recordsMissingRequiredData.length - names.length;
+
+    showPageAlert(
+      "warning",
+      `Payslip email preparation stopped because ${recordsMissingRequiredData.length} payroll record(s) are missing employee, email, or pay-cycle data. Affected: <strong>${escapeHtml(
+        names.join(", "),
+      )}${extraCount > 0 ? `, and ${extraCount} more` : ""}</strong>.`,
+    );
+
+    return;
+  }
+
+  try {
+    setSendPayslipsEmailLoading(true);
+    await waitForNextPaint();
+
+    const supabase = getSupabaseClient();
+    const payrollRecordIds = finalisedRecords.map((record) => record.id);
+
+    const { data: existingLogs, error: existingLogsError } = await supabase
+      .from("payslip_email_logs")
+      .select("payroll_record_id, status")
+      .in("payroll_record_id", payrollRecordIds);
+
+    if (existingLogsError) throw existingLogsError;
+
+    const existingLogMap = new Map(
+      (existingLogs || []).map((log) => [
+        String(log.payroll_record_id),
+        normalizeText(log.status),
+      ]),
+    );
+
+    const recordsToPrepare = finalisedRecords.filter((record) => {
+      const existingStatus = existingLogMap.get(String(record.id));
+
+      // Do not disturb rows already pending or sent.
+      // Failed rows can be prepared again by resetting them to Pending.
+      return !existingStatus || existingStatus === "failed";
+    });
+
+    const alreadyPendingCount = finalisedRecords.filter(
+      (record) => existingLogMap.get(String(record.id)) === "pending",
+    ).length;
+
+    const alreadySentCount = finalisedRecords.filter(
+      (record) => existingLogMap.get(String(record.id)) === "sent",
+    ).length;
+
+    if (!recordsToPrepare.length) {
+      showPageAlert(
+        "info",
+        `No new payslip email logs were created. ${alreadyPendingCount} record(s) are already pending and ${alreadySentCount} record(s) are already marked as sent.`,
+      );
+      return;
+    }
+
+    const payload = recordsToPrepare.map((record) =>
+      buildPayslipEmailLogPayload(record),
+    );
+
+    const { error: upsertError } = await supabase
+      .from("payslip_email_logs")
+      .upsert(payload, {
+        onConflict: "payroll_record_id",
+      });
+
+    if (upsertError) throw upsertError;
+
+    showPageAlert(
+      "success",
+      `${recordsToPrepare.length} payslip email log(s) prepared for the selected payroll action cycle. ${alreadyPendingCount} record(s) were already pending and ${alreadySentCount} record(s) were already sent.`,
+    );
+  } catch (error) {
+    console.error("Error preparing payslip email logs:", error);
+
+    showPageAlert(
+      "danger",
+      error.message || "Payslip email logs could not be prepared.",
+    );
+  } finally {
+    setSendPayslipsEmailLoading(false);
+  }
+}
 function renderPayrollSummary(records) {
   const finalisedCount = records.filter((record) => Boolean(record.is_finalised)).length;
   const grossTotal = records.reduce(

@@ -798,7 +798,7 @@
                     <option value="Polaris Bank" data-bank-code="076">Polaris Bank</option>
                     <option value="PremiumTrust Bank" data-bank-code="105">PremiumTrust Bank</option>
                     <option value="Providus Bank" data-bank-code="101">Providus Bank</option>
-                    <option value="Sterling Bank" data-bank-code="090556">Signature Bank</option>
+                    <option value="Signature Bank" data-bank-code="090556">Signature Bank</option>
                     <option value="Stanbic IBTC Bank" data-bank-code="221">Stanbic IBTC Bank</option>
                     <option value="Standard Chartered Bank Nigeria" data-bank-code="068">Standard Chartered Bank Nigeria
                     </option>
@@ -840,16 +840,13 @@
                   <span id="bankDirectorySubmitLabel">Save Bank</span>
                 </button>
 
-<!-- BANK DIRECTORY - STEP 6C
+                <!-- BANK DIRECTORY - STEP 6C
      Keep Cancel visible in create mode as well as edit mode,
      so Bank Directory matches Employee Bank Details UX. -->
-<button
-  type="button"
-  id="cancelBankDirectoryEditBtn"
-  class="btn btn-outline-secondary dashboard-action-btn"
->
-  <i class="bi bi-x-circle me-2"></i>Cancel
-</button>
+                <button type="button" id="cancelBankDirectoryEditBtn"
+                  class="btn btn-outline-secondary dashboard-action-btn">
+                  <i class="bi bi-x-circle me-2"></i>Cancel
+                </button>
               </div>
             </form>
 
@@ -891,195 +888,163 @@
                 <tbody id="bankDirectoryTableBody"></tbody>
               </table>
             </div>
-</div>
-  </div>
-</section>
+          </div>
+        </div>
+      </section>
 
-<!-- =========================================================
+      <!-- =========================================================
      EMPLOYEE BANK DETAILS - STEP 2
      UI shell for linking employees to approved banks.
      This section will feed Payroll, Payslip, and Bank Export later.
 ========================================================== -->
-<section class="card dashboard-section-card mb-4">
-  <div class="card-body p-4 p-lg-5">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-      <div>
-        <h2 class="section-heading h4 mb-1">Employee Bank Details</h2>
-        <p class="section-subtext mb-0">
-          Link employees to approved bank accounts for payroll payment processing.
-        </p>
-      </div>
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+              <h2 class="section-heading h4 mb-1">Employee Bank Details</h2>
+              <p class="section-subtext mb-0">
+                Link employees to approved bank accounts for payroll payment processing.
+              </p>
+            </div>
 
-      <button
-        type="button"
-        id="toggleEmployeeBankDetailsCardBtn"
-        class="btn btn-outline-secondary dashboard-action-btn text-nowrap"
-        aria-expanded="false"
-        aria-controls="employeeBankDetailsCardCollapse"
-      >
-        <i class="bi bi-chevron-down me-2"></i>
-        <span>Expand</span>
-      </button>
-    </div>
-
-    <!-- EMPLOYEE BANK DETAILS - STEP 2
-         Keep this collapsed by default so Payroll workspace remains tidy. -->
-    <div id="employeeBankDetailsCardCollapse" class="d-none mt-4">
-      <form id="employeeBankDetailsForm" class="dashboard-form" novalidate>
-        <input type="hidden" id="editingEmployeeBankDetailsId" />
-
-        <div class="row g-4">
-          <div class="col-md-6 col-xl-4">
-            <label for="employeeBankEmployeeId" class="form-label fw-semibold">
-              Employee <span class="text-danger">*</span>
-            </label>
-            <select id="employeeBankEmployeeId" class="form-select dashboard-input" required>
-              <option value="">Select employee</option>
-            </select>
-            <div class="invalid-feedback">Please select an employee.</div>
+            <button type="button" id="toggleEmployeeBankDetailsCardBtn"
+              class="btn btn-outline-secondary dashboard-action-btn text-nowrap" aria-expanded="false"
+              aria-controls="employeeBankDetailsCardCollapse">
+              <i class="bi bi-chevron-down me-2"></i>
+              <span>Expand</span>
+            </button>
           </div>
 
-          <div class="col-md-6 col-xl-4">
-            <label for="employeeBankBankId" class="form-label fw-semibold">
-              Bank Name <span class="text-danger">*</span>
-            </label>
-            <select id="employeeBankBankId" class="form-select dashboard-input" required>
-              <option value="">Select bank from Bank Directory</option>
-            </select>
-            <div class="invalid-feedback">Please select a bank.</div>
-          </div>
-
-          <div class="col-md-6 col-xl-4">
-            <label for="employeeBankCode" class="form-label fw-semibold">
-              Bank Code <span class="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              id="employeeBankCode"
-              class="form-control dashboard-input"
-              placeholder="Auto-filled from selected bank"
-              readonly
-              required
-            />
-            <div class="invalid-feedback">Bank code is required.</div>
-          </div>
-
-          <div class="col-md-6 col-xl-4">
-            <label for="employeeBankAccountNumber" class="form-label fw-semibold">
-              Account Number <span class="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              id="employeeBankAccountNumber"
-              class="form-control dashboard-input"
-              placeholder="Enter account number"
-              inputmode="numeric"
-              required
-            />
-            <div class="invalid-feedback">Account number is required.</div>
-          </div>
-
-          <div class="col-md-6 col-xl-4">
-            <label for="employeeBankAccountName" class="form-label fw-semibold">
-              Account Name <span class="text-danger">*</span>
-            </label>
-            <input
-              type="text"
-              id="employeeBankAccountName"
-              class="form-control dashboard-input"
-              placeholder="Enter account name"
-              required
-            />
-            <div class="invalid-feedback">Account name is required.</div>
-          </div>
-
-          <div class="col-md-6 col-xl-4">
-            <label for="employeeBankStatus" class="form-label fw-semibold">
-              Status <span class="text-danger">*</span>
-            </label>
-            <select id="employeeBankStatus" class="form-select dashboard-input" required>
-              <option value="Active" selected>Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-            <div class="invalid-feedback">Status is required.</div>
-          </div>
-        </div>
-
-        <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
           <!-- EMPLOYEE BANK DETAILS - STEP 2
+         Keep this collapsed by default so Payroll workspace remains tidy. -->
+          <div id="employeeBankDetailsCardCollapse" class="d-none mt-4">
+            <form id="employeeBankDetailsForm" class="dashboard-form" novalidate>
+              <input type="hidden" id="editingEmployeeBankDetailsId" />
+
+              <div class="row g-4">
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankEmployeeId" class="form-label fw-semibold">
+                    Employee <span class="text-danger">*</span>
+                  </label>
+                  <select id="employeeBankEmployeeId" class="form-select dashboard-input" required>
+                    <option value="">Select employee</option>
+                  </select>
+                  <div class="invalid-feedback">Please select an employee.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankBankId" class="form-label fw-semibold">
+                    Bank Name <span class="text-danger">*</span>
+                  </label>
+                  <select id="employeeBankBankId" class="form-select dashboard-input" required>
+                    <option value="">Select bank from Bank Directory</option>
+                  </select>
+                  <div class="invalid-feedback">Please select a bank.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankCode" class="form-label fw-semibold">
+                    Bank Code <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="employeeBankCode" class="form-control dashboard-input"
+                    placeholder="Auto-filled from selected bank" readonly required />
+                  <div class="invalid-feedback">Bank code is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankAccountNumber" class="form-label fw-semibold">
+                    Account Number <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="employeeBankAccountNumber" class="form-control dashboard-input"
+                    placeholder="Enter account number" inputmode="numeric" required />
+                  <div class="invalid-feedback">Account number is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankAccountName" class="form-label fw-semibold">
+                    Account Name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="employeeBankAccountName" class="form-control dashboard-input"
+                    placeholder="Enter account name" required />
+                  <div class="invalid-feedback">Account name is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankStatus" class="form-label fw-semibold">
+                    Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="employeeBankStatus" class="form-select dashboard-input" required>
+                    <option value="Active" selected>Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                  <div class="invalid-feedback">Status is required.</div>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
+                <!-- EMPLOYEE BANK DETAILS - STEP 2
                Disabled until save logic is wired in the next step. -->
-<!-- EMPLOYEE BANK DETAILS - STEP 7
+                <!-- EMPLOYEE BANK DETAILS - STEP 7
      Make the button submit the Employee Bank Details form.
      The JS save handler will persist the record to Supabase. -->
-<button
-  type="submit"
-  id="saveEmployeeBankDetailsBtn"
-  class="btn btn-primary dashboard-action-btn"
-  disabled
->
-  <i class="bi bi-save me-2"></i>
-  <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
-</button>
+                <button type="submit" id="saveEmployeeBankDetailsBtn" class="btn btn-primary dashboard-action-btn"
+                  disabled>
+                  <i class="bi bi-save me-2"></i>
+                  <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
+                </button>
 
-<!-- EMPLOYEE BANK DETAILS - STEP 5
+                <!-- EMPLOYEE BANK DETAILS - STEP 5
      Keep a visible Cancel button so HR can abandon account entry
      before saving anything to Supabase. -->
-<button
-  type="button"
-  id="cancelEmployeeBankDetailsEditBtn"
-  class="btn btn-outline-secondary dashboard-action-btn"
->
-  <i class="bi bi-x-circle me-2"></i>Cancel
-</button>
+                <button type="button" id="cancelEmployeeBankDetailsEditBtn"
+                  class="btn btn-outline-secondary dashboard-action-btn">
+                  <i class="bi bi-x-circle me-2"></i>Cancel
+                </button>
+              </div>
+            </form>
+
+            <hr class="my-4" />
+
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+              <div>
+                <h3 class="h6 fw-bold mb-1">Employee Bank Records</h3>
+                <p class="text-secondary small mb-0">
+                  Employee bank accounts saved for payroll and payment export.
+                </p>
+              </div>
+
+              <div>
+                <label for="employeeBankDetailsSearchInput" class="form-label fw-semibold">
+                  Search employee bank records
+                </label>
+                <input type="search" id="employeeBankDetailsSearchInput" class="form-control dashboard-input"
+                  placeholder="Search by employee, bank, account..." />
+              </div>
+            </div>
+
+            <div id="employeeBankDetailsEmptyState" class="alert alert-light border mb-0">
+              No employee bank details have been added yet.
+            </div>
+
+            <div id="employeeBankDetailsTableWrapper" class="table-responsive d-none">
+              <table class="table align-middle dashboard-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Bank</th>
+                    <th>Bank Code</th>
+                    <th>Account Number</th>
+                    <th>Account Name</th>
+                    <th>Status</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="employeeBankDetailsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </form>
-
-      <hr class="my-4" />
-
-      <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
-        <div>
-          <h3 class="h6 fw-bold mb-1">Employee Bank Records</h3>
-          <p class="text-secondary small mb-0">
-            Employee bank accounts saved for payroll and payment export.
-          </p>
-        </div>
-
-        <div>
-          <label for="employeeBankDetailsSearchInput" class="form-label fw-semibold">
-            Search employee bank records
-          </label>
-          <input
-            type="search"
-            id="employeeBankDetailsSearchInput"
-            class="form-control dashboard-input"
-            placeholder="Search by employee, bank, account..."
-          />
-        </div>
-      </div>
-
-      <div id="employeeBankDetailsEmptyState" class="alert alert-light border mb-0">
-        No employee bank details have been added yet.
-      </div>
-
-      <div id="employeeBankDetailsTableWrapper" class="table-responsive d-none">
-        <table class="table align-middle dashboard-table mb-0">
-          <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Bank</th>
-              <th>Bank Code</th>
-              <th>Account Number</th>
-              <th>Account Name</th>
-              <th>Status</th>
-              <th class="text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody id="employeeBankDetailsTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</section>
+      </section>
 
       <!-- =========================================================
            DESCRIPTION ITEM 1 - STEP 2A
@@ -1900,55 +1865,95 @@
      Stable target for redirecting HR to submitted payroll records. -->
       <section id="payrollRecordsCard" class="card dashboard-section-card">
         <div class="card-body p-4 p-lg-5">
-          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
-            <div>
-              <h2 class="section-heading h4 mb-1">Payroll Records</h2>
-              <p class="section-subtext mb-0">
-                Search payroll records by employee, pay cycle, department, group, or status.
-              </p>
-            </div>
+          <!-- DESCRIPTION ITEM 4 - STEP 2B
+     Payroll Records header layout correction.
+     Keep the section title/description above the controls, then place
+     search, filters, export, and payslip actions in one clean toolbar.
+     This avoids the uneven right-heavy layout caused by stacking controls
+     beside the title. -->
+<div class="mb-4">
+  <div class="mb-4">
+    <h2 class="section-heading h4 mb-1">Payroll Records</h2>
+    <p class="section-subtext mb-0">
+      Search payroll records by employee, pay cycle, department, group, or status.
+    </p>
+  </div>
 
-            <div class="d-flex flex-column flex-lg-row gap-3 w-100 justify-content-lg-end">
-              <div style="min-width: 220px;">
-                <label for="payrollSearchInput" class="form-label fw-semibold mb-2">
-                  Search payroll records
-                </label>
-                <input type="text" id="payrollSearchInput" class="form-control"
-                  placeholder="Name, pay cycle, department..." />
-              </div>
+<!-- DESCRIPTION ITEM 4 - STEP 2E
+     Clean Payroll Records toolbar.
+     Keep search/status/cycle as form controls in one row.
+     Keep CSV and Send Payslips as action buttons in a separate footer row
+     so the header no longer looks visually uneven. -->
+<div class="border rounded-4 p-3 bg-light-subtle">
+  <div class="row g-3 align-items-end">
+    <div class="col-12 col-lg-5">
+      <label for="payrollSearchInput" class="form-label fw-semibold mb-2">
+        Search payroll records
+      </label>
+      <input
+        type="text"
+        id="payrollSearchInput"
+        class="form-control"
+        placeholder="Name, pay cycle, department..."
+      />
+    </div>
 
-              <div style="min-width: 180px;">
-                <label for="payrollStatusFilter" class="form-label fw-semibold mb-2">
-                  Status filter
-                </label>
-                <select id="payrollStatusFilter" class="form-select">
-                  <option value="">All statuses</option>
-                  <option value="authorised">Authorised</option>
-                  <option value="draft">Draft</option>
-                  <option value="pending">Pending</option>
-                </select>
-              </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <label for="payrollStatusFilter" class="form-label fw-semibold mb-2">
+        Status filter
+      </label>
+      <select id="payrollStatusFilter" class="form-select">
+        <option value="">All statuses</option>
+        <option value="authorised">Authorised</option>
+        <option value="draft">Draft</option>
+        <option value="pending">Pending</option>
+      </select>
+    </div>
 
-              <!-- PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4A FIX
-     Keep export controls compact inside Payroll Records toolbar. -->
-              <div>
-                <label for="exportPayrollPayCycle" class="form-label fw-semibold">Export</label>
-                <select id="exportPayrollPayCycle" class="form-select dashboard-input">
-                  <option value="">Pay cycle</option>
-                </select>
-              </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <label for="exportPayrollPayCycle" class="form-label fw-semibold mb-2">
+        Payroll action cycle
+      </label>
+      <select id="exportPayrollPayCycle" class="form-select dashboard-input">
+        <option value="">All cycles</option>
+      </select>
+    </div>
+  </div>
 
-              <div class="d-flex align-items-end">
-                <button type="button" id="exportPayrollCsvBtn"
-                  class="btn btn-sm btn-outline-primary dashboard-action-btn text-nowrap">
-                  <i class="bi bi-file-earmark-spreadsheet me-2"></i>
-                  CSV
-                </button>
-              </div>
+  <div class="d-flex flex-column flex-md-row justify-content-md-end align-items-md-center gap-2 mt-3 pt-3 border-top">
+    <span class="small text-secondary me-md-auto">
+      Payroll actions apply to the selected action cycle.
+    </span>
 
-            </div>
-          </div>
+    <button
+      type="button"
+      id="exportPayrollCsvBtn"
+      class="btn btn-outline-primary dashboard-action-btn text-nowrap"
+    >
+      <i class="bi bi-file-earmark-spreadsheet me-2"></i>
+      Export CSV
+    </button>
 
+    <!-- DESCRIPTION ITEM 4 - STEP 2E
+         UI shell only. Button remains disabled until the email handler
+         and validation are wired in the next step. -->
+    <button
+      type="button"
+      id="sendPayslipsEmailBtn"
+      class="btn btn-outline-success dashboard-action-btn text-nowrap"
+      disabled
+      title="Payslip email sending will be enabled in the next steps"
+    >
+      <i class="bi bi-envelope-paper me-2"></i>
+      Send Payslips
+    </button>
+  </div>
+</div>
+</div>
+
+          <!-- DESCRIPTION ITEM 4 - STEP 2C
+               Restore the Payroll Records empty-state wrapper expected by JS.
+               This prevents loose text from making the card look cut or misaligned. -->
           <div id="payrollRecordsEmptyState" class="text-center text-secondary py-4">
             No payroll records found yet.
           </div>
