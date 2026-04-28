@@ -301,10 +301,15 @@ function cacheDomElements() {
     employeeFormModeBadge: document.getElementById("employeeFormModeBadge"),
     editingEmployeeId: document.getElementById("editingEmployeeId"),
 
-    firstName: document.getElementById("firstName"),
-    lastName: document.getElementById("lastName"),
-    workEmail: document.getElementById("workEmail"),
-    phoneNumber: document.getElementById("phoneNumber"),
+firstName: document.getElementById("firstName"),
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+// Optional Middle Name field for fuller employee identity records.
+middleName: document.getElementById("middleName"),
+
+lastName: document.getElementById("lastName"),
+workEmail: document.getElementById("workEmail"),
+phoneNumber: document.getElementById("phoneNumber"),
     department: document.getElementById("department"),
     jobTitle: document.getElementById("jobTitle"),
 
@@ -526,7 +531,10 @@ function cacheDomElements() {
     savePayrollMasterBtnText: document.getElementById("savePayrollMasterBtnText"),
 
     payrollMasterEmployeeId: document.getElementById("payrollMasterEmployeeId"),
-    payrollMasterGrade: document.getElementById("payrollMasterGrade"),
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+    // Grade has been removed from Payroll Master Data.
+    // Payroll Master now uses Employee + Salary + Effective Date + Pay Cycle + Status.
     payrollMasterBasicSalary: document.getElementById("payrollMasterBasicSalary"),
     payrollMasterEffectiveDate: document.getElementById("payrollMasterEffectiveDate"),
     payrollMasterPayCycle: document.getElementById("payrollMasterPayCycle"),
@@ -1408,6 +1416,37 @@ function bindEvents() {
     applyEmployeeSearch();
   });
 
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+  // Keep Create/Update Employee disabled until the required employee form
+  // fields are complete and the work email is valid.
+  [
+    state.dom.firstName,
+    state.dom.middleName,
+    state.dom.lastName,
+    state.dom.workEmail,
+    state.dom.phoneNumber,
+    state.dom.department,
+    state.dom.jobTitle,
+    state.dom.lineManager,
+    state.dom.employmentDate,
+    state.dom.approverEmail,
+    state.dom.employmentStatus,
+    state.dom.systemRole,
+  ].forEach((field) => {
+    field?.addEventListener("input", updateEmployeeSaveButtonState);
+    field?.addEventListener("change", updateEmployeeSaveButtonState);
+  });
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
+  // When Department changes, rebuild Job Title so HR can only choose
+  // job titles that fit the selected department.
+  state.dom.department?.addEventListener("change", () => {
+    populateJobTitleOptionsForDepartment("");
+  });
+
+  populateJobTitleOptionsForDepartment(state.dom.jobTitle?.value || "");
+  updateEmployeeSaveButtonState();
+
   // DESCRIPTION ITEM 9 - STEP 2
   // Master checkbox control for selecting or clearing all visible employees
   // in the current employee list view.
@@ -1433,6 +1472,25 @@ function bindEvents() {
 
   state.dom.clearPendingDocumentsBtn?.addEventListener("click", () => {
     clearPendingFiles();
+  });
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H FIX
+  // Saved documents are rendered dynamically, so use one delegated listener.
+  // This keeps Open and Remove working even after the attached document list refreshes.
+  state.dom.attachedDocumentsList?.addEventListener("click", async (event) => {
+    const openButton = event.target.closest("[data-open-document-id]");
+    const removeButton = event.target.closest("[data-remove-document-id]");
+
+    if (openButton) {
+      event.preventDefault();
+      await openEmployeeDocument(openButton.dataset.openDocumentId);
+      return;
+    }
+
+    if (removeButton) {
+      event.preventDefault();
+      await removeEmployeeDocument(removeButton.dataset.removeDocumentId);
+    }
   });
 
   // =========================================================
@@ -1536,9 +1594,11 @@ function bindEvents() {
     field?.addEventListener("change", updateBankDirectorySaveButtonState);
   });
 
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+  // Grade removed from Payroll Master readiness checks.
+  // The save button now depends only on the active payroll master fields.
   [
     state.dom.payrollMasterEmployeeId,
-    state.dom.payrollMasterGrade,
     state.dom.payrollMasterBasicSalary,
     state.dom.payrollMasterEffectiveDate,
     state.dom.payrollMasterPayCycle,
@@ -1841,6 +1901,41 @@ function setPrimaryActionButtonReadyState(button, canSubmit) {
   button.classList.toggle("btn-secondary", !canSubmit);
 }
 
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+// Employee form follows the same button behaviour as the other HR/payroll forms.
+// Incomplete form = grey and disabled.
+// Complete form = blue and enabled.
+// This check is non-invasive and does not show red validation while HR is typing.
+function isEmployeeFormReadyForSubmit() {
+  const requiredFields = [
+    state.dom.firstName,
+    state.dom.lastName,
+    state.dom.workEmail,
+    state.dom.department,
+    state.dom.jobTitle,
+    state.dom.employmentDate,
+  ];
+
+  const hasRequiredValues = requiredFields.every((field) =>
+    Boolean(String(field?.value || "").trim()),
+  );
+
+  const workEmail = String(state.dom.workEmail?.value || "").trim();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const hasValidWorkEmail = emailPattern.test(workEmail);
+
+  return hasRequiredValues && hasValidWorkEmail;
+}
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+// Updates the Create/Update Employee button without submitting the form.
+function updateEmployeeSaveButtonState() {
+  setPrimaryActionButtonReadyState(
+    state.dom.saveEmployeeBtn,
+    isEmployeeFormReadyForSubmit(),
+  );
+}
+
 async function handleEmployeeRecordsRefresh() {
   const button = state.dom.refreshEmployeesBtn;
 
@@ -1905,9 +2000,10 @@ function validatePayrollMasterForm() {
   let isValid = true;
   let firstInvalidField = null;
 
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+  // Grade is no longer required for Payroll Master Data.
   const requiredFields = [
     state.dom.payrollMasterEmployeeId,
-    state.dom.payrollMasterGrade,
     state.dom.payrollMasterBasicSalary,
     state.dom.payrollMasterEffectiveDate,
     state.dom.payrollMasterPayCycle,
@@ -1943,7 +2039,10 @@ function validatePayrollMasterForm() {
 function buildPayrollMasterPayload(isEditMode = false) {
   const payload = {
     employee_id: String(state.dom.payrollMasterEmployeeId?.value || "").trim(),
-    grade: String(state.dom.payrollMasterGrade?.value || "").trim(),
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+    // Grade removed from active Payroll Master save payload.
+    // Existing database grade values are left untouched for historical records.
     basic_salary: Number(state.dom.payrollMasterBasicSalary?.value || 0),
     salary_effective_date: state.dom.payrollMasterEffectiveDate?.value || null,
     pay_cycle: String(state.dom.payrollMasterPayCycle?.value || "").trim(),
@@ -2079,10 +2178,10 @@ function resetPayrollMasterForm() {
   state.dom.payrollMasterCreateForm.reset();
   state.currentEditingPayrollMaster = null;
 
-  // Clear validation styling when returning to create mode.
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+  // Grade removed from Payroll Master reset handling.
   const fieldsToReset = [
     state.dom.payrollMasterEmployeeId,
-    state.dom.payrollMasterGrade,
     state.dom.payrollMasterBasicSalary,
     state.dom.payrollMasterEffectiveDate,
     state.dom.payrollMasterPayCycle,
@@ -2140,9 +2239,11 @@ function renderPayrollMasterRecordsLoadingState() {
     state.dom.payrollMasterRecordsTableWrapper.classList.remove("d-none");
   }
 
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+  // Grade column removed, so Payroll Master table now has 7 columns.
   state.dom.payrollMasterRecordsTableBody.innerHTML = `
     <tr>
-      <td colspan="8" class="text-center text-secondary py-4">
+      <td colspan="7" class="text-center text-secondary py-4">
         Loading payroll master records.
       </td>
     </tr>
@@ -2203,11 +2304,10 @@ function renderPayrollMasterRecords(records) {
     </div>
   </td>
 
-  <td>${escapeHtml(record.grade || "--")}</td>
-
   <td class="text-nowrap">
-    <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 6
-         Keep salary on one line for a cleaner payroll master table. -->
+    <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+         Grade removed from Payroll Master Records table.
+         Salary now follows employee identity directly. -->
     ${formatCurrency(record.basic_salary, "NGN")}
   </td>
 
@@ -2275,9 +2375,9 @@ function startPayrollMasterEdit(payrollMasterId) {
     state.dom.payrollMasterEmployeeId.value = record.employee_id || "";
   }
 
-  if (state.dom.payrollMasterGrade) {
-    state.dom.payrollMasterGrade.value = record.grade || "";
-  }
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+  // Grade removed from Payroll Master edit mode.
+  // Existing saved grade values are ignored by the active UI.
 
   if (state.dom.payrollMasterBasicSalary) {
     state.dom.payrollMasterBasicSalary.value = record.basic_salary ?? "";
@@ -2363,7 +2463,9 @@ function populatePayrollAllowanceMasterOptions() {
       "Unknown Employee";
 
     option.value = record.id;
-    option.textContent = `${fullName} — ${record.grade || "--"} — ${record.salary_effective_date || "--"}`;
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+    // Grade removed from Payroll Master dropdown labels.
+    option.textContent = `${fullName} — ${formatCurrency(record.basic_salary, "NGN")} — ${record.salary_effective_date || "--"}`;
     select.appendChild(option);
   });
 
@@ -2388,12 +2490,15 @@ function applyPayrollMasterSearch() {
 
   if (searchTerm) {
     rows = rows.filter((record) => {
+      // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+      // Grade removed from Payroll Master search.
       const searchableText = [
         record.first_name,
         record.last_name,
-        record.grade,
+        record.work_email,
         record.pay_cycle,
         record.payroll_status,
+        record.salary_effective_date,
       ]
         .join(" ")
         .toLowerCase();
@@ -4142,6 +4247,185 @@ function setSelectValueIfPresent(field, preferredValue, fallbacks = []) {
   field.value = actualOption;
 }
 
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
+// Department-specific job title list.
+// Every department currently available in the employee form has at least
+// one matching job title, so HR is not left with an empty Job Title dropdown.
+const EMPLOYEE_DEPARTMENT_JOB_TITLES = Object.freeze({
+  Accounting: [
+    "Accountant",
+    "Accounts Assistant",
+    "Finance Officer",
+    "Payroll Officer",
+  ],
+
+  Administration: [
+    "Administrative Officer",
+    "Office Administrator",
+    "Executive Assistant",
+    "Receptionist",
+  ],
+
+  Compliance: [
+    "Compliance Officer",
+    "Compliance Analyst",
+    "Risk Officer",
+    "Internal Control Officer",
+  ],
+
+  "Customer Support": [
+    "Customer Support Officer",
+    "Customer Service Representative",
+    "Customer Success Officer",
+    "Helpdesk Officer",
+  ],
+
+  Facilities: [
+    "Facilities Officer",
+    "Facilities Manager",
+    "Health and Safety Officer",
+    "Office Maintenance Officer",
+  ],
+
+  Finance: [
+    "Finance Officer",
+    "Finance Analyst",
+    "Accountant",
+    "Payroll Officer",
+    "Finance Manager",
+  ],
+
+  "Human Resources": [
+    "HR Officer",
+    "HR Assistant",
+    "HR Manager",
+    "Payroll Officer",
+    "Recruitment Officer",
+  ],
+
+  "Information Technology": [
+    "IT Support Officer",
+    "Application Analyst",
+    "Business Analyst",
+    "Data Analyst",
+    "Systems Administrator",
+    "Software Developer",
+  ],
+
+  Legal: [
+    "Legal Officer",
+    "Legal Assistant",
+    "Compliance Officer",
+    "Contract Officer",
+  ],
+
+  Maintenance: [
+    "Maintenance Officer",
+    "Junior Engineer",
+    "Engineer",
+    "Technician",
+    "Maintenance Supervisor",
+  ],
+
+  Marketing: [
+    "Marketing Officer",
+    "Digital Marketing Officer",
+    "Communications Officer",
+    "Campaign Officer",
+  ],
+
+  Media: [
+    "Cinematographer",
+    "Producer",
+    "Content Creator",
+    "Video Editor",
+    "Media Officer",
+  ],
+
+  Operations: [
+    "Operations Officer",
+    "Operations Manager",
+    "Supervisor",
+    "Logistics Officer",
+  ],
+
+  Procurement: [
+    "Procurement Officer",
+    "Procurement Assistant",
+    "Vendor Management Officer",
+    "Stores Officer",
+  ],
+
+  Sales: [
+    "Sales Officer",
+    "Sales Executive",
+    "Account Manager",
+    "Business Development Officer",
+  ],
+});
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
+// Rebuild Job Title options based on the selected Department.
+// This keeps Department and Job Title aligned while still preserving
+// an existing saved job title during edit mode if it is not in the new list.
+function populateJobTitleOptionsForDepartment(preferredJobTitle = "") {
+  const department = String(state.dom.department?.value || "").trim();
+  const jobTitleSelect = state.dom.jobTitle;
+
+  if (!jobTitleSelect) return;
+
+  const savedOrCurrentJobTitle = String(
+    preferredJobTitle || jobTitleSelect.value || "",
+  ).trim();
+
+  const jobTitles = EMPLOYEE_DEPARTMENT_JOB_TITLES[department] || [];
+
+  jobTitleSelect.innerHTML = "";
+
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = department
+    ? "Select job title"
+    : "Select department first";
+
+  jobTitleSelect.appendChild(placeholderOption);
+
+  jobTitles.forEach((jobTitle) => {
+    const option = document.createElement("option");
+    option.value = jobTitle;
+    option.textContent = jobTitle;
+    jobTitleSelect.appendChild(option);
+  });
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
+  // Preserve old/saved job titles during edit mode, even if that title
+  // is not part of the controlled list yet.
+  if (savedOrCurrentJobTitle) {
+    const titleExists = jobTitles.some(
+      (jobTitle) =>
+        jobTitle.toLowerCase() === savedOrCurrentJobTitle.toLowerCase(),
+    );
+
+    if (titleExists) {
+      jobTitleSelect.value = jobTitles.find(
+        (jobTitle) =>
+          jobTitle.toLowerCase() === savedOrCurrentJobTitle.toLowerCase(),
+      );
+    } else if (department) {
+      const savedOption = document.createElement("option");
+      savedOption.value = savedOrCurrentJobTitle;
+      savedOption.textContent = `${savedOrCurrentJobTitle} (saved value)`;
+      jobTitleSelect.appendChild(savedOption);
+      jobTitleSelect.value = savedOrCurrentJobTitle;
+    }
+  }
+
+  jobTitleSelect.disabled = !department;
+  jobTitleSelect.classList.remove("is-invalid");
+
+  updateEmployeeSaveButtonState();
+}
+
 function setEmployeeAccountPanel(accountLinkage = null) {
   const linkage = accountLinkage || {
     label: "No User Account",
@@ -4587,8 +4871,12 @@ function applyEmployeeSearch() {
     state.filteredEmployees = employeeSource;
   } else {
     state.filteredEmployees = employeeSource.filter((employee) => {
+      // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+      // Include optional Middle Name in Employee Management search.
+      // This applies only to the main employee list search.
       const searchableText = [
         employee.first_name,
+        employee.middle_name,
         employee.last_name,
         employee.work_email,
         employee.department,
@@ -5233,16 +5521,23 @@ function renderEmployeeRecords(employees) {
   const employeesToRender = sortEmployeeRecordsByLatestActivity(employees);
 
   employeesToRender.forEach((employee) => {
-    const fullName = `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+// Show full employee identity using First + Middle + Last where available.
+const fullName = [
+  employee.first_name,
+  employee.middle_name,
+  employee.last_name,
+]
+  .map((namePart) => String(namePart || "").trim())
+  .filter(Boolean)
+  .join(" ");
     const documentCount = documentCountMap.get(String(employee.id)) || 0;
     const accountLinkage = getEmployeeAccountLinkage(employee);
 
-    // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 1
-    // Grade is no longer captured on the HR employee form.
-    // If grade is shown in the employee list, it must come from Payroll Master Data only.
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1L
+    // Grade has been fully removed from the active HR/payroll display.
+    // Keep Payroll Master lookup only for salary and pay cycle visibility.
     const latestPayrollProfile = getLatestPayrollMasterProfileForEmployee(employee.id);
-    const resolvedGradeLevel =
-      String(latestPayrollProfile?.grade || "").trim() || "--";
 
     // DESCRIPTION ITEM 5 - STEP 4
     // Resolve salary and pay cycle from the latest payroll master record.
@@ -5297,15 +5592,12 @@ function renderEmployeeRecords(employees) {
       </td>
 
 <td>
-  <!-- DESCRIPTION ITEM 5 - STEP 4
-       Keep payroll visibility compact inside the Role cell:
-       department, job title, grade, base salary, and pay cycle. -->
+  <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1L
+       Grade removed from the Employee List Role cell.
+       Role now shows department, job title, and payroll salary/cycle only. -->
   <div>${escapeHtml(employee.department || "--")}</div>
   <div class="text-secondary small">
     ${escapeHtml(employee.job_title || "--")}
-  </div>
-  <div class="text-secondary small">
-    ${escapeHtml(resolvedGradeLevel)}
   </div>
 ${resolvedPayInfo
         ? `<div class="text-secondary small text-nowrap" style="white-space:nowrap;">${escapeHtml(resolvedPayInfo)}</div>`
@@ -5383,12 +5675,17 @@ function resetEmployeeForm() {
   state.dom.employeeCreateForm.reset();
   state.currentEditingEmployee = null;
 
-  const fieldsToReset = [
-    state.dom.firstName,
-    state.dom.lastName,
-    state.dom.workEmail,
-    state.dom.phoneNumber,
-    state.dom.department,
+const fieldsToReset = [
+  state.dom.firstName,
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+  // Clear optional Middle Name when the employee form resets.
+  state.dom.middleName,
+
+  state.dom.lastName,
+  state.dom.workEmail,
+  state.dom.phoneNumber,
+  state.dom.department,
     state.dom.jobTitle,
 
     state.dom.lineManager,
@@ -5408,6 +5705,11 @@ function resetEmployeeForm() {
   setSelectValueIfPresent(state.dom.employmentStatus, "active", ["Active"]);
 
   if (state.dom.systemRole) state.dom.systemRole.value = "";
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
+  // After clearing the form, Job Title should wait for Department selection.
+  populateJobTitleOptionsForDepartment("");
+
   if (state.dom.employeeDocumentsInput) state.dom.employeeDocumentsInput.value = "";
 
   // DESCRIPTION ITEM 10 - STEP 2
@@ -5448,6 +5750,11 @@ function resetEmployeeForm() {
     state.dom.cancelEditBtn.classList.add("d-none");
   }
 
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+  // After clearing or returning to create mode, the form is incomplete,
+  // so the employee save button must return to grey/disabled.
+  updateEmployeeSaveButtonState();
+
   clearPageAlert();
 }
 
@@ -5455,12 +5762,21 @@ function enterEmployeeEditMode(employee) {
   state.currentEditingEmployee = employee;
 
   if (state.dom.editingEmployeeId) state.dom.editingEmployeeId.value = employee.id || "";
-  if (state.dom.firstName) state.dom.firstName.value = employee.first_name || "";
-  if (state.dom.lastName) state.dom.lastName.value = employee.last_name || "";
-  if (state.dom.workEmail) state.dom.workEmail.value = employee.work_email || "";
+if (state.dom.firstName) state.dom.firstName.value = employee.first_name || "";
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+// Load optional Middle Name when HR edits an employee profile.
+if (state.dom.middleName) state.dom.middleName.value = employee.middle_name || "";
+
+if (state.dom.lastName) state.dom.lastName.value = employee.last_name || "";
+if (state.dom.workEmail) state.dom.workEmail.value = employee.work_email || "";
   if (state.dom.phoneNumber) state.dom.phoneNumber.value = employee.phone_number || "";
   if (state.dom.department) state.dom.department.value = employee.department || "";
-  if (state.dom.jobTitle) state.dom.jobTitle.value = employee.job_title || "";
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
+  // Edit mode must rebuild the Job Title list for the saved Department,
+  // then select the employee's saved Job Title.
+  populateJobTitleOptionsForDepartment(employee.job_title || "");
 
   if (state.dom.lineManager) state.dom.lineManager.value = employee.line_manager || "";
   if (state.dom.employmentDate) state.dom.employmentDate.value = employee.employment_date || "";
@@ -5518,7 +5834,24 @@ function enterEmployeeEditMode(employee) {
 
   void loadEmployeeDocuments(employee.id);
 
-  scrollToDashboardTarget(state.dom.employeeCreateForm);
+   // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+  // Edit mode loads existing values into the form, so recalculate whether
+  // the Update Employee button should be enabled.
+  updateEmployeeSaveButtonState();
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H RECOVERY
+  // Edit mode should land on the full Employee Profile card, not inside the form.
+  // This keeps the "Edit Employee Profile" heading and action buttons visible.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const employeeFormCard =
+        state.dom.employeeFormTitle?.closest(".dashboard-section-card") ||
+        state.dom.employeeCreateForm?.closest(".dashboard-section-card") ||
+        state.dom.employeeCreateForm;
+
+      scrollToDashboardTarget(employeeFormCard, 16);
+    });
+  });
 }
 
 function exitEmployeeEditMode() {
@@ -5579,15 +5912,19 @@ function validateEmployeeForm() {
   let isValid = true;
   let firstInvalidField = null;
 
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+  // Line Manager is now optional. Approver Email remains the workflow field,
+  // so employee creation should not be blocked by an empty Line Manager.
   const requiredFields = [
     state.dom.firstName,
     state.dom.lastName,
     state.dom.workEmail,
     state.dom.department,
     state.dom.jobTitle,
-    state.dom.lineManager,
     state.dom.employmentDate,
   ];
+
+  state.dom.lineManager?.classList.remove("is-invalid");
 
   requiredFields.forEach((field) => {
     const value = String(field?.value || "").trim();
@@ -5627,17 +5964,24 @@ function buildEmployeePayload() {
     state.dom.employmentStatus?.value || "active",
   ).trim();
 
-  return {
-    first_name: String(state.dom.firstName?.value || "").trim(),
-    last_name: String(state.dom.lastName?.value || "").trim(),
-    work_email: String(state.dom.workEmail?.value || "")
+return {
+  first_name: String(state.dom.firstName?.value || "").trim(),
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+  // Middle Name is optional, so save blank values as null.
+  middle_name: String(state.dom.middleName?.value || "").trim() || null,
+
+  last_name: String(state.dom.lastName?.value || "").trim(),
+  work_email: String(state.dom.workEmail?.value || "")
       .trim()
       .toLowerCase(),
     phone_number: String(state.dom.phoneNumber?.value || "").trim() || null,
     department: String(state.dom.department?.value || "").trim(),
     job_title: String(state.dom.jobTitle?.value || "").trim(),
 
-    line_manager: String(state.dom.lineManager?.value || "").trim(),
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+    // Line Manager is optional, so save blank values as null.
+    line_manager: String(state.dom.lineManager?.value || "").trim() || null,
     employment_date: state.dom.employmentDate?.value || null,
     approver_email: approverEmail || null,
     employee_number:
@@ -5646,6 +5990,76 @@ function buildEmployeePayload() {
   };
 }
 
+
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+// New employee custom IDs must start from P21 because P1-P20 already exist.
+// Keep this helper block only once in the file to avoid breaking the dashboard.
+const EMPLOYEE_CUSTOM_ID_PREFIX = "P";
+const EMPLOYEE_CUSTOM_ID_START_NUMBER = 21;
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+// Reads IDs like P1, P20, P021, or p21 and returns the number part.
+// Existing non-P IDs like EMP001 are ignored so they do not affect the P sequence.
+function getEmployeeCustomIdNumber(employeeNumber) {
+  const value = String(employeeNumber || "").trim();
+  const match = value.match(/^P(\d+)$/i);
+
+  if (!match) return null;
+
+  const numericValue = Number(match[1]);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+// Formats the generated employee ID using the agreed P-number format.
+function formatEmployeeCustomId(sequenceNumber) {
+  return `${EMPLOYEE_CUSTOM_ID_PREFIX}${sequenceNumber}`;
+}
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+// Generates the next available employee custom ID from Supabase.
+// This avoids relying only on the browser state and helps prevent duplicates.
+async function generateNextEmployeeCustomId() {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("employees")
+    .select("employee_number");
+
+  if (error) {
+    throw new Error(
+      error.message || "Could not check existing employee IDs before creating the employee.",
+    );
+  }
+
+  const employeeNumbers = [
+    ...(Array.isArray(data) ? data : []).map((employee) => employee.employee_number),
+    ...(state.employees || []).map((employee) => employee.employee_number),
+  ]
+    .map((employeeNumber) => String(employeeNumber || "").trim())
+    .filter(Boolean);
+
+  const usedEmployeeIds = new Set(
+    employeeNumbers.map((employeeNumber) => employeeNumber.toUpperCase()),
+  );
+
+  const existingPNumberValues = employeeNumbers
+    .map(getEmployeeCustomIdNumber)
+    .filter((value) => Number.isFinite(value));
+
+  let nextNumber =
+    Math.max(
+      EMPLOYEE_CUSTOM_ID_START_NUMBER - 1,
+      ...existingPNumberValues,
+    ) + 1;
+
+  while (usedEmployeeIds.has(formatEmployeeCustomId(nextNumber).toUpperCase())) {
+    nextNumber += 1;
+  }
+
+  return formatEmployeeCustomId(nextNumber);
+}
 async function checkDuplicateEmployee(workEmail, currentEmployeeId = null) {
   const supabase = getSupabaseClient();
 
@@ -5893,34 +6307,59 @@ function renderAttachedDocuments() {
         </div>
       </div>
 
-      <button
-        type="button"
-        class="btn btn-sm btn-outline-primary"
-        data-open-document-id="${escapeHtml(documentRow.id)}"
-      >
-        Open
-      </button>
-    `;
+      <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H FIX
+           Saved document buttons are wired through one delegated click handler
+           in bindEvents(), so they still work after the list re-renders. -->
+      <div class="d-inline-flex align-items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          data-open-document-id="${escapeHtml(documentRow.id)}"
+        >
+          Open
+        </button>
 
-    const openButton = item.querySelector("[data-open-document-id]");
-    openButton?.addEventListener("click", async () => {
-      await openEmployeeDocument(documentRow.id);
-    });
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-danger"
+          data-remove-document-id="${escapeHtml(documentRow.id)}"
+        >
+          <i class="bi bi-trash me-1"></i>Remove
+        </button>
+      </div>
+    `;
 
     list.appendChild(item);
   });
 }
 
 async function openEmployeeDocument(documentId) {
-  const supabase = getSupabaseClient();
+  const documentKey = String(documentId || "").trim();
+
+  if (!documentKey) {
+    showPageAlert("warning", "The selected document could not be resolved.");
+    return;
+  }
+
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H FIX
+  // Open a blank tab immediately during the user click.
+  // This avoids browser popup blocking while Supabase creates the signed URL.
+  const documentWindow = window.open("about:blank", "_blank");
 
   try {
+    const supabase = getSupabaseClient();
+
     const documentRow = state.attachedDocuments.find(
-      (item) => String(item.id) === String(documentId),
+      (item) => String(item.id) === documentKey,
     );
 
     if (!documentRow?.file_path) {
       throw new Error("The selected document could not be resolved.");
+    }
+
+    if (documentWindow) {
+      documentWindow.document.write("Opening document...");
+      documentWindow.opener = null;
     }
 
     const { data, error } = await supabase.storage
@@ -5933,12 +6372,120 @@ async function openEmployeeDocument(documentId) {
       throw new Error("A secure document link could not be generated.");
     }
 
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    if (documentWindow) {
+      documentWindow.location.href = data.signedUrl;
+    } else {
+      window.open(data.signedUrl, "_blank");
+    }
   } catch (error) {
+    if (documentWindow) {
+      documentWindow.close();
+    }
+
     console.error("Error opening employee document:", error);
     showPageAlert(
       "warning",
       error.message || "The selected document could not be opened.",
+    );
+  }
+}
+
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H RECOVERY
+// Removes a saved employee document after confirmation.
+// This version verifies that the employee_documents row was actually deleted
+// before showing success, so HR does not get a false success message.
+async function removeEmployeeDocument(documentId) {
+  const documentKey = String(documentId || "").trim();
+
+  if (!documentKey) {
+    showPageAlert("warning", "The selected document could not be resolved.");
+    return;
+  }
+
+  const documentRow = state.attachedDocuments.find(
+    (item) => String(item.id) === documentKey,
+  );
+
+  if (!documentRow) {
+    showPageAlert(
+      "warning",
+      "The selected document could not be found. Please refresh the employee record and try again.",
+    );
+    return;
+  }
+
+  const fileName = documentRow.file_name || "this document";
+
+  const confirmed = window.confirm(
+    `Remove "${fileName}" from this employee record? This action cannot be undone.`,
+  );
+
+  if (!confirmed) return;
+
+  try {
+    clearPageAlert();
+
+    const supabase = getSupabaseClient();
+    const filePath = String(documentRow.file_path || "").trim();
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H RECOVERY
+    // Delete the metadata row first and request the deleted row back.
+    // If RLS or permissions block the delete, Supabase may return no deleted row
+    // without throwing an error, so we must check the returned data.
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("employee_documents")
+      .delete()
+      .eq("id", documentKey)
+      .select("id");
+
+    if (deleteError) throw deleteError;
+
+    if (!Array.isArray(deletedRows) || deletedRows.length === 0) {
+      throw new Error(
+        "The document record was not removed. Please check employee_documents delete permission/RLS and try again.",
+      );
+    }
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H RECOVERY
+    // After the metadata row is confirmed deleted, remove the storage file.
+    // If the storage file is already missing, the saved document should still
+    // disappear because the employee_documents row has been removed.
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from(EMPLOYEE_DOCUMENTS_BUCKET)
+        .remove([filePath]);
+
+      if (storageError) {
+        console.warn("Stored employee document file could not be removed:", storageError);
+      }
+    }
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H RECOVERY
+    // Update the current screen immediately before reloading from Supabase.
+    state.attachedDocuments = state.attachedDocuments.filter(
+      (item) => String(item.id) !== documentKey,
+    );
+    renderAttachedDocuments();
+
+    const employeeId = String(
+      documentRow.employee_id || state.currentEditingEmployee?.id || "",
+    ).trim();
+
+    if (employeeId) {
+      await loadEmployeeDocuments(employeeId);
+    }
+
+    await loadAllEmployeeDocuments();
+
+    showPageAlert(
+      "success",
+      `Document <strong>${escapeHtml(fileName)}</strong> was removed successfully.`,
+    );
+  } catch (error) {
+    console.error("Error removing employee document:", error);
+    showPageAlert(
+      "danger",
+      error.message || "Employee document could not be removed.",
     );
   }
 }
@@ -6050,9 +6597,30 @@ async function handleEmployeeSave() {
       return;
     }
 
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+    // Only create mode generates a new Employee Number.
+    // Edit mode must preserve the existing Employee Number.
+    if (!isEditMode) {
+      employeePayload.employee_number = await generateNextEmployeeCustomId();
+
+      if (state.dom.employeeNumber) {
+        state.dom.employeeNumber.value = employeePayload.employee_number;
+      }
+    }
+
     const supabase = getSupabaseClient();
     let savedEmployeeId = editingId;
-    let savedEmployeeName = `${employeePayload.first_name} ${employeePayload.last_name}`.trim();
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+// Build the success-message name with optional Middle Name.
+let savedEmployeeName = [
+  employeePayload.first_name,
+  employeePayload.middle_name,
+  employeePayload.last_name,
+]
+  .map((namePart) => String(namePart || "").trim())
+  .filter(Boolean)
+  .join(" ");
+    let savedEmployeeNumber = String(employeePayload.employee_number || "").trim();
 
     if (isEditMode) {
       const { data, error } = await supabase
@@ -6068,7 +6636,20 @@ async function handleEmployeeSave() {
       }
 
       savedEmployeeId = data.id;
-      savedEmployeeName = `${data.first_name || employeePayload.first_name} ${data.last_name || employeePayload.last_name}`.trim();
+savedEmployeeName = [
+  data.first_name || employeePayload.first_name,
+  data.middle_name || employeePayload.middle_name,
+  data.last_name || employeePayload.last_name,
+]
+  .map((namePart) => String(namePart || "").trim())
+  .filter(Boolean)
+  .join(" ");
+
+      // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+      // Keep the returned employee number available for messaging.
+      savedEmployeeNumber = String(
+        data.employee_number || employeePayload.employee_number || "",
+      ).trim();
     } else {
       const { data, error } = await supabase
         .from("employees")
@@ -6082,7 +6663,14 @@ async function handleEmployeeSave() {
       }
 
       savedEmployeeId = data.id;
-      savedEmployeeName = `${data.first_name || employeePayload.first_name} ${data.last_name || employeePayload.last_name}`.trim();
+      savedEmployeeName =
+        `${data.first_name || employeePayload.first_name} ${data.last_name || employeePayload.last_name}`.trim();
+
+      // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+      // Capture the generated custom ID after create.
+      savedEmployeeNumber = String(
+        data.employee_number || employeePayload.employee_number || "",
+      ).trim();
     }
 
     if (state.pendingFiles.length) {
@@ -6096,34 +6684,64 @@ async function handleEmployeeSave() {
     await loadAuthProfilesForLinkage();
     await loadEmployees();
 
-    // DESCRIPTION ITEM 5 - SYNC FOUNDATION STEP 3B
-    // Keep the payroll side in sync with the HR employee source immediately
-    // after an employee create/update, so both payroll selectors and the
-    // read-only payroll reference panel reflect the latest employee data.
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+    // Keep payroll-related employee dropdowns aligned after employee create/update.
     populatePayrollEmployeeOptions();
     populatePayrollMasterEmployeeOptions();
     renderPayrollSelectedEmployeeReference(
       state.dom.payrollEmployeeId?.value || "",
     );
 
-    showPageAlert(
-      "success",
-      isEditMode
-        ? `Employee profile for <strong>${escapeHtml(
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+    // Show the generated Employee ID only after a new employee is created.
+    // Edit mode should not suggest that the Employee ID was regenerated.
+    const employeeSaveSuccessMessage = isEditMode
+      ? `Employee profile for <strong>${escapeHtml(
           savedEmployeeName,
         )}</strong> was updated successfully.`
-        : `Employee profile for <strong>${escapeHtml(
+      : `Employee profile for <strong>${escapeHtml(
           savedEmployeeName,
-        )}</strong> was created successfully.`,
-    );
+        )}</strong> was created successfully with Employee ID <strong>${escapeHtml(
+          savedEmployeeNumber || employeePayload.employee_number || "--",
+        )}</strong>.`;
 
-    // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
-    // After create/update, clear the employee form and redirect HR to the
-    // Full Employee List header without cutting off the heading.
+    showPageAlert("success", employeeSaveSuccessMessage);
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+    // After create/update, clear the form and return HR to the employee list.
     resetEmployeeForm();
     redirectToFullEmployeeListAfterEmployeeSave();
   } catch (error) {
     console.error("Error saving employee profile:", error);
+
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1O
+    // The database now protects Employee Number from duplicates.
+    // If a rare duplicate happens, show HR a clear message instead of
+    // exposing a raw Supabase duplicate-key error.
+    const errorMessage = String(error.message || "").toLowerCase();
+
+    const isDuplicateEmployeeNumber =
+      errorMessage.includes("uq_employees_employee_number_normalised") ||
+      (
+        errorMessage.includes("duplicate key value") &&
+        errorMessage.includes("employee_number")
+      );
+
+    if (isDuplicateEmployeeNumber && !isEditMode) {
+      if (state.dom.employeeNumber) {
+        state.dom.employeeNumber.value = "";
+      }
+
+      await refreshEmployeeWorkspace();
+
+      showPageAlert(
+        "warning",
+        "The generated Employee Number was already taken. Please click Create Employee Profile again so the system can generate the next available number.",
+      );
+
+      return;
+    }
+
     showPageAlert(
       "danger",
       error.message || "Employee profile could not be saved.",
@@ -6132,7 +6750,6 @@ async function handleEmployeeSave() {
     setEmployeeSaveLoading(false, isEditMode);
   }
 }
-
 function setEmployeeSaveLoading(isLoading, isEditMode = false) {
   const button = state.dom.saveEmployeeBtn;
   if (!button) return;
@@ -6518,8 +7135,11 @@ function updateEmployeeBankDetailsSaveButtonState() {
 // Payroll Master Data button state.
 // Required fields match validatePayrollMasterForm().
 function updatePayrollMasterSaveButtonState() {
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+  // Grade removed from Payroll Master readiness.
+  // Payroll Master can save when employee, salary, effective date,
+  // pay cycle, and status are complete.
   const hasEmployee = Boolean(String(state.dom.payrollMasterEmployeeId?.value || "").trim());
-  const hasGrade = Boolean(String(state.dom.payrollMasterGrade?.value || "").trim());
   const hasSalary = Boolean(String(state.dom.payrollMasterBasicSalary?.value || "").trim());
   const hasEffectiveDate = Boolean(String(state.dom.payrollMasterEffectiveDate?.value || "").trim());
   const hasPayCycle = Boolean(String(state.dom.payrollMasterPayCycle?.value || "").trim());
@@ -6531,7 +7151,6 @@ function updatePayrollMasterSaveButtonState() {
   setPrimaryActionButtonReadyState(
     state.dom.savePayrollMasterBtn,
     hasEmployee &&
-    hasGrade &&
     hasSalary &&
     salaryIsValid &&
     hasEffectiveDate &&
@@ -7032,9 +7651,9 @@ function resetEmployeeBankDetailsForm() {
   }
 }
 
-// EMPLOYEE BANK DETAILS - STEP 9
-// Load the selected employee bank record into the form for editing.
-// Save will update the existing Supabase row because the hidden edit id is set.
+// EMPLOYEE BANK DETAILS - STEP 9 RECOVERY
+// Restore the safe Employee Bank Details edit flow.
+// This loads the selected bank details into the form and keeps the wider UI stable.
 function startEmployeeBankDetailsEdit(employeeBankDetailsId) {
   const record = state.employeeBankDetailsRecords.find(
     (item) => String(item.id) === String(employeeBankDetailsId),
@@ -7093,22 +7712,32 @@ function startEmployeeBankDetailsEdit(employeeBankDetailsId) {
 
   updateEmployeeBankDetailsSaveButtonState();
 
-  // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+  // EMPLOYEE BANK DETAILS - STEP 9A LANDING FIX
   // Editing must reopen Employee Bank Details even if HR collapsed it.
+  // Scroll to the Employee Bank Details card itself, not the inner form.
+  // This prevents the page from landing too low or appearing to cut the card heading.
   openEmployeeBankDetailsCard();
-
-  scrollToDashboardTarget(
-    state.dom.employeeBankDetailsForm?.closest(".dashboard-section-card") ||
-    state.dom.employeeBankDetailsForm ||
-    state.dom.employeeBankDetailsCardCollapse,
-    16,
-  );
 
   showPageAlert(
     "info",
     "Editing employee bank details. Make your changes and click Update Employee Bank Details.",
   );
+
+  // EMPLOYEE BANK DETAILS - STEP 9A LANDING FIX
+  // Wait for the alert/card expansion to finish painting before scrolling.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const employeeBankDetailsCard =
+        state.dom.toggleEmployeeBankDetailsCardBtn?.closest(".dashboard-section-card") ||
+        state.dom.employeeBankDetailsCardCollapse?.closest(".dashboard-section-card") ||
+        state.dom.employeeBankDetailsCardCollapse ||
+        state.dom.employeeBankDetailsForm;
+
+      scrollToDashboardTarget(employeeBankDetailsCard, 16);
+    });
+  });
 }
+// Editing must reopen Employee Bank Details even if HR collapsed it.
 
 // EMPLOYEE BANK DETAILS - STEP 4
 // Populate Employee Bank Details employee dropdown from loaded HR employees.
@@ -9972,10 +10601,40 @@ async function handleBatchPayrollSubmit() {
   );
 
   if (missingReadyRows.length) {
-    showPageAlert(
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1M
+    // Missing Payroll Master setup is a blocking payroll issue.
+    // Show it in three places:
+    // 1. normal page alert for consistency,
+    // 2. floating toast so HR sees it immediately,
+    // 3. inline batch warning so HR does not need to scroll back to the top.
+    const missingSetupMessage =
+      "Some selected employees are not ready for payroll. Fix their Payroll Master setup before submitting the batch.";
+
+    showPageAlert("warning", missingSetupMessage);
+
+    showDashboardToast(
       "warning",
-      "Some selected employees are not ready for payroll. Fix their Payroll Master setup before submitting the batch.",
+      "Batch payroll stopped",
+      missingSetupMessage,
     );
+
+    if (state.dom.batchPayrollSetupWarning) {
+      state.dom.batchPayrollSetupWarning.classList.remove("d-none");
+      state.dom.batchPayrollSetupWarning.innerHTML = `
+        <div class="fw-semibold mb-1">Batch payroll stopped</div>
+        <div class="small">
+          ${escapeHtml(missingSetupMessage)}
+        </div>
+      `;
+    }
+
+    scrollToDashboardTarget(
+      state.dom.batchPayrollReviewPanel ||
+        state.dom.batchPayrollSetupWarning ||
+        state.dom.payrollRecordCardCollapse,
+      32,
+    );
+
     return;
   }
 

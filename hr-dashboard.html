@@ -333,6 +333,21 @@
                   <div class="invalid-feedback">First name is required.</div>
                 </div>
 
+                <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+     Middle Name is optional HR identity data.
+     It improves employee records without blocking employee creation. -->
+<div class="col-md-6 col-xl-4">
+  <label for="middleName" class="form-label fw-semibold">
+    Middle Name
+  </label>
+  <input
+    type="text"
+    id="middleName"
+    class="form-control"
+    placeholder="Enter middle name"
+    autocomplete="off" />
+</div>
+
                 <div class="col-md-6 col-xl-4">
                   <label for="lastName" class="form-label fw-semibold">
                     Last Name <span class="text-danger">*</span>
@@ -364,30 +379,91 @@
                   <h3 class="h6 fw-bold mb-3 mt-2">Employment Details</h3>
                 </div>
 
-                <div class="col-md-6 col-xl-4">
-                  <label for="department" class="form-label fw-semibold">
-                    Department <span class="text-danger">*</span>
-                  </label>
-                  <input type="text" id="department" class="form-control" placeholder="Enter department" required />
-                  <div class="invalid-feedback">Department is required.</div>
-                </div>
+<!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D
+     Department is now controlled by dropdown.
+     This keeps HR records consistent and prevents duplicate department names
+     such as IT, I.T, Info Tech, and Information Technology. -->
+<div class="col-md-6 col-xl-4">
+  <label for="department" class="form-label fw-semibold">
+    Department <span class="text-danger">*</span>
+  </label>
 
-                <div class="col-md-6 col-xl-4">
-                  <label for="jobTitle" class="form-label fw-semibold">
-                    Job Title <span class="text-danger">*</span>
-                  </label>
-                  <input type="text" id="jobTitle" class="form-control" placeholder="Enter job title" required />
-                  <div class="invalid-feedback">Job title is required.</div>
-                </div>
+  <select id="department" class="form-select" required>
+    <option value="">Select department</option>
+    <option value="Accounting">Accounting</option>
+    <option value="Administration">Administration</option>
+    <option value="Compliance">Compliance</option>
+    <option value="Customer Support">Customer Support</option>
+    <option value="Facilities">Facilities</option>
+    <option value="Finance">Finance</option>
+    <option value="Human Resources">Human Resources</option>
+    <option value="Information Technology">Information Technology</option>
+    <option value="Legal">Legal</option>
+    <option value="Maintenance">Maintenance</option>
+    <option value="Marketing">Marketing</option>
+    <option value="Media">Media</option>
+    <option value="Operations">Operations</option>
+    <option value="Procurement">Procurement</option>
+    <option value="Sales">Sales</option>
+  </select>
 
-                <div class="col-md-6 col-xl-4">
-                  <label for="lineManager" class="form-label fw-semibold">
-                    Line Manager <span class="text-danger">*</span>
-                  </label>
-                  <input type="text" id="lineManager" class="form-control" placeholder="Enter line manager name"
-                    required />
-                  <div class="invalid-feedback">Line manager is required.</div>
-                </div>
+  <div class="invalid-feedback">Department is required.</div>
+</div>
+
+<!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1E
+     Job Title is now controlled by dropdown.
+     This keeps HR, payroll, reporting, and employee filtering consistent
+     instead of allowing different spellings for the same role. -->
+<div class="col-md-6 col-xl-4">
+  <label for="jobTitle" class="form-label fw-semibold">
+    Job Title <span class="text-danger">*</span>
+  </label>
+
+  <select id="jobTitle" class="form-select" required>
+    <option value="">Select job title</option>
+
+    <option value="Accountant">Accountant</option>
+    <option value="Administrative Officer">Administrative Officer</option>
+    <option value="Application Analyst">Application Analyst</option>
+    <option value="Business Analyst">Business Analyst</option>
+    <option value="Cinematographer">Cinematographer</option>
+    <option value="Compliance Officer">Compliance Officer</option>
+    <option value="Customer Support Officer">Customer Support Officer</option>
+    <option value="Data Analyst">Data Analyst</option>
+    <option value="Engineer">Engineer</option>
+    <option value="Facilities Officer">Facilities Officer</option>
+    <option value="Finance Officer">Finance Officer</option>
+    <option value="HR Officer">HR Officer</option>
+    <option value="IT Support Officer">IT Support Officer</option>
+    <option value="Junior Engineer">Junior Engineer</option>
+    <option value="Manager">Manager</option>
+    <option value="Maintenance Officer">Maintenance Officer</option>
+    <option value="Marketing Officer">Marketing Officer</option>
+    <option value="Operations Officer">Operations Officer</option>
+    <option value="Payroll Officer">Payroll Officer</option>
+    <option value="Procurement Officer">Procurement Officer</option>
+    <option value="Producer">Producer</option>
+    <option value="Sales Officer">Sales Officer</option>
+    <option value="Supervisor">Supervisor</option>
+  </select>
+
+  <div class="invalid-feedback">Job title is required.</div>
+</div>
+
+<!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+     Line Manager remains useful HR reference data, but it should not block
+     employee creation because Approver Email already handles workflow routing. -->
+<div class="col-md-6 col-xl-4">
+  <label for="lineManager" class="form-label fw-semibold">
+    Line Manager
+  </label>
+  <input
+    type="text"
+    id="lineManager"
+    class="form-control"
+    placeholder="Enter line manager name"
+    autocomplete="off" />
+</div>
 
                 <!-- DESCRIPTION ITEM 5 - SYNC FOUNDATION STEP 3A
      Remove stray text that was breaking the employee form grid layout
@@ -413,12 +489,24 @@
                   <div class="invalid-feedback">A valid approver email is required.</div>
                 </div>
 
-                <div class="col-md-6 col-xl-4">
-                  <label for="employeeNumber" class="form-label fw-semibold">
-                    Employee Number
-                  </label>
-                  <input type="text" id="employeeNumber" class="form-control" placeholder="e.g. EMP001" />
-                </div>
+<!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
+     Employee Number is now system-generated.
+     HR should not type this manually because that can cause duplicate IDs. -->
+<div class="col-md-6 col-xl-4">
+  <label for="employeeNumber" class="form-label fw-semibold">
+    Employee Number
+  </label>
+  <input
+    type="text"
+    id="employeeNumber"
+    class="form-control bg-light"
+    placeholder="Auto-generated on save"
+    autocomplete="off"
+    readonly />
+  <div class="form-text">
+    This will be generated automatically when the employee is created.
+  </div>
+</div>
 
                 <div class="col-md-6 col-xl-4">
                   <label for="employmentStatus" class="form-label fw-semibold">
@@ -542,10 +630,13 @@
 
                 <div class="col-12">
                   <div class="d-flex flex-wrap gap-2 pt-2">
-                    <button type="submit" id="saveEmployeeBtn" class="btn btn-primary dashboard-action-btn">
-                      <i class="bi bi-person-plus me-2"></i>
-                      <span id="saveEmployeeBtnText">Create Employee Profile</span>
-                    </button>
+<!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+     Employee create/update should stay disabled until required fields are complete.
+     This keeps employee creation consistent with other HR/payroll forms. -->
+<button type="submit" id="saveEmployeeBtn" class="btn btn-secondary dashboard-action-btn" disabled>
+  <i class="bi bi-person-plus me-2"></i>
+  <span id="saveEmployeeBtnText">Create Employee Profile</span>
+</button>
                   </div>
                 </div>
               </div>
@@ -1114,14 +1205,6 @@
                 </div>
 
                 <div class="col-md-6 col-xl-4">
-                  <label for="payrollMasterGrade" class="form-label fw-semibold">
-                    Grade <span class="text-danger">*</span>
-                  </label>
-                  <input type="text" id="payrollMasterGrade" class="form-control"
-                    placeholder="e.g. GL07 / Senior Associate" required />
-                </div>
-
-                <div class="col-md-6 col-xl-4">
                   <label for="payrollMasterBasicSalary" class="form-label fw-semibold">
                     Basic Salary <span class="text-danger">*</span>
                   </label>
@@ -1201,7 +1284,7 @@
                   Search payroll master data
                 </label>
                 <input type="text" id="payrollMasterSearchInput" class="form-control"
-                  placeholder="Search by employee, grade, pay cycle..." />
+                                    placeholder="Search by employee, pay cycle, status..." />
               </div>
             </div>
 
@@ -1215,12 +1298,12 @@
             <div id="payrollMasterRecordsTableWrapper" class="dashboard-table-wrap d-none">
               <table class="table align-middle">
                 <thead>
-                  <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 6
-       Shorten Payroll Master Records headers so the table reads more cleanly
-       and aligns better with the employee list styling. -->
+                  <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1J
+                       Grade removed from Payroll Master Records.
+                       Payroll Master now focuses on employee, salary, effective date,
+                       pay cycle, and payroll status. -->
                   <tr>
                     <th>Employee</th>
-                    <th>Grade</th>
                     <th>Salary</th>
                     <th>Effective</th>
                     <th>Cycle</th>
@@ -1231,7 +1314,7 @@
                 </thead>
                 <tbody id="payrollMasterRecordsTableBody">
                   <tr>
-                    <td colspan="8" class="text-center text-secondary py-4">
+                    <td colspan="7" class="text-center text-secondary py-4">
                       Payroll master records will load here.
                     </td>
                   </tr>
