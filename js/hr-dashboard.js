@@ -706,8 +706,13 @@ function cacheDomElements() {
     payrollLogisticsAllowance: document.getElementById("payrollLogisticsAllowance"),
     payrollDataAirtimeAllowance: document.getElementById("payrollDataAirtimeAllowance"),
     payrollGrossPay: document.getElementById("payrollGrossPay"),
-    payrollPayeTax: document.getElementById("payrollPayeTax"),
-    payrollWhtTax: document.getElementById("payrollWhtTax"),
+payrollPayeTax: document.getElementById("payrollPayeTax"),
+
+// PAYROLL TAX DEDUCTION CALCULATION - STEP 2
+// Helper note shown only when NTA 2025 PAYE calculates as zero.
+payrollPayeTaxNote: document.getElementById("payrollPayeTaxNote"),
+
+payrollWhtTax: document.getElementById("payrollWhtTax"),
     payrollEmployeePension: document.getElementById("payrollEmployeePension"),
     payrollEmployerPension: document.getElementById("payrollEmployerPension"),
     payrollOtherDeductions: document.getElementById("payrollOtherDeductions"),
@@ -3847,6 +3852,9 @@ function renderBatchPayrollReviewTable(selectedEmployeeIds = []) {
                 Est. Gross: ${formatCurrency(preparedPayrollRow.gross_pay, "NGN")}
               </div>
               <div class="text-secondary small">
+                Est. PAYE: ${formatCurrency(preparedPayrollRow.paye_tax, "NGN")}
+              </div>
+              <div class="text-secondary small">
                 Est. Net: ${formatCurrency(preparedPayrollRow.net_pay, "NGN")}
               </div>`
         : ""
@@ -4955,7 +4963,27 @@ function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
     utilityAllowance +
     otherAllowance;
 
-  const totalDeductions = employeePension;
+  // PAYROLL TAX DEDUCTION CALCULATION - STEP 6
+  // Batch Payroll must use the same NTA 2025 PAYE calculation as the
+  // individual payroll form. WHT and Other Deductions remain 0 in batch
+  // because batch mode does not collect manual deduction inputs.
+  const payeTax = calculateNta2025MonthlyPayeTaxFromComponents({
+    basicPay,
+    housingAllowance,
+    transportAllowance,
+    utilityAllowance,
+    otherAllowance,
+    medicalAllowance: 0,
+    bonus: 0,
+    overtime: 0,
+    logisticsAllowance: 0,
+    dataAirtimeAllowance: 0,
+  });
+
+  const whtTax = 0;
+  const otherDeductions = 0;
+
+  const totalDeductions = employeePension + payeTax + whtTax + otherDeductions;
   const netPay = grossPay - totalDeductions;
 
   return {
@@ -4978,6 +5006,14 @@ function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
 
     employee_pension: employeePension,
     employer_pension: employerPension,
+
+    // PAYROLL TAX DEDUCTION CALCULATION - STEP 6
+    // Keep batch PAYE/WHT/Other Deductions explicit so the saved
+    // payroll_records row matches the batch preview calculation.
+    paye_tax: payeTax,
+    wht_tax: whtTax,
+    other_deductions: otherDeductions,
+
     gross_pay: grossPay,
     total_deductions: totalDeductions,
     net_pay: netPay,
@@ -5035,14 +5071,20 @@ function buildBatchPayrollRecordPayload(preparedRow) {
     employer_wht: null,
 
     gross_pay: preparedRow.gross_pay,
-    paye_tax: null,
-    wht_tax: null,
+
+    // PAYROLL TAX DEDUCTION CALCULATION - STEP 6
+    // Save the PAYE calculated during batch preparation.
+    // WHT remains 0 for Regular batch payroll because it is not normally
+    // applied to standard employee salary.
+    paye_tax: preparedRow.paye_tax,
+    wht_tax: preparedRow.wht_tax,
     employee_pension: preparedRow.employee_pension,
     employer_pension: preparedRow.employer_pension,
-        // BATCH PAYROLL DEFAULT - STEP 7A
+
+    // BATCH PAYROLL DEFAULT - STEP 7A
     // payroll_records.other_deductions is not nullable in Supabase.
-    // Batch payroll has no extra deductions yet, so save this as 0.
-    other_deductions: 0,
+    // Batch payroll has no extra manual deductions yet, so save this as 0.
+    other_deductions: preparedRow.other_deductions,
     total_deductions: preparedRow.total_deductions,
     net_pay: preparedRow.net_pay,
 
@@ -8281,6 +8323,10 @@ function resetPayrollForm() {
     if (field) field.value = "";
   });
 
+  // PAYROLL TAX DEDUCTION CALCULATION - STEP 2
+  // Hide the exemption note when the payroll form is cleared/reset.
+  state.dom.payrollPayeTaxNote?.classList.add("d-none");
+
   const fieldsToReset = [
     state.dom.payrollEmployeeId,
     state.dom.payrollPayCycle,
@@ -8622,6 +8668,43 @@ async function startPayrollEdit(payrollId) {
   clearPageAlert();
 
   let payrollRecord = selectedRow;
+
+  // PAYROLL TAX DEDUCTION CALCULATION - STEP 4
+  // Open the edit form immediately so HR gets instant feedback after
+  // clicking Edit. The full payroll record can still load below and then
+  // populate the fields as before.
+  switchHrWorkspace("payroll");
+  openPayrollRecordCard();
+
+  if (state.dom.payrollCreateForm) {
+    state.dom.payrollCreateForm.classList.remove("d-none");
+  }
+
+  state.dom.batchPayrollReviewPanel?.classList.add("d-none");
+  state.dom.batchPayrollSetupWarning?.classList.add("d-none");
+  setPayrollRecordToolbarForManualMode();
+
+  if (state.dom.payrollFormTitle) {
+    state.dom.payrollFormTitle.textContent = "Edit Payroll Record";
+  }
+
+  if (state.dom.payrollFormSubtext) {
+    state.dom.payrollFormSubtext.textContent =
+      "Loading payroll details for editing...";
+  }
+
+  if (state.dom.payrollFormModeBadge) {
+    state.dom.payrollFormModeBadge.textContent = "Edit Mode";
+    state.dom.payrollFormModeBadge.className =
+      "badge rounded-pill text-bg-primary px-3 py-2";
+  }
+
+  scrollToDashboardTarget(
+    state.dom.payrollCreateForm?.closest(".dashboard-section-card") ||
+      state.dom.payrollCreateForm ||
+      state.dom.payrollRecordCardCollapse,
+    16,
+  );
 
   try {
     const fullRecord = await loadPayrollRecordForEdit(payrollId);
@@ -9302,6 +9385,25 @@ function calculateRegularMonthlySalaryPlusLogistics() {
   );
 }
 
+// PAYROLL TAX DEDUCTION CALCULATION - STEP 2
+// Shows a simple HR-facing explanation when PAYE is zero because
+// the calculated annual chargeable income is within the NTA 2025 tax-free band.
+function updatePayrollPayeTaxNote() {
+  const note = state.dom.payrollPayeTaxNote;
+  if (!note) return;
+
+  const payeValue = Number(state.dom.payrollPayeTax?.value || 0);
+  const grossPay = calculatePayrollGrossPay();
+
+  const shouldShowExemptionNote =
+    isAlpatechRegularSelected() &&
+    Number.isFinite(payeValue) &&
+    payeValue === 0 &&
+    grossPay > 0;
+
+  note.classList.toggle("d-none", !shouldShowExemptionNote);
+}
+
 function applyAlpatechRegularRev2DerivedFields() {
   setNumericFieldValue(
     state.dom.regularIncrementAmount,
@@ -9378,6 +9480,10 @@ function recalculatePayrollFormTotals() {
   setNumericFieldValue(state.dom.payrollGrossPay, grossPay);
   setNumericFieldValue(state.dom.payrollTotalDeductions, totalDeductions);
   setNumericFieldValue(state.dom.payrollNetPay, netPay);
+
+  // PAYROLL TAX DEDUCTION CALCULATION - STEP 2
+  // Keep the PAYE exemption helper note in sync with the current calculation.
+  updatePayrollPayeTaxNote();
 
   // PAYROLL CALCULATION REPAIR - STEP 12A.2
   // Keep invalid calculations visibly blocked and keep Submit state accurate.
@@ -9507,7 +9613,10 @@ function getPayrollStructurePreviewConfig() {
         `Other Allowance ${formatPayrollStructurePercent(state.dom.regularOtherAllowancePercent, 20)}`,
         "Employee Pension 8% of BHT",
         "Employer Pension 10% of BHT",
-        "PAYE/WHT entered manually",
+        // PAYROLL TAX DEDUCTION CALCULATION - STEP 3
+// PAYE is now auto-calculated for Regular payroll.
+// WHT remains manual because it is not normally applied to regular salary.
+"PAYE auto-calculated • WHT manual if applicable",
       ],
     };
   }
