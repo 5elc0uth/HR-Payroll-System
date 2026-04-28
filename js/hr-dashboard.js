@@ -35,19 +35,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Initialise allowance workspace as part of HR payroll load.
     // =========================================================
     await refreshEmployeeWorkspace();
-await refreshPayrollMasterWorkspace();
-await refreshPayrollAllowanceWorkspace();
-await refreshPayrollWorkspace();
+    await refreshPayrollMasterWorkspace();
+    await refreshPayrollAllowanceWorkspace();
+    await refreshPayrollWorkspace();
 
-// BANK DIRECTORY - STEP 7A
-// Load saved banks from Supabase so Bank Directory records survive page refresh.
-await refreshBankDirectoryWorkspace();
+    // BANK DIRECTORY - STEP 7A
+    // Load saved banks from Supabase so Bank Directory records survive page refresh.
+    await refreshBankDirectoryWorkspace();
 
-// EMPLOYEE BANK DETAILS - STEP 8A
-// Load saved employee bank details on page start after employees and banks
-// are already available, so the Employee Bank Records table is populated
-// when HR opens the payroll workspace.
-await refreshEmployeeBankDetailsWorkspace();
+    // EMPLOYEE BANK DETAILS - STEP 8A
+    // Load saved employee bank details on page start after employees and banks
+    // are already available, so the Employee Bank Records table is populated
+    // when HR opens the payroll workspace.
+    await refreshEmployeeBankDetailsWorkspace();
 
     window.hrEditEmployee = (employeeId) => {
       startEmployeeEdit(employeeId);
@@ -64,6 +64,12 @@ await refreshEmployeeBankDetailsWorkspace();
       toggleEmployeePayrollSelection(employeeId, isChecked);
     };
 
+    // BATCH PAYROLL DEFAULT - STEP 11
+// Expose the remove action used by the Batch Payroll Review table.
+window.hrRemoveEmployeeFromPayrollBatch = (employeeId) => {
+  removeEmployeeFromCurrentPayrollBatch(employeeId);
+};
+
     window.hrOpenEmployeeDocument = async (documentId) => {
       await openEmployeeDocument(documentId);
     };
@@ -71,6 +77,14 @@ await refreshEmployeeBankDetailsWorkspace();
     window.hrEditPayrollRecord = (payrollId) => {
       startPayrollEdit(payrollId);
     };
+
+    // DESCRIPTION ITEM 4 - STEP 7
+    // Expose payslip preview action for the Payroll Records table.
+    // This only opens a review modal for finalised payroll records.
+    window.hrPreviewPayslipRecord = async (payrollId) => {
+      await openPayslipPreview(payrollId);
+    };
+
     // =========================================================
     // DESCRIPTION ITEM 2
     // Expose allowance edit handler for table action buttons.
@@ -87,16 +101,16 @@ await refreshEmployeeBankDetailsWorkspace();
     };
 
     // BANK DIRECTORY - STEP 8
-// Expose Bank Directory edit action for the table button.
-window.hrEditBankDirectoryRecord = (bankId) => {
-  startBankDirectoryEdit(bankId);
-};
+    // Expose Bank Directory edit action for the table button.
+    window.hrEditBankDirectoryRecord = (bankId) => {
+      startBankDirectoryEdit(bankId);
+    };
 
-// EMPLOYEE BANK DETAILS - STEP 9
-// Expose Employee Bank Details edit action for the table button.
-window.hrEditEmployeeBankDetailsRecord = (employeeBankDetailsId) => {
-  startEmployeeBankDetailsEdit(employeeBankDetailsId);
-};
+    // EMPLOYEE BANK DETAILS - STEP 9
+    // Expose Employee Bank Details edit action for the table button.
+    window.hrEditEmployeeBankDetailsRecord = (employeeBankDetailsId) => {
+      startEmployeeBankDetailsEdit(employeeBankDetailsId);
+    };
 
   } catch (error) {
     console.error("Error initialising HR dashboard:", error);
@@ -121,16 +135,30 @@ const state = {
   // Keeps the current page-session selection of employees marked
   // for monthly payroll processing from the Full Employee List.
   selectedEmployeesForPayroll: new Set(),
+  // BATCH PAYROLL DEFAULT - STEP 1
+  // Tracks when the employee table is being used specifically for Run Payroll.
+  // In this mode, the employee list should show active employees only,
+  // because inactive employees should not be prepared for a new payroll batch.
+  isRunPayrollSelectionMode: false,
+  // BATCH PAYROLL DEFAULT - STEP 5
+  // Holds calculated payroll rows prepared from the Batch Payroll Review table.
+  // This is in-memory only for now. No payroll records are saved in this step.
+  batchPayrollPreparedRows: [],
 
   payrollRecords: [],
   filteredPayrollRecords: [],
 
+  // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+  // Tracks payroll records just submitted/updated in the current browser session
+  // so they can be shown first after refresh.
+  lastSavedPayrollRecordIds: new Set(),
+
   // DESCRIPTION ITEM 4 - STEP 6
-// Holds payslip email audit/status logs loaded from Supabase.
-// These records are created by Send Payslips and later move from
-// Pending to Sent/Failed when real email delivery is configured.
-payslipEmailLogs: [],
-filteredPayslipEmailLogs: [],
+  // Holds payslip email audit/status logs loaded from Supabase.
+  // These records are created by Send Payslips and later move from
+  // Pending to Sent/Failed when real email delivery is configured.
+  payslipEmailLogs: [],
+  filteredPayslipEmailLogs: [],
 
   // =========================================================
   // DESCRIPTION ITEM 1
@@ -145,20 +173,20 @@ filteredPayslipEmailLogs: [],
   // Allowance component state holders
   // These will hold allowance rows linked to payroll master data.
   // =========================================================
-payrollAllowanceComponents: [],
-filteredPayrollAllowanceComponents: [],
+  payrollAllowanceComponents: [],
+  filteredPayrollAllowanceComponents: [],
 
-// BANK DIRECTORY - STEP 5
-// Temporary in-page bank directory records.
-// Database persistence will be added after the UI behaviour is confirmed.
-bankDirectoryRecords: [],
-filteredBankDirectoryRecords: [],
+  // BANK DIRECTORY - STEP 5
+  // Temporary in-page bank directory records.
+  // Database persistence will be added after the UI behaviour is confirmed.
+  bankDirectoryRecords: [],
+  filteredBankDirectoryRecords: [],
 
-// EMPLOYEE BANK DETAILS - STEP 8
-// Holds employee bank account records loaded from Supabase
-// so the records table can reflect saved bank details immediately.
-employeeBankDetailsRecords: [],
-filteredEmployeeBankDetailsRecords: [],
+  // EMPLOYEE BANK DETAILS - STEP 8
+  // Holds employee bank account records loaded from Supabase
+  // so the records table can reflect saved bank details immediately.
+  employeeBankDetailsRecords: [],
+  filteredEmployeeBankDetailsRecords: [],
 
   currentEditingEmployee: null,
   currentEditingPayroll: null,
@@ -175,13 +203,30 @@ filteredEmployeeBankDetailsRecords: [],
   // =========================================================
   currentEditingPayrollAllowance: null,
 
-// BANK DIRECTORY - STEP 8D
-// Tracks the bank currently being edited so Save Bank can update instead of creating a duplicate.
-currentEditingBankDirectory: null,
-// EMPLOYEE BANK DETAILS - STEP 9
-// Tracks the employee bank detail currently being edited so Save updates
-// the existing row instead of creating another bank account record.
-currentEditingEmployeeBankDetails: null,
+  // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2 FIX
+  // Tracks the allowance just created/updated in the current browser session
+  // so it can be shown first after refresh, even when records have different
+  // effective dates.
+  lastSavedPayrollAllowanceKey: null,
+
+  // BANK DIRECTORY - STEP 8D
+  // Tracks the bank currently being edited so Save Bank can update instead of creating a duplicate.
+  currentEditingBankDirectory: null,
+
+  // HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3 FIX
+  // Tracks the bank just created/updated in the current browser session
+  // so it can be shown first after refresh, even if Supabase returns banks
+  // alphabetically.
+  lastSavedBankDirectoryKey: null,
+  // EMPLOYEE BANK DETAILS - STEP 9
+  // Tracks the employee bank detail currently being edited so Save updates
+  // the existing row instead of creating another bank account record.
+  currentEditingEmployeeBankDetails: null,
+
+  // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+  // Tracks the employee bank detail just created/updated in the current
+  // browser session so it can be shown first after refresh.
+  lastSavedEmployeeBankDetailsKey: null,
 
   pendingFiles: [],
   attachedDocuments: [],
@@ -263,10 +308,6 @@ function cacheDomElements() {
     department: document.getElementById("department"),
     jobTitle: document.getElementById("jobTitle"),
 
-    // DESCRIPTION ITEM 5 - STEP 2
-    // Grade level is now captured from the HR employee form.
-    gradeLevel: document.getElementById("gradeLevel"),
-
     lineManager: document.getElementById("lineManager"),
     employmentDate: document.getElementById("employmentDate"),
     approverEmail: document.getElementById("approverEmail"),
@@ -343,6 +384,11 @@ function cacheDomElements() {
     toggleEmployeeListCardBtn: document.getElementById("toggleEmployeeListCardBtn"),
     employeeListCardCollapse: document.getElementById("employeeListCardCollapse"),
 
+    // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+    // Header target used after create/update so the Full Employee List title
+    // is visible and not cut off at the top of the viewport.
+    employeeListCardHeader: document.getElementById("employeeListCardHeader"),
+
     payrollRecordCountValue: document.getElementById("payrollRecordCountValue"),
     payrollFinalisedCountValue: document.getElementById("payrollFinalisedCountValue"),
     payrollGrossTotalValue: document.getElementById("payrollGrossTotalValue"),
@@ -351,36 +397,50 @@ function cacheDomElements() {
     payrollSearchInput: document.getElementById("payrollSearchInput"),
     payrollStatusFilter: document.getElementById("payrollStatusFilter"),
 
-// PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4A FIX
-// Cache export pay cycle selector and CSV button.
-exportPayrollPayCycle: document.getElementById("exportPayrollPayCycle"),
-exportPayrollCsvBtn: document.getElementById("exportPayrollCsvBtn"),
+    // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4A FIX
+    // Cache export pay cycle selector and CSV button.
+    exportPayrollPayCycle: document.getElementById("exportPayrollPayCycle"),
+    exportPayrollCsvBtn: document.getElementById("exportPayrollCsvBtn"),
 
-// DESCRIPTION ITEM 4 - STEP 3
-// Cache Send Payslips button so it can be enabled only when
-// finalised payroll records exist for the selected action cycle.
-sendPayslipsEmailBtn: document.getElementById("sendPayslipsEmailBtn"),
+    // DESCRIPTION ITEM 4 - STEP 3
+    // Cache Send Payslips button so it can be enabled only when
+    // finalised payroll records exist for the selected action cycle.
+    sendPayslipsEmailBtn: document.getElementById("sendPayslipsEmailBtn"),
 
-// DESCRIPTION ITEM 4 - STEP 5B
-// Cache Payslip Email Status compact panel controls.
-// These are only for expand/collapse and future summary counts.
-togglePayslipEmailLogsBtn: document.getElementById("togglePayslipEmailLogsBtn"),
-payslipEmailLogsCollapse: document.getElementById("payslipEmailLogsCollapse"),
-payslipEmailPendingCount: document.getElementById("payslipEmailPendingCount"),
-payslipEmailSentCount: document.getElementById("payslipEmailSentCount"),
-payslipEmailFailedCount: document.getElementById("payslipEmailFailedCount"),
-refreshPayslipEmailLogsBtn: document.getElementById("refreshPayslipEmailLogsBtn"),
-payslipEmailLogsEmptyState: document.getElementById("payslipEmailLogsEmptyState"),
-payslipEmailLogsTableWrapper: document.getElementById("payslipEmailLogsTableWrapper"),
-payslipEmailLogsTableBody: document.getElementById("payslipEmailLogsTableBody"),
+    // DESCRIPTION ITEM 4 - STEP 5B
+    // Cache Payslip Email Status compact panel controls.
+    // These are only for expand/collapse and future summary counts.
+    togglePayslipEmailLogsBtn: document.getElementById("togglePayslipEmailLogsBtn"),
+    payslipEmailLogsCollapse: document.getElementById("payslipEmailLogsCollapse"),
+    payslipEmailPendingCount: document.getElementById("payslipEmailPendingCount"),
+    payslipEmailSentCount: document.getElementById("payslipEmailSentCount"),
+    payslipEmailFailedCount: document.getElementById("payslipEmailFailedCount"),
+    refreshPayslipEmailLogsBtn: document.getElementById("refreshPayslipEmailLogsBtn"),
+    payslipEmailLogsEmptyState: document.getElementById("payslipEmailLogsEmptyState"),
+    payslipEmailLogsTableWrapper: document.getElementById("payslipEmailLogsTableWrapper"),
+    payslipEmailLogsTableBody: document.getElementById("payslipEmailLogsTableBody"),
 
     refreshPayrollRecordsBtn: document.getElementById("refreshPayrollRecordsBtn"),
     payrollRecordsEmptyState: document.getElementById("payrollRecordsEmptyState"),
     payrollRecordsTableWrapper: document.getElementById("payrollRecordsTableWrapper"),
     payrollRecordsTableBody: document.getElementById("payrollRecordsTableBody"),
+
+    // DESCRIPTION ITEM 4 - STEP 7
+    // Cache Payslip Preview modal elements.
+    // This is only for HR review; it does not send emails.
+    payslipPreviewModal: document.getElementById("payslipPreviewModal"),
+    payslipPreviewTitle: document.getElementById("payslipPreviewTitle"),
+    payslipPreviewContent: document.getElementById("payslipPreviewContent"),
+    closePayslipPreviewBtn: document.getElementById("closePayslipPreviewBtn"),
+    closePayslipPreviewFooterBtn: document.getElementById("closePayslipPreviewFooterBtn"),
     // SUBMIT PAYROLL - DESCRIPTION ITEM 2
     // Stable Payroll Records card target used after successful submit.
     payrollRecordsCard: document.getElementById("payrollRecordsCard"),
+
+    // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+    // Header target used after submit/update so Payroll Records appears
+    // cleanly without the heading being cut off.
+    payrollRecordsHeader: document.getElementById("payrollRecordsHeader"),
     // =========================================================
     // DESCRIPTION ITEM 1
     // Payroll master form DOM cache
@@ -390,63 +450,72 @@ payslipEmailLogsTableBody: document.getElementById("payslipEmailLogsTableBody"),
 
     // DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
     // Collapse controls for the Payroll Master Data card.
-payrollMasterCardCollapse: document.getElementById("payrollMasterCardCollapse"),
-togglePayrollMasterCardBtn: document.getElementById("togglePayrollMasterCardBtn"),
+    payrollMasterCardCollapse: document.getElementById("payrollMasterCardCollapse"),
+    togglePayrollMasterCardBtn: document.getElementById("togglePayrollMasterCardBtn"),
 
-// BANK DIRECTORY - STEP 2
-// Cache collapse container and toggle button for Bank Directory.
-bankDirectoryCardCollapse: document.getElementById("bankDirectoryCardCollapse"),
-toggleBankDirectoryCardBtn: document.getElementById("toggleBankDirectoryCardBtn"),
+    // BANK DIRECTORY - STEP 2
+    // Cache collapse container and toggle button for Bank Directory.
+    bankDirectoryCardCollapse: document.getElementById("bankDirectoryCardCollapse"),
+    toggleBankDirectoryCardBtn: document.getElementById("toggleBankDirectoryCardBtn"),
 
-// EMPLOYEE BANK DETAILS - STEP 3
-// Cache collapse container and toggle button for Employee Bank Details.
-// This makes the new Employee Bank Details card behave like Bank Directory.
-employeeBankDetailsCardCollapse: document.getElementById("employeeBankDetailsCardCollapse"),
-toggleEmployeeBankDetailsCardBtn: document.getElementById("toggleEmployeeBankDetailsCardBtn"),
+    // EMPLOYEE BANK DETAILS - STEP 3
+    // Cache collapse container and toggle button for Employee Bank Details.
+    // This makes the new Employee Bank Details card behave like Bank Directory.
+    employeeBankDetailsCardCollapse: document.getElementById("employeeBankDetailsCardCollapse"),
+    toggleEmployeeBankDetailsCardBtn: document.getElementById("toggleEmployeeBankDetailsCardBtn"),
 
-// EMPLOYEE BANK DETAILS - STEP 4
-// Cache Employee Bank Details form fields so the dropdowns can be populated
-// from existing HR employee records and active Bank Directory records.
-employeeBankDetailsForm: document.getElementById("employeeBankDetailsForm"),
-editingEmployeeBankDetailsId: document.getElementById("editingEmployeeBankDetailsId"),
-employeeBankEmployeeId: document.getElementById("employeeBankEmployeeId"),
-employeeBankBankId: document.getElementById("employeeBankBankId"),
-employeeBankCode: document.getElementById("employeeBankCode"),
-employeeBankAccountNumber: document.getElementById("employeeBankAccountNumber"),
-employeeBankAccountName: document.getElementById("employeeBankAccountName"),
-employeeBankStatus: document.getElementById("employeeBankStatus"),
-saveEmployeeBankDetailsBtn: document.getElementById("saveEmployeeBankDetailsBtn"),
-employeeBankDetailsSubmitLabel: document.getElementById("employeeBankDetailsSubmitLabel"),
-cancelEmployeeBankDetailsEditBtn: document.getElementById("cancelEmployeeBankDetailsEditBtn"),
-employeeBankDetailsSearchInput: document.getElementById("employeeBankDetailsSearchInput"),
-employeeBankDetailsEmptyState: document.getElementById("employeeBankDetailsEmptyState"),
-employeeBankDetailsTableWrapper: document.getElementById("employeeBankDetailsTableWrapper"),
-employeeBankDetailsTableBody: document.getElementById("employeeBankDetailsTableBody"),
+    // EMPLOYEE BANK DETAILS - STEP 4
+    // Cache Employee Bank Details form fields so the dropdowns can be populated
+    // from existing HR employee records and active Bank Directory records.
+    employeeBankDetailsForm: document.getElementById("employeeBankDetailsForm"),
+    editingEmployeeBankDetailsId: document.getElementById("editingEmployeeBankDetailsId"),
+    employeeBankEmployeeId: document.getElementById("employeeBankEmployeeId"),
+    employeeBankBankId: document.getElementById("employeeBankBankId"),
+    employeeBankCode: document.getElementById("employeeBankCode"),
+    employeeBankAccountNumber: document.getElementById("employeeBankAccountNumber"),
+    employeeBankAccountName: document.getElementById("employeeBankAccountName"),
+    employeeBankStatus: document.getElementById("employeeBankStatus"),
+    saveEmployeeBankDetailsBtn: document.getElementById("saveEmployeeBankDetailsBtn"),
+    employeeBankDetailsSubmitLabel: document.getElementById("employeeBankDetailsSubmitLabel"),
+    cancelEmployeeBankDetailsEditBtn: document.getElementById("cancelEmployeeBankDetailsEditBtn"),
+    employeeBankDetailsSearchInput: document.getElementById("employeeBankDetailsSearchInput"),
 
-// BANK DIRECTORY - STEP 4
-// Cache controlled bank directory fields.
-bankDirectoryForm: document.getElementById("bankDirectoryForm"),
-bankName: document.getElementById("bankName"),
-bankCode: document.getElementById("bankCode"),
-bankStatus: document.getElementById("bankStatus"),
+    // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+    // Header target used after create/update so Employee Bank Records appears
+    // cleanly without the heading being cut off.
+    employeeBankDetailsRecordsHeader: document.getElementById("employeeBankDetailsRecordsHeader"),
 
-// BANK DIRECTORY - STEP 10B
-// Cache the Save/Update Bank label correctly.
-// This was previously swallowed by a comment, so edit/create label changes
-// were not reliably controlled by JavaScript.
-bankDirectorySubmitLabel: document.getElementById("bankDirectorySubmitLabel"),
-cancelBankDirectoryEditBtn: document.getElementById("cancelBankDirectoryEditBtn"),
+    employeeBankDetailsEmptyState: document.getElementById("employeeBankDetailsEmptyState"),
+    employeeBankDetailsTableWrapper: document.getElementById("employeeBankDetailsTableWrapper"),
+    employeeBankDetailsTableBody: document.getElementById("employeeBankDetailsTableBody"),
 
-// BANK DIRECTORY - STEP 8I
-// Cache Save Bank button so it can be disabled until the form is valid.
-saveBankDirectoryBtn: document.getElementById("saveBankDirectoryBtn"),
+    // BANK DIRECTORY - STEP 4
+    // Cache controlled bank directory fields.
+    bankDirectoryForm: document.getElementById("bankDirectoryForm"),
+    bankName: document.getElementById("bankName"),
+    bankCode: document.getElementById("bankCode"),
+    bankStatus: document.getElementById("bankStatus"),
 
-// BANK DIRECTORY - STEP 5
-// Cache records/search elements for local save and filtering.
-bankDirectorySearchInput: document.getElementById("bankDirectorySearchInput"),
-bankDirectoryEmptyState: document.getElementById("bankDirectoryEmptyState"),
-bankDirectoryTableWrapper: document.getElementById("bankDirectoryTableWrapper"),
-bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
+    // BANK DIRECTORY - STEP 10B
+    // Cache the Save/Update Bank label correctly.
+    // This was previously swallowed by a comment, so edit/create label changes
+    // were not reliably controlled by JavaScript.
+    bankDirectorySubmitLabel: document.getElementById("bankDirectorySubmitLabel"),
+    cancelBankDirectoryEditBtn: document.getElementById("cancelBankDirectoryEditBtn"),
+
+    // BANK DIRECTORY - STEP 8I
+    // Cache Save Bank button so it can be disabled until the form is valid.
+    saveBankDirectoryBtn: document.getElementById("saveBankDirectoryBtn"),
+
+    // HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3
+    // Header target used after create/update so Bank Directory Records appears
+    // cleanly without the heading being cut off.
+    bankDirectoryRecordsHeader: document.getElementById("bankDirectoryRecordsHeader"),
+
+    bankDirectorySearchInput: document.getElementById("bankDirectorySearchInput"),
+    bankDirectoryEmptyState: document.getElementById("bankDirectoryEmptyState"),
+    bankDirectoryTableWrapper: document.getElementById("bankDirectoryTableWrapper"),
+    bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
 
     payrollMasterFormModeBadge: document.getElementById("payrollMasterFormModeBadge"),
     editingPayrollMasterId: document.getElementById("editingPayrollMasterId"),
@@ -465,6 +534,12 @@ bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
     payrollMasterNotes: document.getElementById("payrollMasterNotes"),
 
     payrollMasterSearchInput: document.getElementById("payrollMasterSearchInput"),
+
+    // HR SAVE/EDIT BEHAVIOUR - PAYROLL MASTER STEP 1
+    // Header target used after create/update so Payroll Master Records
+    // appears cleanly without the heading being cut off.
+    payrollMasterRecordsHeader: document.getElementById("payrollMasterRecordsHeader"),
+
     payrollMasterRecordsEmptyState: document.getElementById("payrollMasterRecordsEmptyState"),
     payrollMasterRecordsTableWrapper: document.getElementById("payrollMasterRecordsTableWrapper"),
     payrollMasterRecordsTableBody: document.getElementById("payrollMasterRecordsTableBody"),
@@ -497,6 +572,12 @@ bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
     payrollAllowanceNotes: document.getElementById("payrollAllowanceNotes"),
 
     payrollAllowanceSearchInput: document.getElementById("payrollAllowanceSearchInput"),
+
+    // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2
+    // Header target used after create/update so Allowance Records appears
+    // cleanly without the heading being cut off.
+    payrollAllowanceRecordsHeader: document.getElementById("payrollAllowanceRecordsHeader"),
+
     payrollAllowanceRecordsEmptyState: document.getElementById("payrollAllowanceRecordsEmptyState"),
     payrollAllowanceRecordsTableWrapper: document.getElementById("payrollAllowanceRecordsTableWrapper"),
     payrollAllowanceRecordsTableBody: document.getElementById("payrollAllowanceRecordsTableBody"),
@@ -519,6 +600,25 @@ bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
     // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 3
     // Top shortcut button for submitting long payroll forms.
     topSubmitPayrollBtn: document.getElementById("topSubmitPayrollBtn"),
+    // BATCH PAYROLL DEFAULT - STEP 2
+    // Cache the batch payroll review panel shown after HR selects
+    // employees from the Run Payroll table.
+    batchPayrollReviewPanel: document.getElementById("batchPayrollReviewPanel"),
+    batchPayrollReviewCount: document.getElementById("batchPayrollReviewCount"),
+    batchPayrollReviewTableBody: document.getElementById("batchPayrollReviewTableBody"),
+    // BATCH PAYROLL DEFAULT - STEP 7
+    // Saves prepared batch payroll rows into Payroll Records.
+    submitBatchPayrollBtn: document.getElementById("submitBatchPayrollBtn"),
+    // BATCH PAYROLL DEFAULT - STEP 6B
+    // Batch payroll period controls used by the batch submit flow.
+    // These are separate from the hidden individual payroll form fields.
+    batchPayrollPayCycle: document.getElementById("batchPayrollPayCycle"),
+    batchPayrollPayDate: document.getElementById("batchPayrollPayDate"),
+
+    // BATCH PAYROLL DEFAULT - STEP 4
+    // Shows a clear warning when selected employees do not have
+    // a valid active Payroll Master setup for batch payroll.
+    batchPayrollSetupWarning: document.getElementById("batchPayrollSetupWarning"),
 
     payrollEmployeeId: document.getElementById("payrollEmployeeId"),
 
@@ -546,6 +646,26 @@ bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
       "payrollSelectedEmployeeStatus",
     ),
 
+    // PAYROLL BANK READINESS - STEP 11B
+    // Cache the Payroll Bank Readiness panel fields inside Selected Employee Reference.
+    // These fields show whether the selected employee has active bank details
+    // before HR submits payroll.
+    payrollBankReadinessBadge: document.getElementById("payrollBankReadinessBadge"),
+    payrollBankReadinessEmptyState: document.getElementById("payrollBankReadinessEmptyState"),
+    payrollBankReadinessDetails: document.getElementById("payrollBankReadinessDetails"),
+    payrollBankReadinessBankName: document.getElementById("payrollBankReadinessBankName"),
+    payrollBankReadinessBankCode: document.getElementById("payrollBankReadinessBankCode"),
+    payrollBankReadinessAccountNumber: document.getElementById("payrollBankReadinessAccountNumber"),
+    payrollBankReadinessAccountName: document.getElementById("payrollBankReadinessAccountName"),
+    payrollBankReadinessWarning: document.getElementById("payrollBankReadinessWarning"),
+
+    // PAYROLL BANK READINESS - STEP 11C
+    // Soft warning near Submit Payroll.
+    // This is advisory only and does not block payroll submission.
+    payrollBankReadinessSubmitWarning: document.getElementById(
+      "payrollBankReadinessSubmitWarning",
+    ),
+
     payrollPayCycle: document.getElementById("payrollPayCycle"),
     payrollPayDate: document.getElementById("payrollPayDate"),
     payrollEmployeeGroup: document.getElementById("payrollEmployeeGroup"),
@@ -564,6 +684,15 @@ bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
     regularNetSalary: document.getElementById("regularNetSalary"),
     regularMonthlySalaryPlusLogistics: document.getElementById("regularMonthlySalaryPlusLogistics"),
     payrollStatus: document.getElementById("payrollStatus"),
+
+    // PAYROLL STRUCTURE PREVIEW - STEP 12D
+    // Cache the compact payroll structure preview panel.
+    payrollStructurePreviewPanel: document.getElementById("payrollStructurePreviewPanel"),
+    payrollStructurePreviewTitle: document.getElementById("payrollStructurePreviewTitle"),
+    payrollStructurePreviewBadge: document.getElementById("payrollStructurePreviewBadge"),
+    payrollStructurePreviewDescription: document.getElementById("payrollStructurePreviewDescription"),
+    payrollStructurePreviewItems: document.getElementById("payrollStructurePreviewItems"),
+
     payrollReference: document.getElementById("payrollReference"),
     payrollBaseSalary: document.getElementById("payrollBaseSalary"),
     payrollBasicPay: document.getElementById("payrollBasicPay"),
@@ -587,6 +716,18 @@ bankDirectoryTableBody: document.getElementById("bankDirectoryTableBody"),
     payrollCurrency: document.getElementById("payrollCurrency"),
     payrollIsFinalised: document.getElementById("payrollIsFinalised"),
     payrollNotes: document.getElementById("payrollNotes"),
+
+    // BATCH PAYROLL DEFAULT - STEP 6D
+    // Floating page-level shortcut for long HR/payroll screens.
+    backToTopBtn: document.getElementById("backToTopBtn"),
+        // BATCH PAYROLL DEFAULT - STEP 8A
+    // Floating notification card used for important blocking messages.
+    dashboardToast: document.getElementById("dashboardToast"),
+    dashboardToastAccent: document.getElementById("dashboardToastAccent"),
+    dashboardToastIcon: document.getElementById("dashboardToastIcon"),
+    dashboardToastTitle: document.getElementById("dashboardToastTitle"),
+    dashboardToastMessage: document.getElementById("dashboardToastMessage"),
+    dashboardToastCloseBtn: document.getElementById("dashboardToastCloseBtn"),
   };
 }
 // DESCRIPTION ITEM 1 - STEP 5
@@ -613,10 +754,586 @@ function bindCardCollapseToggle(button, panel) {
     }
   });
 }
+
+// REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+// Programmatic version of the existing card collapse behaviour.
+// This lets save/edit flows open or close cards without duplicating UI logic.
+function setDashboardCardExpanded(button, panel, shouldExpand) {
+  if (!button || !panel) return;
+
+  panel.classList.toggle("d-none", !shouldExpand);
+  button.setAttribute("aria-expanded", String(shouldExpand));
+
+  const icon = button.querySelector("i");
+  const label = button.querySelector("span");
+
+  if (icon) {
+    icon.className = shouldExpand
+      ? "bi bi-chevron-up me-2"
+      : "bi bi-chevron-down me-2";
+  }
+
+  if (label) {
+    label.textContent = shouldExpand ? "Collapse" : "Expand";
+  }
+}
+
+// REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+// Scroll with an offset so card headings remain visible after redirect.
+function scrollToDashboardTarget(target, offset = 96) {
+  if (!target) return;
+
+  const targetTop =
+    target.getBoundingClientRect().top + window.pageYOffset - offset;
+
+  window.scrollTo({
+    top: Math.max(targetTop, 0),
+    behavior: "smooth",
+  });
+}
+// BATCH PAYROLL DEFAULT - STEP 6D
+// Show the Back to Top button only after HR has scrolled down.
+// This keeps the page clean near the top but helpful on long HR/payroll screens.
+function updateBackToTopButtonVisibility() {
+  const button = state.dom.backToTopBtn;
+  if (!button) return;
+
+  const shouldShow = window.scrollY > 420;
+  button.classList.toggle("d-none", !shouldShow);
+}
+
+// BATCH PAYROLL DEFAULT - STEP 8A
+// Shows a bottom-right notification for important messages that HR must
+// see immediately, even when the normal page alert is outside the viewport.
+function showDashboardToast(type = "warning", title = "Notification", message = "") {
+  const toast = state.dom.dashboardToast;
+  if (!toast) return;
+
+  const accent = state.dom.dashboardToastAccent;
+  const icon = state.dom.dashboardToastIcon;
+  const titleEl = state.dom.dashboardToastTitle;
+  const messageEl = state.dom.dashboardToastMessage;
+
+  const themeMap = {
+    success: {
+      accentClass: "bg-success",
+      iconClass: "text-bg-success",
+      iconHtml: '<i class="bi bi-check-circle"></i>',
+    },
+    warning: {
+      accentClass: "bg-warning",
+      iconClass: "text-bg-warning",
+      iconHtml: '<i class="bi bi-exclamation-triangle"></i>',
+    },
+    danger: {
+      accentClass: "bg-danger",
+      iconClass: "text-bg-danger",
+      iconHtml: '<i class="bi bi-x-octagon"></i>',
+    },
+    info: {
+      accentClass: "bg-primary",
+      iconClass: "text-bg-primary",
+      iconHtml: '<i class="bi bi-info-circle"></i>',
+    },
+  };
+
+  const theme = themeMap[type] || themeMap.info;
+
+  if (accent) {
+    accent.className = theme.accentClass;
+    accent.style.height = "4px";
+  }
+
+  if (icon) {
+    icon.className =
+      `rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 ${theme.iconClass}`;
+    icon.style.width = "36px";
+    icon.style.height = "36px";
+    icon.innerHTML = theme.iconHtml;
+  }
+
+  if (titleEl) {
+    titleEl.textContent = title;
+  }
+
+  if (messageEl) {
+    messageEl.innerHTML = message || "";
+  }
+
+  toast.classList.remove("d-none");
+
+  window.clearTimeout(state.dashboardToastTimeoutId);
+
+  state.dashboardToastTimeoutId = window.setTimeout(() => {
+    hideDashboardToast();
+  }, 8000);
+}
+
+// BATCH PAYROLL DEFAULT - STEP 8A
+// Hides the bottom-right notification without changing any page data.
+function hideDashboardToast() {
+  state.dom.dashboardToast?.classList.add("d-none");
+
+  if (state.dashboardToastTimeoutId) {
+    window.clearTimeout(state.dashboardToastTimeoutId);
+    state.dashboardToastTimeoutId = null;
+  }
+}
+
+// BATCH PAYROLL DEFAULT - STEP 6D
+// Smoothly return HR to the top of the dashboard.
+function scrollDashboardBackToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+}
+// REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+// Keep Employee Management save/edit navigation consistent.
+function openEmployeeFormCard() {
+  setDashboardCardExpanded(
+    state.dom.toggleEmployeeFormCardBtn,
+    state.dom.employeeFormCardCollapse,
+    true,
+  );
+}
+
+function closeEmployeeFormCard() {
+  setDashboardCardExpanded(
+    state.dom.toggleEmployeeFormCardBtn,
+    state.dom.employeeFormCardCollapse,
+    false,
+  );
+}
+
+function openEmployeeListCard() {
+  setDashboardCardExpanded(
+    state.dom.toggleEmployeeListCardBtn,
+    state.dom.employeeListCardCollapse,
+    true,
+  );
+}
+
+// REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 4
+// After save, land at the start of the Full Employee List card.
+// Use the parent card as the scroll target so the card starts cleanly
+// without leaving a large blank gap above the heading.
+function redirectToFullEmployeeListAfterEmployeeSave() {
+  closeEmployeeFormCard();
+  openEmployeeListCard();
+
+  const employeeListCard =
+    state.dom.employeeListCardCollapse?.closest(".dashboard-section-card") ||
+    state.dom.employeeListCardHeader ||
+    state.dom.employeeListCardCollapse;
+
+  scrollToDashboardTarget(employeeListCard, 16);
+}
+
+// REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+// Latest created/updated employee records should be shown first.
+// This is display-only and does not alter saved database values.
+function sortEmployeeRecordsByLatestActivity(records = []) {
+  return [...records].sort((a, b) => {
+    const aTime = new Date(a.updated_at || a.created_at || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || 0).getTime() || 0;
+
+    return bTime - aTime;
+  });
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL MASTER STEP 1
+// Payroll Master Data has its form and records inside one collapsible card.
+// Therefore, after save we keep the card open and scroll to the records section.
+function openPayrollMasterCard() {
+  setDashboardCardExpanded(
+    state.dom.togglePayrollMasterCardBtn,
+    state.dom.payrollMasterCardCollapse,
+    true,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL MASTER STEP 1
+// Redirect to Payroll Master Records after create/update.
+// This replaces the older raw scrollIntoView behaviour with the shared
+// offset-based scroll helper so the heading remains visible.
+function redirectToPayrollMasterRecordsAfterSave() {
+  openPayrollMasterCard();
+
+  scrollToDashboardTarget(
+    state.dom.payrollMasterRecordsHeader ||
+    state.dom.payrollMasterRecordsTableWrapper ||
+    state.dom.payrollMasterCardCollapse,
+    16,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL MASTER STEP 1
+// Show latest created/updated payroll master records first.
+// Display-only; this does not change saved Supabase data.
+function sortPayrollMasterRecordsByLatestActivity(records = []) {
+  return [...records].sort((a, b) => {
+    const aTime = new Date(a.updated_at || a.created_at || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || 0).getTime() || 0;
+
+    return bTime - aTime;
+  });
+}
+
+// HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2
+// Allowance Components has its form and records inside one collapsible card.
+// Therefore, after save we keep the card open and scroll to the records section.
+function openPayrollAllowanceCard() {
+  setDashboardCardExpanded(
+    state.dom.togglePayrollAllowanceCardBtn,
+    state.dom.payrollAllowanceCardCollapse,
+    true,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2
+// Redirect to Allowance Records after create/update.
+// This uses the shared offset-based scroll helper so the heading remains visible.
+function redirectToPayrollAllowanceRecordsAfterSave() {
+  openPayrollAllowanceCard();
+
+  scrollToDashboardTarget(
+    state.dom.payrollAllowanceRecordsHeader ||
+    state.dom.payrollAllowanceRecordsTableWrapper ||
+    state.dom.payrollAllowanceCardCollapse,
+    16,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2 FIX
+// Stable key used to identify the allowance that was just saved/updated.
+function buildPayrollAllowanceSortKey(record = {}) {
+  const id = String(record.id || "").trim();
+
+  if (id) {
+    return `id:${id}`;
+  }
+
+  return [
+    "fallback",
+    normalizeText(record.payroll_master_record_id),
+    normalizeText(record.allowance_type),
+    String(record.effective_date || "").trim(),
+  ].join("|");
+}
+
+// HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2 FIX
+// Show the allowance just created/updated first.
+// Then fall back to updated/created timestamp.
+// Finally fall back to effective date so the rest of the list remains sensible.
+function sortPayrollAllowanceRecordsByLatestActivity(records = []) {
+  const lastSavedKey = String(state.lastSavedPayrollAllowanceKey || "").trim();
+
+  return [...records].sort((a, b) => {
+    const aKey = buildPayrollAllowanceSortKey(a);
+    const bKey = buildPayrollAllowanceSortKey(b);
+
+    if (lastSavedKey && aKey === lastSavedKey && bKey !== lastSavedKey) {
+      return -1;
+    }
+
+    if (lastSavedKey && bKey === lastSavedKey && aKey !== lastSavedKey) {
+      return 1;
+    }
+
+    const aTime = new Date(a.updated_at || a.created_at || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || 0).getTime() || 0;
+
+    if (bTime !== aTime) {
+      return bTime - aTime;
+    }
+
+    const aEffectiveDate = new Date(a.effective_date || 0).getTime() || 0;
+    const bEffectiveDate = new Date(b.effective_date || 0).getTime() || 0;
+
+    return bEffectiveDate - aEffectiveDate;
+  });
+}
+
+// HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3
+// Bank Directory has its form and records inside one collapsible card.
+// Therefore, after save we keep the card open and scroll to the records section.
+function openBankDirectoryCard() {
+  setDashboardCardExpanded(
+    state.dom.toggleBankDirectoryCardBtn,
+    state.dom.bankDirectoryCardCollapse,
+    true,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3
+// Redirect to Bank Directory Records after create/update.
+// This uses the shared offset-based scroll helper so the heading remains visible.
+function redirectToBankDirectoryRecordsAfterSave() {
+  openBankDirectoryCard();
+
+  scrollToDashboardTarget(
+    state.dom.bankDirectoryRecordsHeader ||
+    state.dom.bankDirectoryTableWrapper ||
+    state.dom.bankDirectoryCardCollapse,
+    16,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3 FIX
+// Stable key used to identify the bank that was just saved/updated.
+function buildBankDirectorySortKey(record = {}) {
+  return `${normalizeText(record.bank_name)}|${normalizeText(record.bank_code)}`;
+}
+
+// HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3 FIX
+// Show the bank just created/updated first.
+// Then fall back to updated/created timestamps if available.
+// Finally fall back to bank name so the rest of the list remains readable.
+function sortBankDirectoryRecordsByLatestActivity(records = []) {
+  const lastSavedKey = String(state.lastSavedBankDirectoryKey || "").trim();
+
+  return [...records].sort((a, b) => {
+    const aKey = buildBankDirectorySortKey(a);
+    const bKey = buildBankDirectorySortKey(b);
+
+    if (lastSavedKey && aKey === lastSavedKey && bKey !== lastSavedKey) {
+      return -1;
+    }
+
+    if (lastSavedKey && bKey === lastSavedKey && aKey !== lastSavedKey) {
+      return 1;
+    }
+
+    const aTime = new Date(a.updated_at || a.created_at || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || 0).getTime() || 0;
+
+    if (bTime !== aTime) {
+      return bTime - aTime;
+    }
+
+    return String(a.bank_name || "").localeCompare(String(b.bank_name || ""));
+  });
+}
+
+// HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+// Employee Bank Details has its form and records inside one collapsible card.
+// Therefore, after save we keep the card open and scroll to the records section.
+function openEmployeeBankDetailsCard() {
+  setDashboardCardExpanded(
+    state.dom.toggleEmployeeBankDetailsCardBtn,
+    state.dom.employeeBankDetailsCardCollapse,
+    true,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+// Redirect to Employee Bank Records after create/update.
+// Uses the shared offset-based scroll helper so the heading remains visible.
+function redirectToEmployeeBankDetailsRecordsAfterSave() {
+  openEmployeeBankDetailsCard();
+
+  scrollToDashboardTarget(
+    state.dom.employeeBankDetailsRecordsHeader ||
+    state.dom.employeeBankDetailsTableWrapper ||
+    state.dom.employeeBankDetailsCardCollapse,
+    16,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+// Stable key used to identify the employee bank detail just saved/updated.
+function buildEmployeeBankDetailsSortKey(record = {}) {
+  const id = String(record.id || "").trim();
+
+  if (id) {
+    return `id:${id}`;
+  }
+
+  return [
+    "fallback",
+    normalizeText(record.employee_id),
+    normalizeText(record.bank_id),
+    normalizeText(record.account_number),
+  ].join("|");
+}
+
+// HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+// Show the employee bank detail just created/updated first.
+// Then fall back to updated/created timestamp.
+function sortEmployeeBankDetailsRecordsByLatestActivity(records = []) {
+  const lastSavedKey = String(state.lastSavedEmployeeBankDetailsKey || "").trim();
+
+  return [...records].sort((a, b) => {
+    const aKey = buildEmployeeBankDetailsSortKey(a);
+    const bKey = buildEmployeeBankDetailsSortKey(b);
+
+    if (lastSavedKey && aKey === lastSavedKey && bKey !== lastSavedKey) {
+      return -1;
+    }
+
+    if (lastSavedKey && bKey === lastSavedKey && aKey !== lastSavedKey) {
+      return 1;
+    }
+
+    const aTime = new Date(a.updated_at || a.created_at || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || 0).getTime() || 0;
+
+    return bTime - aTime;
+  });
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+// Create Payroll Record has its own card, while Payroll Records is a separate card.
+// After submit/update, we collapse the form card and send HR to the records card.
+function openPayrollRecordCard() {
+  setDashboardCardExpanded(
+    state.dom.togglePayrollRecordCardBtn,
+    state.dom.payrollRecordCardCollapse,
+    true,
+  );
+}
+
+function closePayrollRecordCard() {
+  setDashboardCardExpanded(
+    state.dom.togglePayrollRecordCardBtn,
+    state.dom.payrollRecordCardCollapse,
+    false,
+  );
+}
+
+// BATCH PAYROLL DEFAULT - STEP 6A
+// Show the normal payroll toolbar when HR is using the individual
+// Create Payroll Record form.
+function setPayrollRecordToolbarForManualMode() {
+  state.dom.payrollFormModeBadge?.classList.remove("d-none");
+  state.dom.resetPayrollFormBtn?.classList.remove("d-none");
+  state.dom.refreshPayrollRecordsBtn?.classList.remove("d-none");
+  state.dom.topSubmitPayrollBtn?.classList.remove("d-none");
+
+  // Cancel Edit is controlled separately by edit mode, so keep it hidden here.
+  state.dom.cancelPayrollEditBtn?.classList.add("d-none");
+}
+
+// BATCH PAYROLL DEFAULT - STEP 6A
+// Hide individual-form controls while HR is reviewing a payroll batch.
+// Clear Form and Refresh Payroll belong to the old individual form/records flow,
+// so they should not appear beside the Batch Payroll Review table.
+function setPayrollRecordToolbarForBatchMode() {
+  state.dom.payrollFormModeBadge?.classList.add("d-none");
+  state.dom.cancelPayrollEditBtn?.classList.add("d-none");
+  state.dom.topSubmitPayrollBtn?.classList.add("d-none");
+  state.dom.resetPayrollFormBtn?.classList.add("d-none");
+  state.dom.refreshPayrollRecordsBtn?.classList.add("d-none");
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+// Clear Payroll Records filters so the newly submitted/updated record is visible.
+function clearPayrollRecordsFiltersBeforeRedirect() {
+  if (state.dom.payrollSearchInput) {
+    state.dom.payrollSearchInput.value = "";
+  }
+
+  if (state.dom.payrollStatusFilter) {
+    state.dom.payrollStatusFilter.value = "";
+  }
+
+  if (state.dom.exportPayrollPayCycle) {
+    state.dom.exportPayrollPayCycle.value = "";
+  }
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+// Redirect to Payroll Records after submit/update.
+function redirectToPayrollRecordsAfterSave() {
+  closePayrollRecordCard();
+
+  // BATCH PAYROLL DEFAULT - STEP 7B
+  // Land on the full Payroll Records card instead of the inner header.
+  // This keeps the rounded card top and breathing space visible,
+  // matching the cleaner spacing shown in the preferred layout.
+  scrollToDashboardTarget(
+    state.dom.payrollRecordsCard ||
+      state.dom.payrollRecordsHeader ||
+      state.dom.payrollRecordsTableWrapper,
+    16,
+  );
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+// Stable key used to identify payroll records just submitted/updated.
+function buildPayrollRecordSortKey(record = {}) {
+  const id = String(record.id || "").trim();
+
+  if (id) {
+    return `id:${id}`;
+  }
+
+  return [
+    "fallback",
+    normalizeText(record.employee_id),
+    normalizeText(record.pay_cycle),
+    String(record.pay_date || "").trim(),
+  ].join("|");
+}
+
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+// Show payroll records just submitted/updated first.
+// Then fall back to updated/created timestamp and pay date.
+function sortPayrollRecordsByLatestActivity(records = []) {
+  const lastSavedIds = new Set(
+    Array.from(state.lastSavedPayrollRecordIds || [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  );
+
+  return [...records].sort((a, b) => {
+    const aId = String(a.id || "").trim();
+    const bId = String(b.id || "").trim();
+
+    const aWasJustSaved = lastSavedIds.has(aId);
+    const bWasJustSaved = lastSavedIds.has(bId);
+
+    if (aWasJustSaved && !bWasJustSaved) return -1;
+    if (bWasJustSaved && !aWasJustSaved) return 1;
+
+    const aTime = new Date(a.updated_at || a.created_at || a.pay_date || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || b.pay_date || 0).getTime() || 0;
+
+    if (bTime !== aTime) {
+      return bTime - aTime;
+    }
+
+    const aPayDate = new Date(a.pay_date || 0).getTime() || 0;
+    const bPayDate = new Date(b.pay_date || 0).getTime() || 0;
+
+    return bPayDate - aPayDate;
+  });
+}
+
 function bindEvents() {
   state.dom.logoutBtn?.addEventListener("click", async () => {
     await window.SessionManager.logoutUser("logout");
   });
+
+  // BATCH PAYROLL DEFAULT - STEP 6D
+  // Back to Top should appear only after scrolling and should return HR
+  // to the top of the dashboard without affecting any form data.
+  state.dom.backToTopBtn?.addEventListener("click", () => {
+    scrollDashboardBackToTop();
+  });
+
+    // BATCH PAYROLL DEFAULT - STEP 8A
+  // Let HR dismiss the floating notification manually.
+  state.dom.dashboardToastCloseBtn?.addEventListener("click", () => {
+    hideDashboardToast();
+  });
+
+  window.addEventListener("scroll", () => {
+    updateBackToTopButtonVisibility();
+  });
+
+  updateBackToTopButtonVisibility();
 
   state.dom.hrTabProfileBtn?.addEventListener("click", () => {
     switchHrWorkspace("profile");
@@ -627,6 +1344,14 @@ function bindEvents() {
   });
 
   state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
+    // BATCH PAYROLL DEFAULT - STEP 6A
+    // Manual Payroll tab access should show the normal payroll workspace,
+    // not a leftover batch review from the Run Payroll guided flow.
+    state.isRunPayrollSelectionMode = false;
+    state.selectedEmployeesForPayroll.clear();
+    state.batchPayrollPreparedRows = [];
+
+    resetPayrollForm();
     switchHrWorkspace("payroll");
   });
 
@@ -727,163 +1452,163 @@ function bindEvents() {
     await handlePayrollMasterRecordsRefresh();
   });
 
-// DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
-// Bind collapsible behavior for the Payroll Master Data card.
-bindCardCollapseToggle(
-  state.dom.togglePayrollMasterCardBtn,
-  state.dom.payrollMasterCardCollapse,
-);
+  // DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 3
+  // Bind collapsible behavior for the Payroll Master Data card.
+  bindCardCollapseToggle(
+    state.dom.togglePayrollMasterCardBtn,
+    state.dom.payrollMasterCardCollapse,
+  );
 
-// BANK DIRECTORY - STEP 2
-// Bind collapsible behaviour for the Bank Directory card.
-bindCardCollapseToggle(
-  state.dom.toggleBankDirectoryCardBtn,
-  state.dom.bankDirectoryCardCollapse,
-);
+  // BANK DIRECTORY - STEP 2
+  // Bind collapsible behaviour for the Bank Directory card.
+  bindCardCollapseToggle(
+    state.dom.toggleBankDirectoryCardBtn,
+    state.dom.bankDirectoryCardCollapse,
+  );
 
-// EMPLOYEE BANK DETAILS - STEP 3
-// Bind collapsible behaviour for the Employee Bank Details card.
-// This uses the same reusable collapse helper already used across HR cards.
-bindCardCollapseToggle(
-  state.dom.toggleEmployeeBankDetailsCardBtn,
-  state.dom.employeeBankDetailsCardCollapse,
-);
+  // EMPLOYEE BANK DETAILS - STEP 3
+  // Bind collapsible behaviour for the Employee Bank Details card.
+  // This uses the same reusable collapse helper already used across HR cards.
+  bindCardCollapseToggle(
+    state.dom.toggleEmployeeBankDetailsCardBtn,
+    state.dom.employeeBankDetailsCardCollapse,
+  );
 
-// EMPLOYEE BANK DETAILS - STEP 6
-// Auto-fill the bank code when HR selects a bank from the Bank Directory dropdown,
-// then re-check whether the form is complete enough to enable Save.
-state.dom.employeeBankBankId?.addEventListener("change", () => {
-  const selectedOption = state.dom.employeeBankBankId.selectedOptions?.[0];
-  const bankCode = selectedOption?.dataset?.bankCode || "";
+  // EMPLOYEE BANK DETAILS - STEP 6
+  // Auto-fill the bank code when HR selects a bank from the Bank Directory dropdown,
+  // then re-check whether the form is complete enough to enable Save.
+  state.dom.employeeBankBankId?.addEventListener("change", () => {
+    const selectedOption = state.dom.employeeBankBankId.selectedOptions?.[0];
+    const bankCode = selectedOption?.dataset?.bankCode || "";
 
-  if (state.dom.employeeBankCode) {
-    state.dom.employeeBankCode.value = bankCode;
-  }
+    if (state.dom.employeeBankCode) {
+      state.dom.employeeBankCode.value = bankCode;
+    }
 
+    updateEmployeeBankDetailsSaveButtonState();
+  });
+
+  // EMPLOYEE BANK DETAILS - STEP 7
+  // Save Employee Bank Details into Supabase when the form is submitted.
+  state.dom.employeeBankDetailsForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await handleEmployeeBankDetailsSave();
+  });
+
+  // EMPLOYEE BANK DETAILS - STEP 5
+  // Cancel clears the Employee Bank Details form without touching any saved data.
+  state.dom.cancelEmployeeBankDetailsEditBtn?.addEventListener("click", () => {
+    resetEmployeeBankDetailsForm();
+  });
+
+  // EMPLOYEE BANK DETAILS - STEP 8
+  // Filter the Employee Bank Details records as HR types in the search box.
+  state.dom.employeeBankDetailsSearchInput?.addEventListener("input", () => {
+    applyEmployeeBankDetailsSearch();
+  });
+
+  // EMPLOYEE BANK DETAILS - STEP 6
+  // Re-check the Save button whenever HR completes or changes required fields.
+  [
+    state.dom.employeeBankEmployeeId,
+    state.dom.employeeBankAccountNumber,
+    state.dom.employeeBankAccountName,
+    state.dom.employeeBankStatus,
+  ].forEach((field) => {
+    field?.addEventListener("input", updateEmployeeBankDetailsSaveButtonState);
+    field?.addEventListener("change", updateEmployeeBankDetailsSaveButtonState);
+  });
+
+  // HR BUTTON UNIFORMITY - STEP 6B
+  // Keep Bank Directory, Payroll Master, Allowance Components,
+  // and Submit Payroll buttons visually consistent as fields change.
+  [
+    state.dom.bankName,
+    state.dom.bankCode,
+    state.dom.bankStatus,
+  ].forEach((field) => {
+    field?.addEventListener("input", updateBankDirectorySaveButtonState);
+    field?.addEventListener("change", updateBankDirectorySaveButtonState);
+  });
+
+  [
+    state.dom.payrollMasterEmployeeId,
+    state.dom.payrollMasterGrade,
+    state.dom.payrollMasterBasicSalary,
+    state.dom.payrollMasterEffectiveDate,
+    state.dom.payrollMasterPayCycle,
+    state.dom.payrollMasterStatus,
+  ].forEach((field) => {
+    field?.addEventListener("input", updatePayrollMasterSaveButtonState);
+    field?.addEventListener("change", updatePayrollMasterSaveButtonState);
+  });
+
+  [
+    state.dom.payrollAllowanceMasterRecordId,
+    state.dom.payrollAllowanceType,
+    state.dom.payrollAllowanceAmount,
+    state.dom.payrollAllowanceEffectiveDate,
+    state.dom.payrollAllowanceStatus,
+  ].forEach((field) => {
+    field?.addEventListener("input", updatePayrollAllowanceSaveButtonState);
+    field?.addEventListener("change", updatePayrollAllowanceSaveButtonState);
+  });
+
+  [
+    state.dom.payrollEmployeeId,
+    state.dom.payrollPayCycle,
+    state.dom.payrollPayDate,
+    state.dom.payrollGrossPay,
+    state.dom.payrollTotalDeductions,
+    state.dom.payrollNetPay,
+  ].forEach((field) => {
+    field?.addEventListener("input", updatePayrollSubmitButtonState);
+    field?.addEventListener("change", updatePayrollSubmitButtonState);
+  });
+
+  // HR BUTTON UNIFORMITY - STEP 6B
+  // Set the initial state immediately after the event bindings are attached.
+  updateBankDirectorySaveButtonState();
   updateEmployeeBankDetailsSaveButtonState();
-});
+  updatePayrollMasterSaveButtonState();
+  updatePayrollAllowanceSaveButtonState();
+  updatePayrollSubmitButtonState();
 
-// EMPLOYEE BANK DETAILS - STEP 7
-// Save Employee Bank Details into Supabase when the form is submitted.
-state.dom.employeeBankDetailsForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await handleEmployeeBankDetailsSave();
-});
+  // BANK DIRECTORY - STEP 4
+  // Auto-fill bank code when HR selects a bank name.
+  state.dom.bankName?.addEventListener("change", () => {
+    const selectedOption = state.dom.bankName.selectedOptions?.[0];
+    const bankCode = selectedOption?.dataset?.bankCode || "";
 
-// EMPLOYEE BANK DETAILS - STEP 5
-// Cancel clears the Employee Bank Details form without touching any saved data.
-state.dom.cancelEmployeeBankDetailsEditBtn?.addEventListener("click", () => {
-  resetEmployeeBankDetailsForm();
-});
+    if (state.dom.bankCode) {
+      state.dom.bankCode.value = bankCode;
+    }
 
-// EMPLOYEE BANK DETAILS - STEP 8
-// Filter the Employee Bank Details records as HR types in the search box.
-state.dom.employeeBankDetailsSearchInput?.addEventListener("input", () => {
-  applyEmployeeBankDetailsSearch();
-});
+    // BANK DIRECTORY - STEP 8I
+    // Enable Save Bank only after a valid bank selection has populated the bank code.
+    updateBankDirectorySaveButtonState();
+  });
 
-// EMPLOYEE BANK DETAILS - STEP 6
-// Re-check the Save button whenever HR completes or changes required fields.
-[
-  state.dom.employeeBankEmployeeId,
-  state.dom.employeeBankAccountNumber,
-  state.dom.employeeBankAccountName,
-  state.dom.employeeBankStatus,
-].forEach((field) => {
-  field?.addEventListener("input", updateEmployeeBankDetailsSaveButtonState);
-  field?.addEventListener("change", updateEmployeeBankDetailsSaveButtonState);
-});
+  // BANK DIRECTORY - STEP 7B
+  // Prevent page refresh and save Bank Directory record to Supabase.
+  state.dom.bankDirectoryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await handleBankDirectorySave();
+  });
 
-// HR BUTTON UNIFORMITY - STEP 6B
-// Keep Bank Directory, Payroll Master, Allowance Components,
-// and Submit Payroll buttons visually consistent as fields change.
-[
-  state.dom.bankName,
-  state.dom.bankCode,
-  state.dom.bankStatus,
-].forEach((field) => {
-  field?.addEventListener("input", updateBankDirectorySaveButtonState);
-  field?.addEventListener("change", updateBankDirectorySaveButtonState);
-});
+  // BANK DIRECTORY - STEP 5
+  // Filter the local Bank Directory records as HR types.
+  state.dom.bankDirectorySearchInput?.addEventListener("input", () => {
+    applyBankDirectorySearch();
+  });
 
-[
-  state.dom.payrollMasterEmployeeId,
-  state.dom.payrollMasterGrade,
-  state.dom.payrollMasterBasicSalary,
-  state.dom.payrollMasterEffectiveDate,
-  state.dom.payrollMasterPayCycle,
-  state.dom.payrollMasterStatus,
-].forEach((field) => {
-  field?.addEventListener("input", updatePayrollMasterSaveButtonState);
-  field?.addEventListener("change", updatePayrollMasterSaveButtonState);
-});
-
-[
-  state.dom.payrollAllowanceMasterRecordId,
-  state.dom.payrollAllowanceType,
-  state.dom.payrollAllowanceAmount,
-  state.dom.payrollAllowanceEffectiveDate,
-  state.dom.payrollAllowanceStatus,
-].forEach((field) => {
-  field?.addEventListener("input", updatePayrollAllowanceSaveButtonState);
-  field?.addEventListener("change", updatePayrollAllowanceSaveButtonState);
-});
-
-[
-  state.dom.payrollEmployeeId,
-  state.dom.payrollPayCycle,
-  state.dom.payrollPayDate,
-  state.dom.payrollGrossPay,
-  state.dom.payrollTotalDeductions,
-  state.dom.payrollNetPay,
-].forEach((field) => {
-  field?.addEventListener("input", updatePayrollSubmitButtonState);
-  field?.addEventListener("change", updatePayrollSubmitButtonState);
-});
-
-// HR BUTTON UNIFORMITY - STEP 6B
-// Set the initial state immediately after the event bindings are attached.
-updateBankDirectorySaveButtonState();
-updateEmployeeBankDetailsSaveButtonState();
-updatePayrollMasterSaveButtonState();
-updatePayrollAllowanceSaveButtonState();
-updatePayrollSubmitButtonState();
-
-// BANK DIRECTORY - STEP 4
-// Auto-fill bank code when HR selects a bank name.
-state.dom.bankName?.addEventListener("change", () => {
-  const selectedOption = state.dom.bankName.selectedOptions?.[0];
-  const bankCode = selectedOption?.dataset?.bankCode || "";
-
-if (state.dom.bankCode) {
-  state.dom.bankCode.value = bankCode;
-}
-
-// BANK DIRECTORY - STEP 8I
-// Enable Save Bank only after a valid bank selection has populated the bank code.
-updateBankDirectorySaveButtonState();
-});
-
-// BANK DIRECTORY - STEP 7B
-// Prevent page refresh and save Bank Directory record to Supabase.
-state.dom.bankDirectoryForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await handleBankDirectorySave();
-});
-
-// BANK DIRECTORY - STEP 5
-// Filter the local Bank Directory records as HR types.
-state.dom.bankDirectorySearchInput?.addEventListener("input", () => {
-  applyBankDirectorySearch();
-});
-
-// BANK DIRECTORY - STEP 8H
-// Cancel edit and reset form to create mode.
-state.dom.cancelBankDirectoryEditBtn?.addEventListener("click", () => {
-  state.currentEditingBankDirectory = null;
-  resetBankDirectoryForm();
-  setBankDirectoryCreateMode();
-});
+  // BANK DIRECTORY - STEP 8H
+  // Cancel edit and reset form to create mode.
+  state.dom.cancelBankDirectoryEditBtn?.addEventListener("click", () => {
+    state.currentEditingBankDirectory = null;
+    resetBankDirectoryForm();
+    setBankDirectoryCreateMode();
+  });
 
   // =========================================================
   // DESCRIPTION ITEM 2
@@ -930,43 +1655,61 @@ state.dom.cancelBankDirectoryEditBtn?.addEventListener("click", () => {
     await handlePayrollRecordsRefresh();
   });
 
-// PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
-// Connect the Payroll Records export button to the CSV export handler.
-state.dom.exportPayrollCsvBtn?.addEventListener("click", () => {
-  handlePayrollExportCsv();
-});
+  // DESCRIPTION ITEM 4 - STEP 7
+  // Close Payslip Preview from either the header close icon or footer button.
+  state.dom.closePayslipPreviewBtn?.addEventListener("click", () => {
+    closePayslipPreview();
+  });
 
-// DESCRIPTION ITEM 4 - STEP 4
-// Start the payslip email workflow from Payroll Records.
-// This first creates auditable Pending rows in payslip_email_logs.
-// Actual email delivery will be handled by the secure email function next.
-state.dom.sendPayslipsEmailBtn?.addEventListener("click", async () => {
-  await handleSendPayslipsEmailRequest();
-});
+  state.dom.closePayslipPreviewFooterBtn?.addEventListener("click", () => {
+    closePayslipPreview();
+  });
 
-// DESCRIPTION ITEM 4 - STEP 6
-// When HR changes the payroll action cycle, keep Payroll Records and
-// Payslip Email Status aligned to the same selected cycle.
-state.dom.exportPayrollPayCycle?.addEventListener("change", async () => {
-  applyPayrollSearch();
-  updateSendPayslipsButtonState();
-  await refreshPayslipEmailLogs();
-});
+  // DESCRIPTION ITEM 4 - STEP 7
+  // Allow HR to close the preview by clicking the shaded background.
+  state.dom.payslipPreviewModal?.addEventListener("click", (event) => {
+    if (event.target === state.dom.payslipPreviewModal) {
+      closePayslipPreview();
+    }
+  });
 
-// DESCRIPTION ITEM 4 - STEP 5B
-// Make Payslip Email Status collapsible so audit details do not permanently
-// lengthen the Payroll Records card.
-bindCardCollapseToggle(
-  state.dom.togglePayslipEmailLogsBtn,
-  state.dom.payslipEmailLogsCollapse,
-);
+  // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
+  // Connect the Payroll Records export button to the CSV export handler.
+  state.dom.exportPayrollCsvBtn?.addEventListener("click", () => {
+    handlePayrollExportCsv();
+  });
 
-// DESCRIPTION ITEM 4 - STEP 6
-// Refresh the Payslip Email Status panel from Supabase.
-// This reads audit rows only; it does not send any email.
-state.dom.refreshPayslipEmailLogsBtn?.addEventListener("click", async () => {
-  await refreshPayslipEmailLogs({ showAlert: true });
-});
+  // DESCRIPTION ITEM 4 - STEP 4
+  // Start the payslip email workflow from Payroll Records.
+  // This first creates auditable Pending rows in payslip_email_logs.
+  // Actual email delivery will be handled by the secure email function next.
+  state.dom.sendPayslipsEmailBtn?.addEventListener("click", async () => {
+    await handleSendPayslipsEmailRequest();
+  });
+
+  // DESCRIPTION ITEM 4 - STEP 6
+  // When HR changes the payroll action cycle, keep Payroll Records and
+  // Payslip Email Status aligned to the same selected cycle.
+  state.dom.exportPayrollPayCycle?.addEventListener("change", async () => {
+    applyPayrollSearch();
+    updateSendPayslipsButtonState();
+    await refreshPayslipEmailLogs();
+  });
+
+  // DESCRIPTION ITEM 4 - STEP 5B
+  // Make Payslip Email Status collapsible so audit details do not permanently
+  // lengthen the Payroll Records card.
+  bindCardCollapseToggle(
+    state.dom.togglePayslipEmailLogsBtn,
+    state.dom.payslipEmailLogsCollapse,
+  );
+
+  // DESCRIPTION ITEM 4 - STEP 6
+  // Refresh the Payslip Email Status panel from Supabase.
+  // This reads audit rows only; it does not send any email.
+  state.dom.refreshPayslipEmailLogsBtn?.addEventListener("click", async () => {
+    await refreshPayslipEmailLogs({ showAlert: true });
+  });
 
   state.dom.payrollCreateForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1008,6 +1751,18 @@ state.dom.refreshPayslipEmailLogsBtn?.addEventListener("click", async () => {
   // When HR selects a pay cycle, default the pay date to that month end.
   state.dom.payrollPayCycle?.addEventListener("change", () => {
     updatePayDateFromPayCycle();
+  });
+
+    // BATCH PAYROLL DEFAULT - STEP 7
+  // Submit prepared batch payroll records from the review table.
+  state.dom.submitBatchPayrollBtn?.addEventListener("click", async () => {
+    await handleBatchPayrollSubmit();
+  });
+
+  // BATCH PAYROLL DEFAULT - STEP 6B
+  // Keep the batch pay date aligned with the selected batch pay period.
+  state.dom.batchPayrollPayCycle?.addEventListener("change", () => {
+    updateBatchPayDateFromPayCycle();
   });
 
   state.dom.payrollEmployeeGroup?.addEventListener("change", () => {
@@ -1282,22 +2037,14 @@ async function handlePayrollMasterSave() {
         )}</strong>.`,
     );
 
+    // HR SAVE/EDIT BEHAVIOUR - PAYROLL MASTER STEP 1
+    // After create/update, clear the form and redirect to Payroll Master Records.
+    // The card stays open because the form and records share the same card.
     resetPayrollMasterForm();
-    // PAYROLL MASTER SAVE REDIRECT - STEP 1E
-    // After create/update, scroll near the Payroll Master Records table,
-    // with enough offset to keep the records heading visible.
+
     setTimeout(() => {
-      const recordsTable = state.dom.payrollMasterRecordsTableWrapper;
-
-      if (!recordsTable) return;
-
-      const targetTop = recordsTable.getBoundingClientRect().top + window.scrollY - 120;
-
-      window.scrollTo({
-        top: targetTop,
-        behavior: "smooth",
-      });
-    }, 700);
+      redirectToPayrollMasterRecordsAfterSave();
+    }, 250);
   } catch (error) {
     console.error("Error saving payroll master record:", error);
 
@@ -1367,9 +2114,9 @@ function resetPayrollMasterForm() {
     state.dom.savePayrollMasterBtnText = document.getElementById("savePayrollMasterBtnText");
   }
 
-// HR BUTTON UNIFORMITY - STEP 6B
-// Return Payroll Master action button to grey/disabled after clear or save.
-updatePayrollMasterSaveButtonState();
+  // HR BUTTON UNIFORMITY - STEP 6B
+  // Return Payroll Master action button to grey/disabled after clear or save.
+  updatePayrollMasterSaveButtonState();
 
 }
 
@@ -1430,7 +2177,11 @@ function renderPayrollMasterRecords(records) {
     state.dom.payrollMasterRecordsTableWrapper.classList.remove("d-none");
   }
 
-  records.forEach((record) => {
+  // HR SAVE/EDIT BEHAVIOUR - PAYROLL MASTER STEP 1
+  // Render newest/most recently updated master records first.
+  const recordsToRender = sortPayrollMasterRecordsByLatestActivity(records);
+
+  recordsToRender.forEach((record) => {
     const fullName =
       `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
       record.work_email ||
@@ -1561,23 +2312,16 @@ function startPayrollMasterEdit(payrollMasterId) {
     state.dom.savePayrollMasterBtnText = document.getElementById("savePayrollMasterBtnText");
   }
 
-  // PAYROLL MASTER EDIT REDIRECT - STEP 1B
-  // When HR clicks edit, move to the top of the Payroll Master Data card,
-  // not the middle of the form.
-  setTimeout(() => {
-    const target =
-      state.dom.payrollMasterCreateForm?.closest(".dashboard-section-card") ||
-      state.dom.payrollMasterCreateForm;
+  // HR SAVE/EDIT BEHAVIOUR - PAYROLL MASTER STEP 1
+  // Editing must reopen Payroll Master Data even if HR collapsed it.
+  openPayrollMasterCard();
 
-    if (!target) return;
-
-    const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
-
-    window.scrollTo({
-      top: targetTop,
-      behavior: "smooth",
-    });
-  }, 150);
+  scrollToDashboardTarget(
+    state.dom.payrollMasterCreateForm?.closest(".dashboard-section-card") ||
+    state.dom.payrollMasterCreateForm ||
+    state.dom.payrollMasterCardCollapse,
+    16,
+  );
 }
 // =========================================================
 // DESCRIPTION ITEM 2
@@ -1602,7 +2346,11 @@ function populatePayrollAllowanceMasterOptions() {
     return;
   }
 
-  records.forEach((record) => {
+  // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2
+  // Render newest/most recently updated allowance records first.
+  const recordsToRender = sortPayrollAllowanceRecordsByLatestActivity(records);
+
+  recordsToRender.forEach((record) => {
     const option = document.createElement("option");
     const fullName =
       `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
@@ -1829,6 +2577,25 @@ async function handlePayrollAllowanceSave() {
       throw response.error;
     }
 
+    // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2 FIX
+    // Remember the saved/updated allowance so it appears first after refresh,
+    // even if another allowance has a later effective date.
+    state.lastSavedPayrollAllowanceKey = buildPayrollAllowanceSortKey({
+      id: response.data?.id || editingId,
+      payroll_master_record_id:
+        response.data?.payroll_master_record_id ||
+        payload.payroll_master_record_id,
+      allowance_type: response.data?.allowance_type || payload.allowance_type,
+      effective_date: response.data?.effective_date || payload.effective_date,
+    });
+
+    // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2
+    // Clear search before refresh so the newly saved/updated record is visible
+    // at the top of Allowance Records.
+    if (state.dom.payrollAllowanceSearchInput) {
+      state.dom.payrollAllowanceSearchInput.value = "";
+    }
+
     await refreshPayrollAllowanceWorkspace();
 
     showPageAlert(
@@ -1842,7 +2609,14 @@ async function handlePayrollAllowanceSave() {
         )}</strong>.`,
     );
 
+    // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2
+    // After create/update, clear the form and redirect to Allowance Records.
+    // The card stays open because the form and records share the same card.
     resetPayrollAllowanceForm();
+
+    setTimeout(() => {
+      redirectToPayrollAllowanceRecordsAfterSave();
+    }, 250);
   } catch (error) {
     console.error("Error saving allowance component:", error);
 
@@ -1911,8 +2685,8 @@ function resetPayrollAllowanceForm() {
   }
 
   // HR BUTTON UNIFORMITY - STEP 6B
-// Return Allowance action button to grey/disabled after clear or save.
-updatePayrollAllowanceSaveButtonState();
+  // Return Allowance action button to grey/disabled after clear or save.
+  updatePayrollAllowanceSaveButtonState();
 }
 
 function exitPayrollAllowanceEditMode() {
@@ -1965,7 +2739,13 @@ function renderPayrollAllowanceRecords(records) {
     state.dom.payrollAllowanceRecordsTableWrapper.classList.remove("d-none");
   }
 
-  records.forEach((record) => {
+  // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2 FIX
+  // Apply the saved/updated-first sorting before rendering the table.
+  // Without this, the sort helper exists but the table still renders in
+  // Supabase/effective-date order.
+  const recordsToRender = sortPayrollAllowanceRecordsByLatestActivity(records);
+
+  recordsToRender.forEach((record) => {
     const fullName =
       `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
       record.work_email ||
@@ -2149,10 +2929,16 @@ function startPayrollAllowanceEdit(allowanceId) {
     state.dom.savePayrollAllowanceBtnText = document.getElementById("savePayrollAllowanceBtnText");
   }
 
-  state.dom.payrollAllowanceCreateForm?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+  // HR SAVE/EDIT BEHAVIOUR - ALLOWANCE COMPONENTS STEP 2
+  // Editing must reopen Allowance Components even if HR collapsed it.
+  openPayrollAllowanceCard();
+
+  scrollToDashboardTarget(
+    state.dom.payrollAllowanceCreateForm?.closest(".dashboard-section-card") ||
+    state.dom.payrollAllowanceCreateForm ||
+    state.dom.payrollAllowanceCardCollapse,
+    16,
+  );
 }
 function applyPayrollAllowanceSearch() {
   const searchTerm = normalizeText(state.dom.payrollAllowanceSearchInput?.value || "");
@@ -2212,90 +2998,97 @@ async function handleBankDirectorySave() {
       isEditMode ? "Updating Bank..." : "Checking Bank...",
     );
 
-// BANK DIRECTORY - STEP 10B
-// Check duplicate bank name and duplicate bank code separately.
-// This lets us correct a saved bank-code drift when the same bank name
-// already exists but its stored code no longer matches the controlled dropdown.
-const sameNameBank = state.bankDirectoryRecords.find(
-  (bank) =>
-    String(bank.id) !== editingId &&
-    normalizeText(bank.bank_name) === normalizeText(bankName),
-);
-
-const sameCodeBank = state.bankDirectoryRecords.find(
-  (bank) =>
-    String(bank.id) !== editingId &&
-    normalizeText(bank.bank_code) === normalizeText(bankCode),
-);
-
-// BANK DIRECTORY - STEP 10B
-// If the bank name already exists but the saved code is different,
-// correct the existing Supabase row instead of leaving the mismatch visible.
-if (!isEditMode && sameNameBank) {
-  const existingBankCode = String(sameNameBank.bank_code || "").trim();
-
-  if (existingBankCode !== bankCode) {
-    const supabase = getSupabaseClient();
-
-    const { error } = await supabase
-      .from("bank_directory")
-      .update({
-        bank_code: bankCode,
-        status,
-        updated_by: state.currentUser?.id || null,
-      })
-      .eq("id", sameNameBank.id);
-
-    if (error) throw error;
-
-// BANK DIRECTORY - STEP 10C
-// Clear the search after automatic correction so the redirected records area
-// still shows the full Bank Directory list.
-if (state.dom.bankDirectorySearchInput) {
-  state.dom.bankDirectorySearchInput.value = "";
-}
-
-resetBankDirectoryForm();
-await refreshBankDirectoryWorkspace();
-applyBankDirectorySearch();
-
     // BANK DIRECTORY - STEP 10B
-    // Keep Employee Bank Details bank dropdown aligned with the corrected
-    // Bank Directory value.
-    await refreshEmployeeBankDetailsWorkspace();
-
-    showPageAlert(
-      "success",
-      `${escapeHtml(bankName)} already existed. Its saved bank code was corrected from <strong>${escapeHtml(
-        existingBankCode || "--",
-      )}</strong> to <strong>${escapeHtml(bankCode)}</strong>.`,
+    // Check duplicate bank name and duplicate bank code separately.
+    // This lets us correct a saved bank-code drift when the same bank name
+    // already exists but its stored code no longer matches the controlled dropdown.
+    const sameNameBank = state.bankDirectoryRecords.find(
+      (bank) =>
+        String(bank.id) !== editingId &&
+        normalizeText(bank.bank_name) === normalizeText(bankName),
     );
 
-    scrollToBankDirectoryRecords();
-    return;
-  }
-}
+    const sameCodeBank = state.bankDirectoryRecords.find(
+      (bank) =>
+        String(bank.id) !== editingId &&
+        normalizeText(bank.bank_code) === normalizeText(bankCode),
+    );
 
-const duplicateBank = sameNameBank || sameCodeBank;
+    // BANK DIRECTORY - STEP 10B
+    // If the bank name already exists but the saved code is different,
+    // correct the existing Supabase row instead of leaving the mismatch visible.
+    if (!isEditMode && sameNameBank) {
+      const existingBankCode = String(sameNameBank.bank_code || "").trim();
 
-if (duplicateBank) {
-  await refreshBankDirectoryWorkspace();
+      if (existingBankCode !== bankCode) {
+        const supabase = getSupabaseClient();
 
-  if (state.dom.bankDirectorySearchInput) {
-    state.dom.bankDirectorySearchInput.value =
-      duplicateBank.bank_name || duplicateBank.bank_code || bankName;
-  }
+        const { error } = await supabase
+          .from("bank_directory")
+          .update({
+            bank_code: bankCode,
+            status,
+            updated_by: state.currentUser?.id || null,
+          })
+          .eq("id", sameNameBank.id);
 
-  applyBankDirectorySearch();
+        if (error) throw error;
 
-  showPageAlert(
-    "warning",
-    `${escapeHtml(duplicateBank.bank_name || bankName)} already exists in the Bank Directory.`,
-  );
+        // BANK DIRECTORY - STEP 10C
+        // Clear the search after automatic correction so the redirected records area
+        // still shows the full Bank Directory list.
+        if (state.dom.bankDirectorySearchInput) {
+          state.dom.bankDirectorySearchInput.value = "";
+        }
 
-  scrollToBankDirectoryRecords();
-  return;
-}
+        // HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3 FIX
+        // Remember the corrected bank so it appears first after refresh.
+        state.lastSavedBankDirectoryKey = buildBankDirectorySortKey({
+          bank_name: bankName,
+          bank_code: bankCode,
+        });
+
+        resetBankDirectoryForm();
+        await refreshBankDirectoryWorkspace();
+        applyBankDirectorySearch();
+
+        // BANK DIRECTORY - STEP 10B
+        // Keep Employee Bank Details bank dropdown aligned with the corrected
+        // Bank Directory value.
+        await refreshEmployeeBankDetailsWorkspace();
+
+        showPageAlert(
+          "success",
+          `${escapeHtml(bankName)} already existed. Its saved bank code was corrected from <strong>${escapeHtml(
+            existingBankCode || "--",
+          )}</strong> to <strong>${escapeHtml(bankCode)}</strong>.`,
+        );
+
+        scrollToBankDirectoryRecords();
+        return;
+      }
+    }
+
+    const duplicateBank = sameNameBank || sameCodeBank;
+
+    if (duplicateBank) {
+      await refreshBankDirectoryWorkspace();
+
+      if (state.dom.bankDirectorySearchInput) {
+        state.dom.bankDirectorySearchInput.value =
+          duplicateBank.bank_name || duplicateBank.bank_code || bankName;
+      }
+
+      applyBankDirectorySearch();
+
+      showPageAlert(
+        "warning",
+        `${escapeHtml(duplicateBank.bank_name || bankName)} already exists in the Bank Directory.`,
+      );
+
+      scrollToBankDirectoryRecords();
+      return;
+    }
 
     setBankDirectorySaveLoading(
       true,
@@ -2313,15 +3106,15 @@ if (duplicateBank) {
 
     const response = isEditMode
       ? await supabase
-          .from("bank_directory")
-          .update(payload)
-          .eq("id", editingId)
+        .from("bank_directory")
+        .update(payload)
+        .eq("id", editingId)
       : await supabase.from("bank_directory").insert([
-          {
-            ...payload,
-            created_by: state.currentUser?.id || null,
-          },
-        ]);
+        {
+          ...payload,
+          created_by: state.currentUser?.id || null,
+        },
+      ]);
 
     if (response.error) throw response.error;
 
@@ -2332,23 +3125,30 @@ if (duplicateBank) {
         : `${escapeHtml(bankName)} was added to Bank Directory.`,
     );
 
-resetBankDirectoryForm();
+    // HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3 FIX
+    // Remember the saved/updated bank so it appears first after refresh.
+    state.lastSavedBankDirectoryKey = buildBankDirectorySortKey({
+      bank_name: bankName,
+      bank_code: bankCode,
+    });
 
-// BANK DIRECTORY - STEP 10C
-// After a successful save/update, clear the search filter so HR lands
-// on Bank Directory Records and sees the full approved bank list.
-if (state.dom.bankDirectorySearchInput) {
-  state.dom.bankDirectorySearchInput.value = "";
-}
+    resetBankDirectoryForm();
 
-await refreshBankDirectoryWorkspace();
-applyBankDirectorySearch();
+    // BANK DIRECTORY - STEP 10C
+    // After a successful save/update, clear the search filter so HR lands
+    // on Bank Directory Records and sees the full approved bank list.
+    if (state.dom.bankDirectorySearchInput) {
+      state.dom.bankDirectorySearchInput.value = "";
+    }
 
-// BANK DIRECTORY - STEP 10C
-// Keep Employee Bank Details bank dropdown/table aligned after Bank Directory changes.
-await refreshEmployeeBankDetailsWorkspace();
+    await refreshBankDirectoryWorkspace();
+    applyBankDirectorySearch();
 
-scrollToBankDirectoryRecords();
+    // BANK DIRECTORY - STEP 10C
+    // Keep Employee Bank Details bank dropdown/table aligned after Bank Directory changes.
+    await refreshEmployeeBankDetailsWorkspace();
+
+    scrollToBankDirectoryRecords();
   } catch (error) {
     console.error("Error saving bank directory record:", error);
     showPageAlert(
@@ -2373,13 +3173,13 @@ function resetBankDirectoryForm() {
 
   setBankDirectoryCreateMode();
 }
-  if (state.dom.bankDirectoryForm) {
-    state.dom.bankDirectoryForm.reset();
-  }
+if (state.dom.bankDirectoryForm) {
+  state.dom.bankDirectoryForm.reset();
+}
 
-  if (state.dom.bankCode) {
-    state.dom.bankCode.value = "";
-  }
+if (state.dom.bankCode) {
+  state.dom.bankCode.value = "";
+}
 
 // BANK DIRECTORY - STEP 8I
 // Keep Save Bank disabled until the form has a selected bank and code.
@@ -2426,24 +3226,13 @@ function setBankDirectorySaveLoading(isLoading, loadingText = "Saving Bank...") 
   updateBankDirectorySaveButtonState();
 }
 
-// BANK DIRECTORY - STEP 10B
-// Move the user down to Bank Directory Records after save,
-// duplicate detection, or automatic bank-code correction.
+// HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3
+// Keep this existing function name because Bank Directory save logic already
+// calls it from save, duplicate, and bank-code correction paths.
+// Internally, it now uses the shared clean card/header redirect behaviour.
 function scrollToBankDirectoryRecords() {
   setTimeout(() => {
-    const target =
-      state.dom.bankDirectoryTableWrapper ||
-      state.dom.bankDirectoryEmptyState ||
-      state.dom.bankDirectorySearchInput;
-
-    if (!target) return;
-
-    const targetTop = target.getBoundingClientRect().top + window.scrollY - 120;
-
-    window.scrollTo({
-      top: targetTop,
-      behavior: "smooth",
-    });
+    redirectToBankDirectoryRecordsAfterSave();
   }, 150);
 }
 
@@ -2510,22 +3299,16 @@ function startBankDirectoryEdit(bankId) {
     state.dom.bankStatus.value = record.status || "Active";
   }
 
-// BANK DIRECTORY - STEP 8G
-// Scroll to the top of the Bank Directory card so the heading remains visible.
-setTimeout(() => {
-  const target =
+  // HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3
+  // Editing must reopen Bank Directory even if HR collapsed it.
+  openBankDirectoryCard();
+
+  scrollToDashboardTarget(
     state.dom.bankDirectoryForm?.closest(".dashboard-section-card") ||
-    state.dom.bankDirectoryForm;
-
-  if (!target) return;
-
-  const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
-
-  window.scrollTo({
-    top: targetTop,
-    behavior: "smooth",
-  });
-}, 150);
+    state.dom.bankDirectoryForm ||
+    state.dom.bankDirectoryCardCollapse,
+    16,
+  );
 
   showPageAlert("info", "Editing bank. Update status and click Save Bank.");
 }
@@ -2558,14 +3341,14 @@ async function refreshBankDirectoryWorkspace() {
 
     if (error) throw error;
 
-state.bankDirectoryRecords = Array.isArray(data) ? data : [];
+    state.bankDirectoryRecords = Array.isArray(data) ? data : [];
 
-// EMPLOYEE BANK DETAILS - STEP 4
-// Keep the Employee Bank Details bank dropdown in sync with the
-// saved Bank Directory records from Supabase.
-populateEmployeeBankBankOptions();
+    // EMPLOYEE BANK DETAILS - STEP 4
+    // Keep the Employee Bank Details bank dropdown in sync with the
+    // saved Bank Directory records from Supabase.
+    populateEmployeeBankBankOptions();
 
-applyBankDirectorySearch();
+    applyBankDirectorySearch();
   } catch (error) {
     console.error("Error loading bank directory:", error);
     showPageAlert(
@@ -2597,16 +3380,19 @@ function renderBankDirectoryTable() {
   state.dom.bankDirectoryEmptyState?.classList.add("d-none");
   state.dom.bankDirectoryTableWrapper?.classList.remove("d-none");
 
-  records.forEach((bank) => {
+  // HR SAVE/EDIT BEHAVIOUR - BANK DIRECTORY STEP 3
+  // Render newest/most recently updated banks first.
+  const recordsToRender = sortBankDirectoryRecordsByLatestActivity(records);
+
+  recordsToRender.forEach((bank) => {
     const row = document.createElement("tr");
 
     row.innerHTML = `
       <td>${escapeHtml(bank.bank_name)}</td>
       <td>${escapeHtml(bank.bank_code)}</td>
       <td>
-        <span class="badge ${
-          bank.status === "Active" ? "bg-success" : "bg-secondary"
-        }">
+        <span class="badge ${bank.status === "Active" ? "bg-success" : "bg-secondary"
+      }">
           ${bank.status}
         </span>
       </td>
@@ -2630,90 +3416,121 @@ function renderBankDirectoryTable() {
   });
 }
 
-// EMPLOYEE BANK DETAILS - STEP 10
-// Resolve the active employee bank record for a payroll export row.
-// Primary match is employee_id. Email fallback is included for safety
-// in case the payroll overview row does not expose employee_id in future.
-function getActiveEmployeeBankDetailsForPayrollRecord(record) {
-  const employeeId = String(record?.employee_id || "").trim();
-  const employeeEmail = normalizeText(record?.work_email || "");
-
-  const activeBankDetails = (state.employeeBankDetailsRecords || []).filter(
-    (bankDetail) => normalizeText(bankDetail.status) === "active",
-  );
-
-  let matchedBankDetail = null;
-
-  if (employeeId) {
-    matchedBankDetail = activeBankDetails.find(
-      (bankDetail) =>
-        String(bankDetail.employee_id || "").trim() === employeeId,
-    );
-  }
-
-  if (!matchedBankDetail && employeeEmail) {
-    matchedBankDetail = activeBankDetails.find(
-      (bankDetail) =>
-        normalizeText(bankDetail.employee_email || "") === employeeEmail,
-    );
-  }
-
-  return matchedBankDetail || null;
-}
-
-// PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 2
-// Generate a CSV export from finalised Payroll Records for bank payment processing.
+// PAYROLL CSV EXPORT FIX - STEP 2
+// Export CSV must work separately from Send Payslips.
+// Export CSV downloads a bank-ready spreadsheet.
+// Send Payslips only prepares payslip email audit records.
 function handlePayrollExportCsv() {
-  // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4C
-  // Export only finalised payroll records that match the Payroll Records
-  // export pay cycle dropdown, not the Create Payroll form pay cycle.
-  const selectedPayCycle = String(state.dom.exportPayrollPayCycle?.value || "").trim();
+  // PAYROLL CSV EXPORT FIX - STEP 3
+  // Keep this helper inside Export CSV so the button does not depend on
+  // any outside/global helper name. This only affects CSV export.
+  function getExportBankDetailsForPayrollRecord(record) {
+    const employeeId = String(record?.employee_id || "").trim();
+    const employeeEmail = normalizeText(record?.work_email || "");
 
+    const activeBankDetails = (state.employeeBankDetailsRecords || []).filter(
+      (bankDetail) => normalizeText(bankDetail.status) === "active",
+    );
+
+    let matchedBankDetail = null;
+
+    if (employeeId) {
+      matchedBankDetail = activeBankDetails.find(
+        (bankDetail) =>
+          String(bankDetail.employee_id || "").trim() === employeeId,
+      );
+    }
+
+    if (!matchedBankDetail && employeeEmail) {
+      matchedBankDetail = activeBankDetails.find(
+        (bankDetail) =>
+          normalizeText(bankDetail.employee_email || "") === employeeEmail,
+      );
+    }
+
+    return matchedBankDetail || null;
+  }
+  const selectedPayCycle = String(
+    state.dom.exportPayrollPayCycle?.value || "",
+  ).trim();
+
+  // PAYROLL CSV EXPORT FIX - STEP 2
+  // CSV export uses finalised Payroll Records only.
+  // It does not use Payslip Email Status logs.
   const records = (state.payrollRecords || []).filter((record) => {
     const isFinalised = Boolean(record.is_finalised);
     const recordPayCycle = String(record.pay_cycle || "").trim();
 
-    if (!selectedPayCycle) return isFinalised;
+    if (!isFinalised) return false;
+    if (!selectedPayCycle) return true;
 
-    return isFinalised && recordPayCycle === selectedPayCycle;
+    return recordPayCycle === selectedPayCycle;
   });
 
-if (!records.length) {
-  showPageAlert("warning", "No finalised payroll records are available for export.");
-  return;
-}
+  if (!records.length) {
+    showPageAlert(
+      "warning",
+      selectedPayCycle
+        ? `No finalised payroll records are available for <strong>${escapeHtml(
+          selectedPayCycle,
+        )}</strong>. CSV export only works from finalised Payroll Records, not Payslip Email Status logs.`
+        : "No finalised payroll records are available for export. CSV export only works from finalised Payroll Records, not Payslip Email Status logs.",
+    );
 
-// EMPLOYEE BANK DETAILS - STEP 10
-// Block bank-ready export if any finalised payroll employee does not have
-// an active bank detail. This prevents producing a payment file with blank
-// account number, bank code, or bank name.
-const recordsMissingBankDetails = records.filter(
-  (record) => !getActiveEmployeeBankDetailsForPayrollRecord(record),
-);
-
-if (recordsMissingBankDetails.length) {
-  const missingEmployeeNames = recordsMissingBankDetails
-    .slice(0, 5)
-    .map((record) => {
-      const employeeName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
-      return employeeName || record.work_email || "Unknown Employee";
+    state.dom.pageAlert?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
     });
 
-  const extraCount = recordsMissingBankDetails.length - missingEmployeeNames.length;
+    return;
+  }
 
-  showPageAlert(
-    "warning",
-    `CSV export stopped because ${recordsMissingBankDetails.length} finalised payroll record(s) do not have active employee bank details. Missing: <strong>${escapeHtml(
-      missingEmployeeNames.join(", "),
-    )}${extraCount > 0 ? `, and ${extraCount} more` : ""}</strong>.`,
+  // PAYROLL CSV EXPORT FIX - STEP 2
+  // Block export if any finalised payroll record is missing active bank details.
+  // This prevents blank Account Number, Bank Code, or Bank Name in the CSV.
+  const recordsMissingBankDetails = records.filter(
+    (record) => !getExportBankDetailsForPayrollRecord(record),
   );
 
-  return;
-}
+  if (recordsMissingBankDetails.length) {
+    const missingEmployeeNames = recordsMissingBankDetails
+      .slice(0, 5)
+      .map((record) => {
+        const employeeName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
 
-// EMPLOYEE BANK DETAILS - STEP 10
-// Bank-ready export structure now uses active employee bank details.
-const headers = [
+        return (
+          employeeName ||
+          record.work_email ||
+          record.employee_number ||
+          "Unknown Employee"
+        );
+      });
+
+    const extraCount =
+      recordsMissingBankDetails.length - missingEmployeeNames.length;
+
+    showPageAlert(
+      "warning",
+      `CSV export stopped because ${recordsMissingBankDetails.length} finalised payroll record(s) ${selectedPayCycle
+        ? `for <strong>${escapeHtml(selectedPayCycle)}</strong> `
+        : ""
+      }do not have active employee bank details. Missing: <strong>${escapeHtml(
+        missingEmployeeNames.join(", "),
+      )}${extraCount > 0 ? `, and ${extraCount} more` : ""}</strong>.`,
+    );
+
+    state.dom.pageAlert?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    return;
+  }
+
+  // PAYROLL CSV EXPORT FIX - STEP 2
+  // Bank-ready spreadsheet columns.
+  // Bank Code and Bank Name are included here.
+  const headers = [
     "Account Name",
     "Account Number",
     "Bank Code",
@@ -2725,22 +3542,26 @@ const headers = [
     "Pay Cycle",
   ];
 
-const rows = records.map((record) => {
-  const employeeName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
-  const bankDetails = getActiveEmployeeBankDetailsForPayrollRecord(record);
+  const rows = records.map((record) => {
+    const employeeName =
+      `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
+      record.work_email ||
+      "Unknown Employee";
 
-  return [
-    bankDetails?.account_name || employeeName || "Unknown Employee",
-    bankDetails?.account_number || "",
-    bankDetails?.bank_code || "",
-    bankDetails?.bank_name || "",
-    Number(record.net_pay || 0).toFixed(2),
-    record.currency || "NGN",
-    `${record.pay_cycle || "Payroll"} - ${employeeName || "Employee"}`,
-    record.work_email || "",
-    record.pay_cycle || "",
-  ];
-});
+    const bankDetails = getExportBankDetailsForPayrollRecord(record);
+
+    return [
+      bankDetails?.account_name || employeeName,
+      bankDetails?.account_number || "",
+      bankDetails?.bank_code || "",
+      bankDetails?.bank_name || "",
+      Number(record.net_pay || 0).toFixed(2),
+      record.currency || "NGN",
+      `${record.pay_cycle || "Payroll"} - ${employeeName}`,
+      record.work_email || "",
+      record.pay_cycle || "",
+    ];
+  });
 
   const csvContent = [headers, ...rows]
     .map((row) =>
@@ -2757,20 +3578,26 @@ const rows = records.map((record) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
+  const safeCycle = selectedPayCycle
+    ? selectedPayCycle.replace(/\s+/g, "_").toLowerCase()
+    : "all_cycles";
+
   link.href = url;
-  link.download = `payroll_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `payroll_bank_export_${safeCycle}_${new Date()
+    .toISOString()
+    .slice(0, 10)}.csv`;
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 
   URL.revokeObjectURL(url);
 
-showPageAlert(
-  "success",
-  `${records.length} finalised payroll record(s) exported successfully with employee bank details.`,
-);
+  showPageAlert(
+    "success",
+    `${records.length} finalised payroll record(s) exported successfully with Bank Code and Bank Name included.`,
+  );
 }
-
 async function handleEmployeeFormClear() {
   const button = state.dom.resetEmployeeFormBtn;
   const startedAt = Date.now();
@@ -2803,12 +3630,14 @@ async function handlePayrollFormClear() {
   }
 }
 
-// RUN PAYROLL - STEP 4
-// Moves HR from employee selection into the payroll form area.
-// This does not create payroll records yet; it only starts the next stage
-// of the guided payroll workflow.
+// BATCH PAYROLL DEFAULT - STEP 2
+// Moves selected employees into a batch payroll review table.
+// This replaces the old behaviour where a single selected employee was pushed
+// into the individual payroll dropdown/form by default.
 function continueRunPayrollToPayrollWorkspace() {
-  const selectedEmployeeIds = Array.from(state.selectedEmployeesForPayroll || []);
+  const selectedEmployeeIds = Array.from(state.selectedEmployeesForPayroll || [])
+    .map((employeeId) => String(employeeId || "").trim())
+    .filter(Boolean);
 
   if (!selectedEmployeeIds.length) {
     showPageAlert(
@@ -2820,64 +3649,234 @@ function continueRunPayrollToPayrollWorkspace() {
 
   switchHrWorkspace("payroll");
 
-  // RUN PAYROLL - STEP 5
-  // If HR selected exactly one employee, prefill the payroll employee field
-  // and refresh the read-only employee reference panel. If multiple employees
-  // are selected, do not guess; batch handling will be added separately.
-  if (selectedEmployeeIds.length === 1 && state.dom.payrollEmployeeId) {
-    // RUN PAYROLL - STEP 5
-    // Single employee flow: prefill the payroll form with the selected employee.
-    state.dom.payrollEmployeeId.value = selectedEmployeeIds[0];
-    renderPayrollSelectedEmployeeReference(selectedEmployeeIds[0]);
+  // BATCH PAYROLL DEFAULT - STEP 2
+  // Keep the user in batch payroll mode once they continue from the
+  // Run Payroll employee selection table.
+  state.isRunPayrollSelectionMode = true;
 
-    // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4
-    // For a single selected employee, prefill salary/model fields from payroll master data.
-    populatePayrollFormFromEmployeeMaster(selectedEmployeeIds[0]);
-  } else {
-    // RUN PAYROLL - STEP 6
-    // Multiple employee flow: do not randomly choose one employee.
-    // Keep the payroll employee field blank and notify HR that batch handling is next.
-    if (state.dom.payrollEmployeeId) {
-      state.dom.payrollEmployeeId.value = "";
-    }
-
-    renderPayrollSelectedEmployeeReference("");
-
-    // RUN PAYROLL - STEP 6 FIX
-    // Show the batch-mode message directly inside the payroll reference card,
-    // because the page alert may be above the current scroll position.
-    if (state.dom.payrollSelectedEmployeeReferenceEmptyState) {
-      state.dom.payrollSelectedEmployeeReferenceEmptyState.innerHTML = `
-    <strong>${selectedEmployeeIds.length} employees selected for payroll.</strong>
-    <br />
-    Batch payroll processing will use the selected employee list. Select a single employee only if you want to create one payroll record manually.
-  `;
-      state.dom.payrollSelectedEmployeeReferenceEmptyState.classList.remove("d-none");
-    }
-
-    if (state.dom.payrollSelectedEmployeeReferenceDetails) {
-      state.dom.payrollSelectedEmployeeReferenceDetails.classList.add("d-none");
-    }
+  // BATCH PAYROLL DEFAULT - STEP 2
+  // The individual employee dropdown must not be the default Run Payroll
+  // experience anymore. Clear it and hide the manual form for this batch flow.
+  if (state.dom.payrollEmployeeId) {
+    state.dom.payrollEmployeeId.value = "";
   }
 
-  if (state.dom.payrollRecordCardCollapse) {
-    state.dom.payrollRecordCardCollapse.classList.remove("d-none");
+  renderPayrollSelectedEmployeeReference("");
+
+  if (state.dom.payrollCreateForm) {
+    state.dom.payrollCreateForm.classList.add("d-none");
   }
 
-  if (state.dom.togglePayrollRecordCardBtn) {
-    state.dom.togglePayrollRecordCardBtn.setAttribute("aria-expanded", "true");
+  // BATCH PAYROLL DEFAULT - STEP 6A
+  // Batch Payroll is not an editable individual form, so hide the old
+  // Create Mode, Clear Form, Refresh Payroll, and top Submit Payroll controls.
+  setPayrollRecordToolbarForBatchMode();
 
-    const icon = state.dom.togglePayrollRecordCardBtn.querySelector("i");
-    const label = state.dom.togglePayrollRecordCardBtn.querySelector("span");
-
-    if (icon) icon.className = "bi bi-chevron-up me-2";
-    if (label) label.textContent = "Collapse";
+  if (state.dom.payrollBankReadinessSubmitWarning) {
+    state.dom.payrollBankReadinessSubmitWarning.classList.add("d-none");
   }
 
-  state.dom.payrollCreateForm?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
+  if (state.dom.payrollFormTitle) {
+    state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
+  }
+
+  if (state.dom.payrollFormSubtext) {
+    state.dom.payrollFormSubtext.textContent =
+      "Review selected active employees in a batch table before payroll calculation and submission.";
+  }
+
+  // BATCH PAYROLL DEFAULT - STEP 6B
+  // Prepare the batch pay period controls before showing the review table.
+  populateBatchPayrollPayCycleOptions();
+
+  renderBatchPayrollReviewTable(selectedEmployeeIds);
+
+  // BATCH PAYROLL DEFAULT - STEP 2
+  // Open the payroll card and land directly on the batch review table.
+  openPayrollRecordCard();
+
+  // BATCH PAYROLL DEFAULT - STEP 2B
+  // Wait for the Payroll workspace to become visible before scrolling.
+  // The previous scroll fired too early and targeted the inner batch table,
+  // which made the Create Payroll Batch heading look cut off.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      scrollToDashboardTarget(
+        state.dom.payrollFormTitle?.closest(".mb-4") ||
+        state.dom.payrollFormTitle ||
+        state.dom.payrollRecordCardCollapse?.closest(".dashboard-section-card") ||
+        state.dom.payrollRecordCardCollapse,
+        56,
+      );
+    });
   });
+}
+
+// BATCH PAYROLL DEFAULT - STEP 3B
+// Renders selected active employees into a compact batch payroll review table.
+// Staff No. is grouped under Employee, and Pay Cycle is grouped under Base Salary
+// so the table is easier to read and does not feel cramped.
+function renderBatchPayrollReviewTable(selectedEmployeeIds = []) {
+  const tbody = state.dom.batchPayrollReviewTableBody;
+  const countBadge = state.dom.batchPayrollReviewCount;
+
+  if (!tbody) return;
+
+  const selectedIdSet = new Set(
+    selectedEmployeeIds
+      .map((employeeId) => String(employeeId || "").trim())
+      .filter(Boolean),
+  );
+
+  const selectedEmployees = (state.employees || []).filter((employee) => {
+    const employeeId = String(employee.id || "").trim();
+    const isSelected = selectedIdSet.has(employeeId);
+    const isActive = normalizeText(employee.status) === "active";
+
+    return isSelected && isActive;
+  });
+
+  if (countBadge) {
+    countBadge.textContent =
+      selectedEmployees.length === 1
+        ? "1 selected"
+        : `${selectedEmployees.length} selected`;
+  }
+
+  tbody.innerHTML = "";
+  // BATCH PAYROLL DEFAULT - STEP 5
+  // Rebuild prepared payroll rows every time the review table is rendered.
+  // This prevents old selected employees/calculations from carrying forward.
+  state.batchPayrollPreparedRows = [];
+  // BATCH PAYROLL DEFAULT - STEP 4
+  // Show a blocking setup warning before batch submission is introduced.
+  // The table can still display the selected employees, but the warning makes
+  // it clear that missing/inactive Payroll Master setup must be fixed first.
+  renderBatchPayrollSetupWarning(selectedEmployees);
+
+  if (!selectedEmployees.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-secondary py-4">
+          No active selected employees are available for batch payroll.
+        </td>
+      </tr>
+    `;
+
+    state.dom.batchPayrollReviewPanel?.classList.remove("d-none");
+    return;
+  }
+
+  selectedEmployees.forEach((employee) => {
+    const fullName =
+      `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+      employee.work_email ||
+      "Unknown Employee";
+
+    // BATCH PAYROLL DEFAULT - STEP 3B
+    // Each selected employee must show their own active Payroll Master record.
+    // This is still review-only; save/submission will come later.
+    const activePayrollMaster =
+      getLatestActivePayrollMasterProfileForEmployee(employee.id);
+
+    const salaryValue = Number(activePayrollMaster?.basic_salary || 0);
+    const hasValidActiveMaster =
+      Boolean(activePayrollMaster) &&
+      Number.isFinite(salaryValue) &&
+      salaryValue > 0;
+
+    // BATCH PAYROLL DEFAULT - STEP 5
+    // Prepare this employee's calculated payroll row from their own
+    // active Payroll Master salary. Nothing is saved yet.
+    const preparedPayrollRow = hasValidActiveMaster
+      ? buildBatchPayrollPreparedRow(employee, activePayrollMaster)
+      : null;
+
+    if (preparedPayrollRow) {
+      state.batchPayrollPreparedRows.push(preparedPayrollRow);
+    }
+
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>
+        <div class="fw-semibold">${escapeHtml(fullName)}</div>
+
+        <div class="text-secondary small text-break">
+          ${escapeHtml(employee.work_email || "--")}
+        </div>
+
+        <div class="text-secondary small">
+          Staff No: ${escapeHtml(employee.employee_number || "--")}
+        </div>
+
+        <!-- BATCH PAYROLL DEFAULT - STEP 11
+             Let HR remove this employee from the current batch without
+             returning to the employee list. -->
+        <button type="button"
+          class="btn btn-sm btn-outline-danger mt-2"
+          onclick="window.hrRemoveEmployeeFromPayrollBatch('${String(employee.id || "").replaceAll("'", "\\'")}')">
+          <i class="bi bi-x-circle me-1"></i>Remove
+        </button>
+      </td>
+
+      <td>${escapeHtml(employee.department || "--")}</td>
+
+      <td>${escapeHtml(employee.job_title || "--")}</td>
+
+      <td>
+        <span class="badge ${getStatusBadgeClass(employee.status)}">
+          ${escapeHtml(formatStatusLabel(employee.status))}
+        </span>
+      </td>
+
+      <td class="text-nowrap">
+        <div>
+          ${hasValidActiveMaster
+        ? formatCurrency(activePayrollMaster.basic_salary, "NGN")
+        : "--"
+      }
+        </div>
+
+        <div class="text-secondary small">
+          Cycle: ${escapeHtml(activePayrollMaster?.pay_cycle || "--")}
+        </div>
+
+        ${preparedPayrollRow
+        ? `<div class="text-secondary small mt-1">
+                Est. Gross: ${formatCurrency(preparedPayrollRow.gross_pay, "NGN")}
+              </div>
+              <div class="text-secondary small">
+                Est. Net: ${formatCurrency(preparedPayrollRow.net_pay, "NGN")}
+              </div>`
+        : ""
+      }
+      </td>
+
+      <td>
+        ${hasValidActiveMaster
+        ? `<span class="badge text-bg-success">Ready</span>`
+        : `<span class="badge text-bg-warning">Missing active setup</span>`
+      }
+
+        ${activePayrollMaster?.salary_effective_date
+        ? `<div class="text-secondary small mt-1 text-nowrap">
+                Effective ${formatDate(activePayrollMaster.salary_effective_date)}
+              </div>`
+        : ""
+      }
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+
+  state.dom.batchPayrollReviewPanel?.classList.remove("d-none");
+
+  // BATCH PAYROLL DEFAULT - STEP 7
+  // Refresh the submit button state after the ready/missing payroll rows
+  // have been recalculated for the current selected employees.
+  updateSubmitBatchPayrollButtonState();
 }
 
 // RUN PAYROLL - STEP 1
@@ -2885,6 +3884,24 @@ function continueRunPayrollToPayrollWorkspace() {
 // This keeps employee selection tied to the HR employee source and avoids
 // creating a separate payroll-only employee list.
 function startRunPayrollSelectionFlow() {
+  // BATCH PAYROLL DEFAULT - STEP 1
+  // Run Payroll now starts in batch selection mode.
+  // This keeps the user on the employee table first instead of pushing them
+  // straight into the individual payroll dropdown/form.
+  state.isRunPayrollSelectionMode = true;
+
+  // BATCH PAYROLL DEFAULT - STEP 1
+  // Start each payroll run with a clean selection so old checkmarks
+  // from a previous run do not accidentally carry into a new batch.
+  state.selectedEmployeesForPayroll.clear();
+
+  // BATCH PAYROLL DEFAULT - STEP 1
+  // Clear employee search so all active employees are visible when the
+  // payroll batch selection table opens.
+  if (state.dom.employeeSearchInput) {
+    state.dom.employeeSearchInput.value = "";
+  }
+
   switchHrWorkspace("employees");
 
   if (state.dom.employeeListCardCollapse) {
@@ -2900,6 +3917,11 @@ function startRunPayrollSelectionFlow() {
     if (icon) icon.className = "bi bi-chevron-up me-2";
     if (label) label.textContent = "Collapse";
   }
+
+  // BATCH PAYROLL DEFAULT - STEP 1
+  // Re-render the employee table after enabling Run Payroll mode.
+  // applyEmployeeSearch now limits this table to active employees only.
+  applyEmployeeSearch();
 
   // RUN PAYROLL - STEP 2
   // Show a clear mode notice so HR understands this is now payroll selection.
@@ -2988,6 +4010,28 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// PAYROLL RECORDS DATE CLARITY - STEP 12B
+// Compact audit timestamp for Payroll Records.
+// Keeps the table narrow while still showing the submitted date and time.
+function formatCompactDateTime(value) {
+  if (!value) return "--";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return escapeHtml(value);
+
+  const compactDate = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+
+  const compactTime = date.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${compactDate}, ${compactTime}`;
 }
 
 function formatBytes(bytes) {
@@ -3521,21 +4565,26 @@ async function loadEmployees() {
 function applyEmployeeSearch() {
   const searchTerm = normalizeText(state.dom.employeeSearchInput?.value || "");
 
+  // BATCH PAYROLL DEFAULT - STEP 1
+  // Normal Employee Management still shows all employees.
+  // Run Payroll mode shows active employees only, because the batch payroll
+  // table should not prepare inactive employees for a new payroll run.
+  const employeeSource = state.isRunPayrollSelectionMode
+    ? state.employees.filter(
+      (employee) => normalizeText(employee.status) === "active",
+    )
+    : [...state.employees];
+
   if (!searchTerm) {
-    state.filteredEmployees = [...state.employees];
+    state.filteredEmployees = employeeSource;
   } else {
-    state.filteredEmployees = state.employees.filter((employee) => {
+    state.filteredEmployees = employeeSource.filter((employee) => {
       const searchableText = [
         employee.first_name,
         employee.last_name,
         employee.work_email,
         employee.department,
         employee.job_title,
-
-        // DESCRIPTION ITEM 5 - STEP 2
-        // Allow grade level to participate in employee list search.
-        employee.grade_level,
-
         employee.line_manager,
         employee.approver_email,
         employee.status,
@@ -3691,6 +4740,39 @@ function toggleEmployeePayrollSelection(employeeId, isChecked) {
   syncSelectAllEmployeesForPayrollCheckbox();
 }
 
+// BATCH PAYROLL DEFAULT - STEP 11
+// Removes one employee from the current Batch Payroll Review table.
+// This gives HR a quick way to fix a blocked duplicate batch without
+// going back to the employee list.
+function removeEmployeeFromCurrentPayrollBatch(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return;
+
+  state.selectedEmployeesForPayroll.delete(employeeKey);
+
+  const selectedEmployeeIds = Array.from(state.selectedEmployeesForPayroll || [])
+    .map((selectedId) => String(selectedId || "").trim())
+    .filter(Boolean);
+
+  // BATCH PAYROLL DEFAULT - STEP 11
+  // Clear any stale duplicate warning because the batch selection has changed.
+  // Submit will re-check duplicates again when HR tries to submit.
+  clearPageAlert();
+  hideDashboardToast();
+
+  renderBatchPayrollReviewTable(selectedEmployeeIds);
+  syncSelectAllEmployeesForPayrollCheckbox();
+  updateSubmitBatchPayrollButtonState();
+
+  showDashboardToast(
+    "info",
+    "Employee removed",
+    selectedEmployeeIds.length
+      ? "The employee has been removed from this payroll batch."
+      : "The employee has been removed. No employees remain in this payroll batch.",
+  );
+}
+
 // DESCRIPTION ITEM 9 - STEP 2
 // Select or clear all employees currently visible in the list.
 // Re-render keeps every row checkbox visually in sync immediately.
@@ -3733,6 +4815,277 @@ function getLatestPayrollMasterProfileForEmployee(employeeId) {
   });
 
   return matchingRecords[0];
+}
+
+// BATCH PAYROLL DEFAULT - STEP 3
+// Returns the latest ACTIVE payroll master record for one employee.
+// Batch payroll must not use inactive payroll master records for salary lookup.
+// This helper is read-only for now; blocking inactive/missing records comes next.
+function getLatestActivePayrollMasterProfileForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return null;
+
+  const activeMatchingRecords = (state.payrollMasterRecords || []).filter(
+    (record) =>
+      String(record.employee_id || "").trim() === employeeKey &&
+      normalizeText(record.payroll_status) === "active",
+  );
+
+  if (!activeMatchingRecords.length) return null;
+
+  activeMatchingRecords.sort((a, b) => {
+    const aDate = new Date(
+      a.salary_effective_date || a.updated_at || a.created_at || 0,
+    ).getTime();
+
+    const bDate = new Date(
+      b.salary_effective_date || b.updated_at || b.created_at || 0,
+    ).getTime();
+
+    return bDate - aDate;
+  });
+
+  return activeMatchingRecords[0];
+}
+
+// BATCH PAYROLL DEFAULT - STEP 4
+// Shows a blocking setup warning for selected employees who do not have
+// a valid active Payroll Master record.
+// This does not save payroll yet; it only prevents HR from treating the
+// batch as ready before the missing setup is corrected.
+function renderBatchPayrollSetupWarning(selectedEmployees = []) {
+  const warning = state.dom.batchPayrollSetupWarning;
+  if (!warning) return;
+
+  const affectedEmployees = selectedEmployees.filter((employee) => {
+    const activePayrollMaster =
+      getLatestActivePayrollMasterProfileForEmployee(employee.id);
+
+    const salaryValue = Number(activePayrollMaster?.basic_salary || 0);
+
+    return !(
+      activePayrollMaster &&
+      Number.isFinite(salaryValue) &&
+      salaryValue > 0
+    );
+  });
+
+  if (!affectedEmployees.length) {
+    warning.innerHTML = "";
+    warning.classList.add("d-none");
+    return;
+  }
+
+  const affectedNames = affectedEmployees.slice(0, 5).map((employee) => {
+    return (
+      `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+      employee.work_email ||
+      employee.employee_number ||
+      "Unknown Employee"
+    );
+  });
+
+  const extraCount = affectedEmployees.length - affectedNames.length;
+
+  warning.innerHTML = `
+    <div class="fw-semibold">Batch payroll setup is incomplete.</div>
+    <div class="small">
+      ${affectedEmployees.length} selected employee(s) cannot be processed yet because they do not have a valid active Payroll Master setup.
+      Affected: <strong>${escapeHtml(affectedNames.join(", "))}${extraCount > 0 ? `, and ${extraCount} more` : ""}</strong>.
+      Update Payroll Master Data before continuing this batch.
+    </div>
+  `;
+
+  warning.classList.remove("d-none");
+}
+
+// BATCH PAYROLL DEFAULT - STEP 7
+// Enables Submit Batch Payroll only when the batch has:
+// 1. at least one prepared payroll row,
+// 2. a selected pay period,
+// 3. a selected pay date.
+// Missing Payroll Master setup is already handled by the prepared row count.
+function updateSubmitBatchPayrollButtonState() {
+  const button = state.dom.submitBatchPayrollBtn;
+  if (!button) return;
+
+  const hasPreparedRows = (state.batchPayrollPreparedRows || []).length > 0;
+  const hasPayCycle = Boolean(
+    String(state.dom.batchPayrollPayCycle?.value || "").trim(),
+  );
+  const hasPayDate = Boolean(
+    String(state.dom.batchPayrollPayDate?.value || "").trim(),
+  );
+
+  button.disabled = !(hasPreparedRows && hasPayCycle && hasPayDate);
+}
+// BATCH PAYROLL DEFAULT - STEP 5
+// Build one calculated payroll preview row for one selected employee.
+// This mirrors the existing Regular payroll structure without relying on
+// the hidden individual payroll form fields.
+//
+// This step only prepares values in memory. It does not save payroll records.
+function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
+  const baseSalary = Number(activePayrollMaster?.basic_salary || 0);
+
+  if (!employee?.id || !activePayrollMaster?.id || !Number.isFinite(baseSalary) || baseSalary <= 0) {
+    return null;
+  }
+
+  // BATCH PAYROLL DEFAULT - STEP 5
+  // Regular structure defaults copied from the existing payroll calculation behaviour:
+  // 5% increment, then 50/10/10/10/20 salary split.
+  const incrementAmount = baseSalary * 0.05;
+  const newBaseSalary = baseSalary + incrementAmount;
+
+  const basicPay = newBaseSalary * 0.5;
+  const housingAllowance = newBaseSalary * 0.1;
+  const transportAllowance = newBaseSalary * 0.1;
+  const utilityAllowance = newBaseSalary * 0.1;
+  const otherAllowance = newBaseSalary * 0.2;
+
+  const bht = basicPay + housingAllowance + transportAllowance;
+  const employeePension = bht * 0.08;
+  const employerPension = bht * 0.1;
+
+  const grossPay =
+    basicPay +
+    housingAllowance +
+    transportAllowance +
+    utilityAllowance +
+    otherAllowance;
+
+  const totalDeductions = employeePension;
+  const netPay = grossPay - totalDeductions;
+
+  return {
+    employee_id: employee.id,
+    payroll_master_record_id: activePayrollMaster.id,
+    pay_cycle: activePayrollMaster.pay_cycle || "",
+    payroll_group: "REGULAR",
+    payroll_model: "REGULAR",
+
+    base_salary: baseSalary,
+    regular_increment_percent: 5,
+    regular_increment_amount: incrementAmount,
+    regular_new_base_salary: newBaseSalary,
+
+    basic_pay: basicPay,
+    housing_allowance: housingAllowance,
+    transport_allowance: transportAllowance,
+    utility_allowance: utilityAllowance,
+    other_allowance: otherAllowance,
+
+    employee_pension: employeePension,
+    employer_pension: employerPension,
+    gross_pay: grossPay,
+    total_deductions: totalDeductions,
+    net_pay: netPay,
+
+    currency: "NGN",
+  };
+}
+// BATCH PAYROLL DEFAULT - STEP 7
+// Converts one prepared batch preview row into a payroll_records payload.
+// This deliberately does not use the hidden individual payroll form fields.
+function buildBatchPayrollRecordPayload(preparedRow) {
+  const payCycle = String(state.dom.batchPayrollPayCycle?.value || "").trim();
+  const payDate = String(state.dom.batchPayrollPayDate?.value || "").trim();
+
+  return {
+    employee_id: preparedRow.employee_id,
+    pay_cycle: payCycle,
+    pay_date: payDate || null,
+
+    employee_group: "REGULAR",
+    payroll_model: "REGULAR",
+    payroll_model_version: "rev2",
+    structure_variant: "ALPATECH_REGULAR_REV2",
+    payslip_layout: "ALPATECH_REGULAR_REV2",
+
+    increment_percent: 0.05,
+    increment_amount: preparedRow.regular_increment_amount,
+    merit_increment: null,
+    new_base_salary: preparedRow.regular_new_base_salary,
+
+    basic_percent: 0.5,
+    housing_percent: 0.1,
+    transport_percent: 0.1,
+    utility_percent: 0.1,
+    other_allowance_percent: 0.2,
+
+    base_salary: preparedRow.base_salary,
+    basic_pay: preparedRow.basic_pay,
+    housing_allowance: preparedRow.housing_allowance,
+    transport_allowance: preparedRow.transport_allowance,
+    utility_allowance: preparedRow.utility_allowance,
+    medical_allowance: null,
+    other_allowance: preparedRow.other_allowance,
+    bonus: null,
+    overtime: null,
+    logistics_allowance: null,
+    data_airtime_allowance: null,
+
+    bht:
+      preparedRow.basic_pay +
+      preparedRow.housing_allowance +
+      preparedRow.transport_allowance,
+
+    monthly_salary_plus_logistics: null,
+    employer_wht: null,
+
+    gross_pay: preparedRow.gross_pay,
+    paye_tax: null,
+    wht_tax: null,
+    employee_pension: preparedRow.employee_pension,
+    employer_pension: preparedRow.employer_pension,
+        // BATCH PAYROLL DEFAULT - STEP 7A
+    // payroll_records.other_deductions is not nullable in Supabase.
+    // Batch payroll has no extra deductions yet, so save this as 0.
+    other_deductions: 0,
+    total_deductions: preparedRow.total_deductions,
+    net_pay: preparedRow.net_pay,
+
+    currency: "NGN",
+    status: "Authorised",
+    is_finalised: true,
+
+    notes: "Created from batch payroll run.",
+    processed_by: state.currentUser?.id || null,
+    approved_by: state.currentUser?.id || null,
+    approved_at: new Date().toISOString(),
+  };
+}
+
+// BATCH PAYROLL DEFAULT - STEP 8
+// Checks whether selected employees already have payroll records
+// for the selected batch pay period.
+// This prevents accidental duplicate payroll records for the same
+// employee and pay cycle when HR clicks Submit Batch Payroll again.
+async function getExistingBatchPayrollRecordsForPeriod(payCycle, employeeIds = []) {
+  const cleanPayCycle = String(payCycle || "").trim();
+
+  const cleanEmployeeIds = employeeIds
+    .map((employeeId) => String(employeeId || "").trim())
+    .filter(Boolean);
+
+  if (!cleanPayCycle || !cleanEmployeeIds.length) {
+    return [];
+  }
+
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("hr_payroll_overview")
+    .select("id, employee_id, pay_cycle, first_name, last_name, work_email")
+    .eq("pay_cycle", cleanPayCycle)
+    .in("employee_id", cleanEmployeeIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return Array.isArray(data) ? data : [];
 }
 
 function renderEmployeeSummary(employees) {
@@ -3833,19 +5186,21 @@ function renderEmployeeRecords(employees) {
 
   const documentCountMap = buildEmployeeDocumentCountMap();
 
-  employees.forEach((employee) => {
+  // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+  // Show the newest/most recently updated employee first in the list.
+  const employeesToRender = sortEmployeeRecordsByLatestActivity(employees);
+
+  employeesToRender.forEach((employee) => {
     const fullName = `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
     const documentCount = documentCountMap.get(String(employee.id)) || 0;
     const accountLinkage = getEmployeeAccountLinkage(employee);
 
-    // DESCRIPTION ITEM 5 - SYNC FOUNDATION STEP 3C
-    // Let the employee list reflect payroll-linked grade information when the
-    // HR employee record has not yet been updated with a grade level.
+    // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 1
+    // Grade is no longer captured on the HR employee form.
+    // If grade is shown in the employee list, it must come from Payroll Master Data only.
     const latestPayrollProfile = getLatestPayrollMasterProfileForEmployee(employee.id);
     const resolvedGradeLevel =
-      String(employee.grade_level || "").trim() ||
-      String(latestPayrollProfile?.grade || "").trim() ||
-      "--";
+      String(latestPayrollProfile?.grade || "").trim() || "--";
 
     // DESCRIPTION ITEM 5 - STEP 4
     // Resolve salary and pay cycle from the latest payroll master record.
@@ -3994,10 +5349,6 @@ function resetEmployeeForm() {
     state.dom.department,
     state.dom.jobTitle,
 
-    // DESCRIPTION ITEM 5 - STEP 2
-    // Clear grade level when returning the HR employee form to its default state.
-    state.dom.gradeLevel,
-
     state.dom.lineManager,
     state.dom.employmentDate,
     state.dom.approverEmail,
@@ -4069,10 +5420,6 @@ function enterEmployeeEditMode(employee) {
   if (state.dom.department) state.dom.department.value = employee.department || "";
   if (state.dom.jobTitle) state.dom.jobTitle.value = employee.job_title || "";
 
-  // DESCRIPTION ITEM 5 - STEP 2
-  // Load the saved grade level back into the HR employee form during edit.
-  if (state.dom.gradeLevel) state.dom.gradeLevel.value = employee.grade_level || "";
-
   if (state.dom.lineManager) state.dom.lineManager.value = employee.line_manager || "";
   if (state.dom.employmentDate) state.dom.employmentDate.value = employee.employment_date || "";
   if (state.dom.approverEmail) state.dom.approverEmail.value = employee.approver_email || "";
@@ -4121,12 +5468,15 @@ function enterEmployeeEditMode(employee) {
 
   renderPendingFiles();
   switchHrWorkspace("employees");
+
+  // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+  // Editing an employee should always reopen the Create/Edit Employee card,
+  // even if HR previously collapsed it after saving.
+  openEmployeeFormCard();
+
   void loadEmployeeDocuments(employee.id);
 
-  state.dom.employeeCreateForm?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+  scrollToDashboardTarget(state.dom.employeeCreateForm);
 }
 
 function exitEmployeeEditMode() {
@@ -4244,10 +5594,6 @@ function buildEmployeePayload() {
     phone_number: String(state.dom.phoneNumber?.value || "").trim() || null,
     department: String(state.dom.department?.value || "").trim(),
     job_title: String(state.dom.jobTitle?.value || "").trim(),
-
-    // DESCRIPTION ITEM 5 - STEP 2
-    // Persist grade level in the HR employee source.
-    grade_level: String(state.dom.gradeLevel?.value || "").trim() || null,
 
     line_manager: String(state.dom.lineManager?.value || "").trim(),
     employment_date: state.dom.employmentDate?.value || null,
@@ -4729,19 +6075,11 @@ async function handleEmployeeSave() {
         )}</strong> was created successfully.`,
     );
 
+    // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
+    // After create/update, clear the employee form and redirect HR to the
+    // Full Employee List header without cutting off the heading.
     resetEmployeeForm();
-
-    if (isEditMode) {
-      const refreshedEmployee = state.employees.find(
-        (item) => String(item.id) === String(savedEmployeeId),
-      );
-
-      if (refreshedEmployee) {
-        enterEmployeeEditMode(refreshedEmployee);
-      }
-    } else {
-      resetEmployeeForm();
-    }
+    redirectToFullEmployeeListAfterEmployeeSave();
   } catch (error) {
     console.error("Error saving employee profile:", error);
     showPageAlert(
@@ -4821,14 +6159,205 @@ async function loadPayrollRecords() {
       "danger",
       error.message || "Payroll records could not be loaded.",
     );
-state.payrollRecords = [];
-state.filteredPayrollRecords = [];
-renderPayrollSummary([]);
-renderPayrollRecords([]);
+    state.payrollRecords = [];
+    state.filteredPayrollRecords = [];
+    renderPayrollSummary([]);
+    renderPayrollRecords([]);
 
-// DESCRIPTION ITEM 4 - STEP 3
-// Keep Send Payslips disabled if payroll records fail to load.
-updateSendPayslipsButtonState();
+    // DESCRIPTION ITEM 4 - STEP 3
+    // Keep Send Payslips disabled if payroll records fail to load.
+    updateSendPayslipsButtonState();
+  }
+}
+
+// PAYROLL BANK READINESS - STEP 11B
+// Reset the Payment Bank Details panel to a neutral state.
+// This is used when no employee is selected or when the payroll form is cleared.
+function resetPayrollBankReadinessPanel(message = "Select an employee to check payment bank details before payroll submission.") {
+  if (state.dom.payrollBankReadinessBadge) {
+    state.dom.payrollBankReadinessBadge.textContent = "Not checked";
+    state.dom.payrollBankReadinessBadge.className =
+      "badge rounded-pill text-bg-secondary";
+  }
+
+  if (state.dom.payrollBankReadinessEmptyState) {
+    state.dom.payrollBankReadinessEmptyState.textContent = message;
+    state.dom.payrollBankReadinessEmptyState.classList.remove("d-none");
+  }
+
+  state.dom.payrollBankReadinessDetails?.classList.add("d-none");
+  state.dom.payrollBankReadinessWarning?.classList.add("d-none");
+
+  // PAYROLL BANK READINESS - STEP 11C
+  // Hide the submit warning when no employee is selected or the form is reset.
+  state.dom.payrollBankReadinessSubmitWarning?.classList.add("d-none");
+
+  if (state.dom.payrollBankReadinessBankName) {
+    state.dom.payrollBankReadinessBankName.textContent = "--";
+  }
+
+  if (state.dom.payrollBankReadinessBankCode) {
+    state.dom.payrollBankReadinessBankCode.textContent = "--";
+  }
+
+  if (state.dom.payrollBankReadinessAccountNumber) {
+    state.dom.payrollBankReadinessAccountNumber.textContent = "--";
+  }
+
+  if (state.dom.payrollBankReadinessAccountName) {
+    state.dom.payrollBankReadinessAccountName.textContent = "--";
+  }
+}
+
+// PAYROLL BANK READINESS - STEP 11B
+// Find the selected employee's active bank details from the records already
+// loaded into state.employeeBankDetailsRecords.
+function getActiveEmployeeBankDetailsForPayrollReadiness(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return null;
+
+  return (
+    (state.employeeBankDetailsRecords || []).find(
+      (record) =>
+        String(record.employee_id || "").trim() === employeeKey &&
+        normalizeText(record.status) === "active",
+    ) || null
+  );
+}
+
+// PAYROLL BANK READINESS - STEP 11D
+// Resolve readable employee names for finalisation-blocking messages.
+function getEmployeeDisplayNameById(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+
+  const employee = (state.employees || []).find(
+    (item) => String(item.id || "").trim() === employeeKey,
+  );
+
+  if (!employee) return "Unknown Employee";
+
+  return (
+    `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+    employee.work_email ||
+    employee.employee_number ||
+    "Unknown Employee"
+  );
+}
+
+// PAYROLL BANK READINESS - STEP 11D
+// Return employees that do not have active payment bank details.
+// This is used only when payroll is being marked as finalised.
+function getEmployeesMissingActiveBankDetails(employeeIds = []) {
+  return employeeIds
+    .map((employeeId) => String(employeeId || "").trim())
+    .filter(Boolean)
+    .filter(
+      (employeeId) =>
+        !getActiveEmployeeBankDetailsForPayrollReadiness(employeeId),
+    );
+}
+
+// PAYROLL BANK READINESS - STEP 11D
+// Finalisation rule:
+// Payroll can be prepared without bank details,
+// but it cannot be marked as finalised/payment-ready without active bank details.
+function validatePayrollFinalisationBankReadiness(employeeIds = []) {
+  const isBeingFinalised = Boolean(state.dom.payrollIsFinalised?.checked);
+
+  if (!isBeingFinalised) {
+    return true;
+  }
+
+  const missingBankEmployeeIds =
+    getEmployeesMissingActiveBankDetails(employeeIds);
+
+  if (!missingBankEmployeeIds.length) {
+    return true;
+  }
+
+  const missingEmployeeNames = missingBankEmployeeIds
+    .slice(0, 5)
+    .map((employeeId) => getEmployeeDisplayNameById(employeeId));
+
+  const extraCount = missingBankEmployeeIds.length - missingEmployeeNames.length;
+
+  showPageAlert(
+    "warning",
+    `Payroll cannot be finalised because ${missingBankEmployeeIds.length} employee(s) do not have active payment bank details. Affected: <strong>${escapeHtml(
+      missingEmployeeNames.join(", "),
+    )}${extraCount > 0 ? `, and ${extraCount} more` : ""}</strong>. Save active employee bank details first, or untick Mark as Finalised to save the payroll as non-finalised.`,
+  );
+
+  return false;
+}
+
+// PAYROLL BANK READINESS - STEP 11B
+// Render bank readiness for the selected payroll employee.
+// This is advisory only at this stage; payroll submission is not blocked yet.
+function renderPayrollBankReadiness(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+
+  if (!employeeKey) {
+    resetPayrollBankReadinessPanel(
+      "Select an employee to check payment bank details before payroll submission.",
+    );
+    return;
+  }
+
+  const activeBankDetails =
+    getActiveEmployeeBankDetailsForPayrollReadiness(employeeKey);
+
+  if (!activeBankDetails) {
+    if (state.dom.payrollBankReadinessBadge) {
+      state.dom.payrollBankReadinessBadge.textContent = "Bank details missing";
+      state.dom.payrollBankReadinessBadge.className =
+        "badge rounded-pill text-bg-warning";
+    }
+
+    state.dom.payrollBankReadinessEmptyState?.classList.add("d-none");
+    state.dom.payrollBankReadinessDetails?.classList.add("d-none");
+    state.dom.payrollBankReadinessWarning?.classList.remove("d-none");
+
+    // PAYROLL BANK READINESS - STEP 11C
+    // Show a clear soft warning near Submit Payroll.
+    // This is advisory only; it does not block payroll submission.
+    state.dom.payrollBankReadinessSubmitWarning?.classList.remove("d-none");
+
+    return;
+  }
+
+  if (state.dom.payrollBankReadinessBadge) {
+    state.dom.payrollBankReadinessBadge.textContent = "Ready for payment";
+    state.dom.payrollBankReadinessBadge.className =
+      "badge rounded-pill text-bg-success";
+  }
+
+  state.dom.payrollBankReadinessEmptyState?.classList.add("d-none");
+  state.dom.payrollBankReadinessWarning?.classList.add("d-none");
+  state.dom.payrollBankReadinessDetails?.classList.remove("d-none");
+
+  // PAYROLL BANK READINESS - STEP 11C
+  // Hide the Submit Payroll warning when active bank details exist.
+  state.dom.payrollBankReadinessSubmitWarning?.classList.add("d-none");
+
+  if (state.dom.payrollBankReadinessBankName) {
+    state.dom.payrollBankReadinessBankName.textContent =
+      activeBankDetails.bank_name || "--";
+  }
+
+  if (state.dom.payrollBankReadinessBankCode) {
+    state.dom.payrollBankReadinessBankCode.textContent =
+      activeBankDetails.bank_code || "--";
+  }
+
+  if (state.dom.payrollBankReadinessAccountNumber) {
+    state.dom.payrollBankReadinessAccountNumber.textContent =
+      activeBankDetails.account_number || "--";
+  }
+
+  if (state.dom.payrollBankReadinessAccountName) {
+    state.dom.payrollBankReadinessAccountName.textContent =
+      activeBankDetails.account_name || "--";
   }
 }
 
@@ -4871,6 +6400,11 @@ function renderPayrollSelectedEmployeeReference(employeeId = "") {
       state.dom.payrollSelectedEmployeeStatus.textContent = "--";
     }
 
+    // PAYROLL BANK READINESS - STEP 11B
+    // No employee is selected, so return the bank readiness panel
+    // to its neutral state.
+    renderPayrollBankReadiness("");
+
     return;
   }
 
@@ -4906,6 +6440,11 @@ function renderPayrollSelectedEmployeeReference(employeeId = "") {
     state.dom.payrollSelectedEmployeeStatus.textContent =
       formatStatusLabel(employee.status) || "--";
   }
+
+  // PAYROLL BANK READINESS - STEP 11B
+  // After employee reference details are shown, check whether this employee
+  // has active saved bank details for payroll payment readiness.
+  renderPayrollBankReadiness(employee.id);
 }
 
 // EMPLOYEE BANK DETAILS - STEP 6
@@ -4925,11 +6464,11 @@ function updateEmployeeBankDetailsSaveButtonState() {
   setPrimaryActionButtonReadyState(
     state.dom.saveEmployeeBankDetailsBtn,
     hasEmployee &&
-      hasBank &&
-      hasBankCode &&
-      hasAccountNumber &&
-      hasAccountName &&
-      hasStatus,
+    hasBank &&
+    hasBankCode &&
+    hasAccountNumber &&
+    hasAccountName &&
+    hasStatus,
   );
 }
 
@@ -4950,12 +6489,12 @@ function updatePayrollMasterSaveButtonState() {
   setPrimaryActionButtonReadyState(
     state.dom.savePayrollMasterBtn,
     hasEmployee &&
-      hasGrade &&
-      hasSalary &&
-      salaryIsValid &&
-      hasEffectiveDate &&
-      hasPayCycle &&
-      hasStatus,
+    hasGrade &&
+    hasSalary &&
+    salaryIsValid &&
+    hasEffectiveDate &&
+    hasPayCycle &&
+    hasStatus,
   );
 }
 
@@ -4975,38 +6514,66 @@ function updatePayrollAllowanceSaveButtonState() {
   setPrimaryActionButtonReadyState(
     state.dom.savePayrollAllowanceBtn,
     hasMasterRecord &&
-      hasType &&
-      hasAmount &&
-      amountIsValid &&
-      hasEffectiveDate &&
-      hasStatus,
+    hasType &&
+    hasAmount &&
+    amountIsValid &&
+    hasEffectiveDate &&
+    hasStatus,
   );
 }
-
-// HR BUTTON UNIFORMITY - STEP 6B
-// Submit Payroll button state.
-// This supports single employee payroll and the existing batch-payroll flow.
+// SUBMIT PAYROLL - REPAIR STEP
+// Keep Submit Payroll disabled until the payroll has a real positive amount.
+// The previous check treated auto-calculated 0.00 values as complete,
+// which made the button turn blue too early.
 function updatePayrollSubmitButtonState() {
   const selectedBatchEmployeeIds = Array.from(
     state.selectedEmployeesForPayroll || [],
   ).filter(Boolean);
 
-  const hasSingleEmployee = Boolean(String(state.dom.payrollEmployeeId?.value || "").trim());
-  const hasBatchEmployees = selectedBatchEmployeeIds.length > 1 && !hasSingleEmployee;
+  const hasSingleEmployee = Boolean(
+    String(state.dom.payrollEmployeeId?.value || "").trim(),
+  );
 
-  const hasPayCycle = Boolean(String(state.dom.payrollPayCycle?.value || "").trim());
-  const hasPayDate = Boolean(String(state.dom.payrollPayDate?.value || "").trim());
-  const hasGrossPay = Boolean(String(state.dom.payrollGrossPay?.value || "").trim());
-  const hasTotalDeductions = Boolean(String(state.dom.payrollTotalDeductions?.value || "").trim());
-  const hasNetPay = Boolean(String(state.dom.payrollNetPay?.value || "").trim());
+  const hasBatchEmployees =
+    selectedBatchEmployeeIds.length > 1 && !hasSingleEmployee;
+
+  const hasPayCycle = Boolean(
+    String(state.dom.payrollPayCycle?.value || "").trim(),
+  );
+
+  const hasPayDate = Boolean(
+    String(state.dom.payrollPayDate?.value || "").trim(),
+  );
+
+  const grossPayValue = Number(state.dom.payrollGrossPay?.value || 0);
+  const totalDeductionsValue = Number(state.dom.payrollTotalDeductions?.value || 0);
+  const netPayValue = Number(state.dom.payrollNetPay?.value || 0);
+
+  const hasValidGrossPay =
+    Number.isFinite(grossPayValue) && grossPayValue > 0;
+
+  const hasValidTotalDeductions =
+    Number.isFinite(totalDeductionsValue) && totalDeductionsValue >= 0;
+
+  // PAYROLL CALCULATION REPAIR - STEP 12A
+  // Total deductions must not exceed gross pay.
+  // This prevents negative Net Pay from being treated as submittable payroll.
+  const deductionsDoNotExceedGross =
+    hasValidGrossPay &&
+    hasValidTotalDeductions &&
+    totalDeductionsValue <= grossPayValue;
+
+  const hasValidNetPay =
+    Number.isFinite(netPayValue) && netPayValue > 0;
 
   const canSubmit =
     (hasSingleEmployee || hasBatchEmployees) &&
     hasPayCycle &&
     hasPayDate &&
-    hasGrossPay &&
-    hasTotalDeductions &&
-    hasNetPay;
+    hasValidGrossPay &&
+    hasValidTotalDeductions &&
+    deductionsDoNotExceedGross &&
+    hasValidNetPay;
 
   setPrimaryActionButtonReadyState(state.dom.savePayrollBtn, canSubmit);
   setPrimaryActionButtonReadyState(state.dom.topSubmitPayrollBtn, canSubmit);
@@ -5104,42 +6671,63 @@ async function handleEmployeeBankDetailsSave() {
     return;
   }
 
-const payload = buildEmployeeBankDetailsPayload();
-const editingId = String(state.dom.editingEmployeeBankDetailsId?.value || "").trim();
-const isEditMode = Boolean(editingId);
+  const payload = buildEmployeeBankDetailsPayload();
+  const editingId = String(state.dom.editingEmployeeBankDetailsId?.value || "").trim();
+  const isEditMode = Boolean(editingId);
 
-try {
-  setEmployeeBankDetailsSaveLoading(true);
+  try {
+    setEmployeeBankDetailsSaveLoading(true);
 
-  const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient();
 
-  // EMPLOYEE BANK DETAILS - STEP 9
-  // Create a new employee bank record when no edit id exists.
-  // Update the selected existing record when edit mode is active.
-  const response = isEditMode
-    ? await supabase
+    // EMPLOYEE BANK DETAILS - STEP 9
+    // Create a new employee bank record when no edit id exists.
+    // Update the selected existing record when edit mode is active.
+    const response = isEditMode
+      ? await supabase
         .from("employee_bank_details")
         .update(payload)
         .eq("id", editingId)
-    : await supabase
+        .select("*")
+        .maybeSingle()
+      : await supabase
         .from("employee_bank_details")
-        .insert([payload]);
+        .insert([payload])
+        .select("*")
+        .maybeSingle();
 
-  if (response.error) throw response.error;
+    if (response.error) throw response.error;
 
-// EMPLOYEE BANK DETAILS - STEP 8
-// Reload the records table after save so the newly saved account appears
-// immediately under Employee Bank Records.
-await refreshEmployeeBankDetailsWorkspace();
+    // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+    // Remember the saved/updated employee bank record so it appears first
+    // after refresh.
+    state.lastSavedEmployeeBankDetailsKey = buildEmployeeBankDetailsSortKey({
+      id: response.data?.id || editingId,
+      employee_id: response.data?.employee_id || payload.employee_id,
+      bank_id: response.data?.bank_id || payload.bank_id,
+      account_number: response.data?.account_number || payload.account_number,
+    });
 
-showPageAlert(
-  "success",
-  isEditMode
-    ? "Employee bank details were updated successfully."
-    : "Employee bank details were saved successfully.",
-);
+    // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+    // Clear search before refresh so the saved/updated row is visible.
+    if (state.dom.employeeBankDetailsSearchInput) {
+      state.dom.employeeBankDetailsSearchInput.value = "";
+    }
 
-resetEmployeeBankDetailsForm();
+    await refreshEmployeeBankDetailsWorkspace();
+
+    showPageAlert(
+      "success",
+      isEditMode
+        ? "Employee bank details were updated successfully."
+        : "Employee bank details were saved successfully.",
+    );
+
+    resetEmployeeBankDetailsForm();
+
+    setTimeout(() => {
+      redirectToEmployeeBankDetailsRecordsAfterSave();
+    }, 250);
   } catch (error) {
     console.error("Error saving employee bank details:", error);
 
@@ -5215,26 +6803,31 @@ async function refreshEmployeeBankDetailsWorkspace() {
 
     state.employeeBankDetailsRecords = Array.isArray(data)
       ? data.map((record) => {
-          const employee = record.employees || {};
-          const bank = record.bank_directory || {};
+        const employee = record.employees || {};
+        const bank = record.bank_directory || {};
 
-          const employeeName =
-            `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
-            employee.work_email ||
-            "Unknown Employee";
+        const employeeName =
+          `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+          employee.work_email ||
+          "Unknown Employee";
 
-          return {
-            ...record,
-            employee_name: employeeName,
-            employee_email: employee.work_email || "",
-            employee_number: employee.employee_number || "",
-            bank_name: bank.bank_name || "",
-            bank_directory_status: bank.status || "",
-          };
-        })
+        return {
+          ...record,
+          employee_name: employeeName,
+          employee_email: employee.work_email || "",
+          employee_number: employee.employee_number || "",
+          bank_name: bank.bank_name || "",
+          bank_directory_status: bank.status || "",
+        };
+      })
       : [];
 
     applyEmployeeBankDetailsSearch();
+
+    // PAYROLL BANK READINESS - STEP 11B
+    // If HR is currently viewing a payroll employee, refresh the readiness
+    // panel after employee bank details reload.
+    renderPayrollBankReadiness(state.dom.payrollEmployeeId?.value || "");
   } catch (error) {
     console.error("Error loading employee bank details:", error);
 
@@ -5300,7 +6893,11 @@ function renderEmployeeBankDetailsTable(records) {
   state.dom.employeeBankDetailsEmptyState?.classList.add("d-none");
   state.dom.employeeBankDetailsTableWrapper?.classList.remove("d-none");
 
-  records.forEach((record) => {
+  // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+  // Render newest/most recently updated employee bank records first.
+  const recordsToRender = sortEmployeeBankDetailsRecordsByLatestActivity(records);
+
+  recordsToRender.forEach((record) => {
     const row = document.createElement("tr");
 
     row.innerHTML = `
@@ -5358,8 +6955,8 @@ function resetEmployeeBankDetailsForm() {
   }
 
   // EMPLOYEE BANK DETAILS - STEP 9
-// Leave edit mode when the form is cleared or after a successful update.
-state.currentEditingEmployeeBankDetails = null;
+  // Leave edit mode when the form is cleared or after a successful update.
+  state.currentEditingEmployeeBankDetails = null;
 
   if (state.dom.employeeBankCode) {
     state.dom.employeeBankCode.value = "";
@@ -5370,27 +6967,27 @@ state.currentEditingEmployeeBankDetails = null;
   }
 
 
-// EMPLOYEE BANK DETAILS - STEP 6
-// Recalculate button state after clearing the form.
-// This keeps Save disabled after Cancel.
-updateEmployeeBankDetailsSaveButtonState();
+  // EMPLOYEE BANK DETAILS - STEP 6
+  // Recalculate button state after clearing the form.
+  // This keeps Save disabled after Cancel.
+  updateEmployeeBankDetailsSaveButtonState();
 
   if (state.dom.employeeBankDetailsSubmitLabel) {
     state.dom.employeeBankDetailsSubmitLabel.textContent = "Save Employee Bank Details";
   }
 
   // EMPLOYEE BANK DETAILS - STEP 9
-// Return the submit button wording to create/save mode after reset.
-if (state.dom.saveEmployeeBankDetailsBtn) {
-  state.dom.saveEmployeeBankDetailsBtn.innerHTML = `
+  // Return the submit button wording to create/save mode after reset.
+  if (state.dom.saveEmployeeBankDetailsBtn) {
+    state.dom.saveEmployeeBankDetailsBtn.innerHTML = `
     <i class="bi bi-save me-2"></i>
     <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
   `;
 
-  state.dom.employeeBankDetailsSubmitLabel = document.getElementById(
-    "employeeBankDetailsSubmitLabel",
-  );
-}
+    state.dom.employeeBankDetailsSubmitLabel = document.getElementById(
+      "employeeBankDetailsSubmitLabel",
+    );
+  }
 }
 
 // EMPLOYEE BANK DETAILS - STEP 9
@@ -5454,20 +7051,16 @@ function startEmployeeBankDetailsEdit(employeeBankDetailsId) {
 
   updateEmployeeBankDetailsSaveButtonState();
 
-  setTimeout(() => {
-    const target =
-      state.dom.employeeBankDetailsForm?.closest(".dashboard-section-card") ||
-      state.dom.employeeBankDetailsForm;
+  // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
+  // Editing must reopen Employee Bank Details even if HR collapsed it.
+  openEmployeeBankDetailsCard();
 
-    if (!target) return;
-
-    const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
-
-    window.scrollTo({
-      top: targetTop,
-      behavior: "smooth",
-    });
-  }, 150);
+  scrollToDashboardTarget(
+    state.dom.employeeBankDetailsForm?.closest(".dashboard-section-card") ||
+    state.dom.employeeBankDetailsForm ||
+    state.dom.employeeBankDetailsCardCollapse,
+    16,
+  );
 
   showPageAlert(
     "info",
@@ -5741,14 +7334,14 @@ function applyPayrollSearch() {
     );
   }
 
-state.filteredPayrollRecords = rows;
-renderPayrollSummary(rows);
-renderPayrollRecords(rows);
+  state.filteredPayrollRecords = rows;
+  renderPayrollSummary(rows);
+  renderPayrollRecords(rows);
 
-// DESCRIPTION ITEM 4 - STEP 3A
-// Keep Send Payslips button state aligned with the currently selected
-// payroll action cycle after every table filter refresh.
-updateSendPayslipsButtonState();
+  // DESCRIPTION ITEM 4 - STEP 3A
+  // Keep Send Payslips button state aligned with the currently selected
+  // payroll action cycle after every table filter refresh.
+  updateSendPayslipsButtonState();
 }
 
 // PAYROLL EXPORT - DESCRIPTION ITEM 3 - STEP 4B
@@ -5807,10 +7400,30 @@ function getFinalisedPayrollRecordsForSelectedActionCycle() {
   });
 }
 
+// PAYROLL CSV EXPORT FIX - STEP 2
+// Keep Export CSV separate from Send Payslips.
+// Export CSV downloads a bank-ready spreadsheet.
+// Send Payslips prepares payslip email audit rows.
+function updateExportPayrollCsvButtonState() {
+  const button = state.dom.exportPayrollCsvBtn;
+  if (!button) return;
+
+  const finalisedRecords = getFinalisedPayrollRecordsForSelectedActionCycle();
+  const canExport = finalisedRecords.length > 0;
+
+  button.disabled = !canExport;
+
+  button.title = canExport
+    ? `${finalisedRecords.length} finalised payroll record(s) available for CSV export.`
+    : "No finalised payroll records are available for CSV export in the selected action cycle.";
+
+  button.classList.toggle("btn-outline-primary", canExport);
+  button.classList.toggle("btn-secondary", !canExport);
+}
+
 // DESCRIPTION ITEM 4 - STEP 3
 // Enable Send Payslips only when there are finalised payroll records
-// for the selected action cycle. This prevents HR from trying to send
-// payslips for an empty or non-finalised payroll run.
+// for the selected action cycle. This does not export CSV.
 function updateSendPayslipsButtonState() {
   const button = state.dom.sendPayslipsEmailBtn;
   if (!button) return;
@@ -5826,6 +7439,11 @@ function updateSendPayslipsButtonState() {
 
   button.classList.toggle("btn-outline-success", canSend);
   button.classList.toggle("btn-secondary", !canSend);
+
+  // PAYROLL CSV EXPORT FIX - STEP 2
+  // Keep Export CSV state updated wherever the existing Send Payslips
+  // state refresh already happens.
+  updateExportPayrollCsvButtonState();
 }
 // DESCRIPTION ITEM 4 - STEP 4
 // Loading state for Send Payslips.
@@ -6185,15 +7803,15 @@ async function handleSendPayslipsEmailRequest() {
 
     if (upsertError) throw upsertError;
 
-showPageAlert(
-  "success",
-  `${recordsToPrepare.length} payslip email log(s) prepared for the selected payroll action cycle. ${alreadyPendingCount} record(s) were already pending and ${alreadySentCount} record(s) were already sent.`,
-);
+    showPageAlert(
+      "success",
+      `${recordsToPrepare.length} payslip email log(s) prepared for the selected payroll action cycle. ${alreadyPendingCount} record(s) were already pending and ${alreadySentCount} record(s) were already sent.`,
+    );
 
-// DESCRIPTION ITEM 4 - STEP 6
-// Reload the status panel immediately after preparing logs so HR can see
-// the Pending records without manually refreshing.
-await refreshPayslipEmailLogs();
+    // DESCRIPTION ITEM 4 - STEP 6
+    // Reload the status panel immediately after preparing logs so HR can see
+    // the Pending records without manually refreshing.
+    await refreshPayslipEmailLogs();
   } catch (error) {
     console.error("Error preparing payslip email logs:", error);
 
@@ -6276,8 +7894,20 @@ function renderPayrollRecords(records) {
     state.dom.payrollRecordsTableWrapper.classList.remove("d-none");
   }
 
-  records.forEach((record) => {
+  // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+  // Render newly submitted/updated payroll records first.
+  const recordsToRender = sortPayrollRecordsByLatestActivity(records);
+
+  recordsToRender.forEach((record) => {
     const fullName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
+
+    // DESCRIPTION ITEM 4 - STEP 7
+    // Prepare a safe payroll record id for inline table actions.
+    const safePayrollRecordId = String(record.id || "").replaceAll("'", "\\'");
+
+    // DESCRIPTION ITEM 4 - STEP 7
+    // Payslip preview should only be available for finalised payroll records.
+    const canPreviewPayslip = Boolean(record.is_finalised);
 
     const row = document.createElement("tr");
     row.innerHTML = `
@@ -6295,24 +7925,25 @@ function renderPayrollRecords(records) {
       </td>
 
       <td>
-        <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
-             Keep payroll grouping and cycle together in one compact cell. -->
-        <div class="fw-semibold">${escapeHtml(record.employee_group || "--")}</div>
+        <!-- PAYROLL RECORDS GROUP LABELS - STEP 12C
+             Display payroll group labels consistently without changing
+             the stored database values. -->
+        <div class="fw-semibold">${escapeHtml(formatPayrollGroupDisplayLabel(record.employee_group))}</div>
         <div class="text-secondary small">
           ${escapeHtml(record.pay_cycle || "--")}
         </div>
       </td>
 
 <td class="align-middle">
-  <!-- DATE = primary payroll value -->
-  <div class="fw-medium">${formatDate(record.pay_date)}</div>
-
-  <!-- TIMESTAMP = audit metadata (visually separated) -->
-  <div class="text-secondary small" style="margin-top: 4px;">
-    Submitted: ${new Date(record.updated_at || record.created_at).toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}
+  <!-- PAYROLL RECORDS DATE CLARITY - STEP 12B
+       Pay Date is the payroll/payment date.
+       Submitted is the audit timestamp when HR created or updated the record.
+       Short labels prevent the table from becoming too wide. -->
+  <div class="fw-medium text-nowrap" title="Payroll pay date">
+    Pay: ${formatDate(record.pay_date)}
+  </div>
+  <div class="text-secondary small text-nowrap" title="Submitted date and time" style="margin-top: 4px;">
+    Sub: ${formatCompactDateTime(record.updated_at || record.created_at)}
   </div>
 </td>
 
@@ -6350,20 +7981,32 @@ function renderPayrollRecords(records) {
           </span>
         </div>
       </td>
+<td class="text-center">
+  <!-- DESCRIPTION ITEM 4 - STEP 7
+       Add payslip preview beside edit.
+       Preview is disabled until the payroll record is finalised. -->
+  <div class="d-inline-flex justify-content-center gap-2">
+    <button
+      type="button"
+      class="btn btn-sm ${canPreviewPayslip ? "btn-outline-secondary" : "btn-outline-light border"}"
+      title="${canPreviewPayslip ? "Preview payslip" : "Preview available after payroll is finalised"}"
+      aria-label="Preview payslip"
+      ${canPreviewPayslip ? `onclick="window.hrPreviewPayslipRecord('${safePayrollRecordId}')"` : "disabled"}
+    >
+      <i class="bi bi-receipt"></i>
+    </button>
 
-      <td class="text-center">
-        <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
-             Keep a compact icon-only edit action in the final column. -->
-        <button
-          type="button"
-          class="btn btn-sm btn-outline-primary"
-          title="Edit payroll record"
-          aria-label="Edit payroll record"
-          onclick="window.hrEditPayrollRecord('${String(record.id).replaceAll("'", "\\'")}')"
-        >
-          <i class="bi bi-pencil-square"></i>
-        </button>
-      </td>
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-primary"
+      title="Edit payroll record"
+      aria-label="Edit payroll record"
+      onclick="window.hrEditPayrollRecord('${safePayrollRecordId}')"
+    >
+      <i class="bi bi-pencil-square"></i>
+    </button>
+  </div>
+</td>
     `;
 
     tbody.appendChild(row);
@@ -6406,6 +8049,102 @@ function populatePayrollPayCycleOptions() {
       select.value = currentValue;
     }
   }
+}
+
+// BATCH PAYROLL DEFAULT - STEP 6B
+// Populate the batch payroll pay period dropdown independently from
+// the hidden individual payroll form dropdown.
+function populateBatchPayrollPayCycleOptions() {
+  const select = state.dom.batchPayrollPayCycle;
+  if (!select) return;
+
+  const currentValue = select.value;
+  const currentYear = new Date().getFullYear();
+  const yearsToShow = [currentYear, currentYear + 1];
+
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+
+  select.innerHTML = `<option value="">Select pay period</option>`;
+
+  yearsToShow.forEach((year) => {
+    months.forEach((month) => {
+      const value = `${month} ${year}`;
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value;
+      select.appendChild(option);
+    });
+  });
+
+  if (currentValue) {
+    const stillExists = Array.from(select.options || []).some(
+      (option) => option.value === currentValue,
+    );
+
+    if (stillExists) {
+      select.value = currentValue;
+      return;
+    }
+  }
+
+  // BATCH PAYROLL DEFAULT - STEP 6B
+  // Default batch payroll to the current month so HR does not start
+  // from a blank period every time Run Payroll is opened.
+  const today = new Date();
+  const defaultPayCycle = `${months[today.getMonth()]} ${today.getFullYear()}`;
+
+  const defaultExists = Array.from(select.options || []).some(
+    (option) => option.value === defaultPayCycle,
+  );
+
+  if (defaultExists) {
+    select.value = defaultPayCycle;
+    updateBatchPayDateFromPayCycle();
+  }
+}
+
+// BATCH PAYROLL DEFAULT - STEP 6B
+// Converts the selected batch pay period, e.g. "Apr 2026",
+// into the month-end batch pay date.
+function updateBatchPayDateFromPayCycle() {
+  const cycleValue = String(state.dom.batchPayrollPayCycle?.value || "").trim();
+  if (!cycleValue || !state.dom.batchPayrollPayDate) return;
+
+  const [monthText, yearText] = cycleValue.split(" ");
+
+  const months = {
+    Jan: 0,
+    Feb: 1,
+    Mar: 2,
+    Apr: 3,
+    May: 4,
+    Jun: 5,
+    Jul: 6,
+    Aug: 7,
+    Sep: 8,
+    Oct: 9,
+    Nov: 10,
+    Dec: 11,
+  };
+
+  const monthIndex = months[monthText];
+  const year = Number(yearText);
+
+  if (!Number.isInteger(monthIndex) || !Number.isFinite(year)) return;
+
+  const lastDayOfMonth = new Date(year, monthIndex + 1, 0);
+  const yyyy = lastDayOfMonth.getFullYear();
+  const mm = String(lastDayOfMonth.getMonth() + 1).padStart(2, "0");
+  const dd = String(lastDayOfMonth.getDate()).padStart(2, "0");
+
+  state.dom.batchPayrollPayDate.value = `${yyyy}-${mm}-${dd}`;
+
+  // BATCH PAYROLL DEFAULT - STEP 7
+  // Changing the pay period affects whether the batch is ready to submit.
+  updateSubmitBatchPayrollButtonState();
 }
 
 // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 4
@@ -6492,8 +8231,8 @@ function updatePayDateFromPayCycle() {
   state.dom.payrollPayDate.value = `${yyyy}-${mm}-${dd}`;
 
   // HR BUTTON UNIFORMITY - STEP 6B
-// Pay date is auto-filled from pay cycle, so re-check Submit Payroll state.
-updatePayrollSubmitButtonState();
+  // Pay date is auto-filled from pay cycle, so re-check Submit Payroll state.
+  updatePayrollSubmitButtonState();
 }
 
 function resetPayrollForm() {
@@ -6608,6 +8347,14 @@ function resetPayrollForm() {
   // Clear the read-only payroll employee reference when the payroll form resets.
   renderPayrollSelectedEmployeeReference("");
 
+  // BATCH PAYROLL DEFAULT - STEP 6A
+  // If HR returns to the normal individual payroll form, restore the correct
+  // toolbar and hide the batch-only review panel.
+  setPayrollRecordToolbarForManualMode();
+  state.dom.batchPayrollReviewPanel?.classList.add("d-none");
+  state.dom.batchPayrollSetupWarning?.classList.add("d-none");
+  state.dom.payrollCreateForm?.classList.remove("d-none");
+
   updatePayrollModelUi("group");
 }
 
@@ -6626,6 +8373,237 @@ async function loadPayrollRecordForEdit(payrollId) {
 
   if (error) throw error;
   return data;
+}
+
+// DESCRIPTION ITEM 4 - STEP 7
+// Opens the Payslip Preview modal.
+function showPayslipPreviewModal() {
+  const modal = state.dom.payslipPreviewModal;
+  if (!modal) return;
+
+  modal.classList.remove("d-none");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("overflow-hidden");
+}
+
+// DESCRIPTION ITEM 4 - STEP 7
+// Closes the Payslip Preview modal and clears the body scroll lock.
+function closePayslipPreview() {
+  const modal = state.dom.payslipPreviewModal;
+  if (!modal) return;
+
+  modal.classList.add("d-none");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("overflow-hidden");
+}
+
+// DESCRIPTION ITEM 4 - STEP 7
+// Render a simple list of payslip earning/deduction lines.
+function renderPayslipPreviewLineItems(items = [], currency = "NGN", emptyText = "No items recorded.") {
+  const visibleItems = items.filter((item) => Number(item.amount || 0) > 0);
+
+  if (!visibleItems.length) {
+    return `
+      <div class="text-secondary small border rounded-3 p-3">
+        ${escapeHtml(emptyText)}
+      </div>
+    `;
+  }
+
+  return visibleItems
+    .map(
+      (item) => `
+        <div class="d-flex justify-content-between gap-3 border-bottom py-2">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(formatCurrency(item.amount, currency))}</strong>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+// DESCRIPTION ITEM 4 - STEP 7
+// Builds the payslip preview content for a finalised payroll record.
+// This is review-only and does not send email.
+function renderPayslipPreview(payrollRecord) {
+  const content = state.dom.payslipPreviewContent;
+  if (!content) return;
+
+  const currency = payrollRecord.currency || "NGN";
+  const employeeName =
+    `${payrollRecord.first_name || ""} ${payrollRecord.last_name || ""}`.trim() ||
+    payrollRecord.work_email ||
+    "Unknown Employee";
+
+  const earningsHtml = renderPayslipPreviewLineItems(
+    [
+      { label: "Base Salary", amount: payrollRecord.basic_salary },
+      { label: "Housing Allowance", amount: payrollRecord.housing_allowance },
+      { label: "Transport Allowance", amount: payrollRecord.transport_allowance },
+      { label: "Utility Allowance", amount: payrollRecord.utility_allowance },
+      { label: "Medical Allowance", amount: payrollRecord.medical_allowance },
+      { label: "Logistics Allowance", amount: payrollRecord.logistics_allowance },
+      { label: "Data & Airtime", amount: payrollRecord.data_airtime_allowance },
+      { label: "Other Allowance", amount: payrollRecord.other_allowance },
+    ],
+    currency,
+    "No earnings or allowance breakdown recorded.",
+  );
+
+  const deductionsHtml = renderPayslipPreviewLineItems(
+    [
+      { label: "PAYE Tax", amount: payrollRecord.paye_tax },
+      { label: "WHT Tax", amount: payrollRecord.wht_tax },
+      { label: "Employee Pension", amount: payrollRecord.employee_pension },
+      { label: "Employer Pension", amount: payrollRecord.employer_pension },
+      { label: "Other Deductions", amount: payrollRecord.other_deductions },
+    ],
+    currency,
+    "No deduction breakdown recorded.",
+  );
+
+  if (state.dom.payslipPreviewTitle) {
+    state.dom.payslipPreviewTitle.textContent = `Payslip Preview - ${payrollRecord.pay_cycle || "Payroll"}`;
+  }
+
+  content.innerHTML = `
+    <div class="border rounded-4 p-4 mb-4 bg-light-subtle">
+      <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+        <div>
+          <div class="text-secondary small">Employee</div>
+          <div class="h5 mb-1">${escapeHtml(employeeName)}</div>
+          <div class="text-secondary small text-break">
+            ${escapeHtml(payrollRecord.work_email || "--")}
+          </div>
+          <div class="text-secondary small">
+            ${escapeHtml(payrollRecord.department || "--")} • ${escapeHtml(payrollRecord.job_title || "--")}
+          </div>
+        </div>
+
+        <div class="text-md-end">
+          <div class="text-secondary small">Pay Cycle</div>
+          <div class="fw-semibold">${escapeHtml(payrollRecord.pay_cycle || "--")}</div>
+          <div class="text-secondary small mt-2">Pay Date</div>
+          <div class="fw-semibold">${formatDate(payrollRecord.pay_date)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="border rounded-4 p-3 h-100">
+          <div class="text-secondary small">Gross Pay</div>
+          <div class="h5 mb-0">${escapeHtml(formatCurrency(payrollRecord.gross_pay, currency))}</div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="border rounded-4 p-3 h-100">
+          <div class="text-secondary small">Total Deductions</div>
+          <div class="h5 mb-0">${escapeHtml(formatCurrency(payrollRecord.total_deductions, currency))}</div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="border rounded-4 p-3 h-100">
+          <div class="text-secondary small">Net Pay</div>
+          <div class="h5 mb-0">${escapeHtml(formatCurrency(payrollRecord.net_pay, currency))}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="border rounded-4 p-4 h-100">
+          <h3 class="h6 fw-bold mb-3">Earnings</h3>
+          ${earningsHtml}
+          <div class="d-flex justify-content-between gap-3 pt-3 mt-2">
+            <span class="fw-semibold">Gross Pay</span>
+            <strong>${escapeHtml(formatCurrency(payrollRecord.gross_pay, currency))}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="border rounded-4 p-4 h-100">
+          <h3 class="h6 fw-bold mb-3">Deductions</h3>
+          ${deductionsHtml}
+          <div class="d-flex justify-content-between gap-3 pt-3 mt-2">
+            <span class="fw-semibold">Total Deductions</span>
+            <strong>${escapeHtml(formatCurrency(payrollRecord.total_deductions, currency))}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-light border mt-4 mb-0">
+      <div class="fw-semibold mb-1">Preview only</div>
+      <div class="small text-secondary">
+        This payslip has not been emailed from this preview. Email delivery will be added after sender domain and secure email provider setup are available.
+      </div>
+    </div>
+  `;
+}
+
+// DESCRIPTION ITEM 4 - STEP 7
+// Loads the full payroll record, merges it with the table row,
+// and opens the payslip preview modal for HR review.
+async function openPayslipPreview(payrollId) {
+  const selectedRow = state.payrollRecords.find(
+    (item) => String(item.id) === String(payrollId),
+  );
+
+  if (!selectedRow) {
+    showPageAlert(
+      "warning",
+      "The selected payroll record could not be found. Please refresh and try again.",
+    );
+    return;
+  }
+
+  if (!selectedRow.is_finalised) {
+    showPageAlert(
+      "warning",
+      "Payslip preview is only available after the payroll record has been finalised.",
+    );
+    return;
+  }
+
+  clearPageAlert();
+
+  let payrollRecord = selectedRow;
+
+  showPayslipPreviewModal();
+
+  if (state.dom.payslipPreviewContent) {
+    state.dom.payslipPreviewContent.innerHTML = `
+      <div class="text-center text-secondary py-4">
+        Loading payslip preview.
+      </div>
+    `;
+  }
+
+  try {
+    const fullRecord = await loadPayrollRecordForEdit(payrollId);
+
+    if (fullRecord) {
+      payrollRecord = {
+        ...selectedRow,
+        ...fullRecord,
+      };
+    }
+
+    renderPayslipPreview(payrollRecord);
+  } catch (error) {
+    console.error("Error loading payslip preview:", error);
+
+    closePayslipPreview();
+
+    showPageAlert(
+      "danger",
+      error.message || "Payslip preview could not be loaded.",
+    );
+  }
 }
 
 async function startPayrollEdit(payrollId) {
@@ -6793,10 +8771,22 @@ async function startPayrollEdit(payrollId) {
   recalculatePayrollFormTotals();
 
   switchHrWorkspace("payroll");
-  state.dom.payrollCreateForm?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+
+  // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5 FIX
+  // Editing must reopen Create Payroll Record even if HR collapsed it
+  // after a previous submit/update.
+  openPayrollRecordCard();
+
+  // BATCH PAYROLL DEFAULT - STEP 2A
+  // Scroll to the full Create Payroll Batch card instead of the inner
+  // batch table. This keeps the card heading visible and prevents the
+  // top of the payroll batch card from looking cut off.
+  scrollToDashboardTarget(
+    state.dom.payrollRecordCardCollapse?.closest(".dashboard-section-card") ||
+    state.dom.payrollRecordCardCollapse ||
+    state.dom.batchPayrollReviewPanel,
+    16,
+  );
 }
 
 function validatePayrollForm() {
@@ -6836,6 +8826,48 @@ function validatePayrollForm() {
     }
   });
 
+  const grossPayValue = Number(state.dom.payrollGrossPay?.value || 0);
+  const totalDeductionsValue = Number(state.dom.payrollTotalDeductions?.value || 0);
+  const netPayValue = Number(state.dom.payrollNetPay?.value || 0);
+
+  const grossPayIsInvalid =
+    !Number.isFinite(grossPayValue) || grossPayValue <= 0;
+
+  const totalDeductionsIsInvalid =
+    !Number.isFinite(totalDeductionsValue) || totalDeductionsValue < 0;
+
+  const deductionsExceedGross =
+    Number.isFinite(grossPayValue) &&
+    Number.isFinite(totalDeductionsValue) &&
+    totalDeductionsValue > grossPayValue;
+
+  const netPayIsInvalid =
+    !Number.isFinite(netPayValue) ||
+    netPayValue <= 0 ||
+    deductionsExceedGross;
+
+  if (grossPayIsInvalid) {
+    state.dom.payrollGrossPay?.classList.add("is-invalid");
+    isValid = false;
+    if (!firstInvalidField) firstInvalidField = state.dom.payrollGrossPay;
+  }
+
+  if (totalDeductionsIsInvalid || deductionsExceedGross) {
+    state.dom.payrollTotalDeductions?.classList.add("is-invalid");
+    isValid = false;
+    if (!firstInvalidField) firstInvalidField = state.dom.payrollTotalDeductions;
+  }
+
+  if (netPayIsInvalid) {
+    state.dom.payrollNetPay?.classList.add("is-invalid");
+    isValid = false;
+    if (!firstInvalidField) firstInvalidField = state.dom.payrollNetPay;
+  }
+
+  // PAYROLL CALCULATION REPAIR - STEP 12A
+  // Re-apply calculation validity styling so negative Net Pay stays visibly invalid.
+  syncPayrollCalculationValidity();
+
   if (!isValid && firstInvalidField?.focus) {
     firstInvalidField.focus();
   }
@@ -6856,6 +8888,100 @@ function setNumericFieldValue(field, value) {
   field.value = numericValue.toFixed(2);
 }
 
+// PAYROLL TAX DEDUCTION CALCULATION - STEP 1
+// NTA 2025 PAYE tax bands copied from the working TaxCalc model.
+// These bands are annual bands. The payroll form works monthly,
+// so monthly values are annualised before tax is calculated.
+const NTA_2025_PAYE_BANDS = [
+  { limit: 800000, rate: 0 },
+  { limit: 2200000, rate: 0.15 },
+  { limit: 9000000, rate: 0.18 },
+  { limit: 12000000, rate: 0.21 },
+  { limit: 16000000, rate: 0.23 },
+  { limit: Infinity, rate: 0.25 },
+];
+
+// PAYROLL TAX DEDUCTION CALCULATION - STEP 1
+// Calculates annual PAYE from annual chargeable income using progressive bands.
+function calculateAnnualPayeFromBands(chargeableAnnualIncome, bands = NTA_2025_PAYE_BANDS) {
+  let remainingIncome = Math.max(0, Number(chargeableAnnualIncome || 0));
+  let annualTax = 0;
+
+  bands.forEach((band) => {
+    if (remainingIncome <= 0) return;
+
+    const taxableAmount =
+      band.limit === Infinity
+        ? remainingIncome
+        : Math.min(remainingIncome, band.limit);
+
+    annualTax += taxableAmount * band.rate;
+    remainingIncome -= taxableAmount;
+  });
+
+  return annualTax;
+}
+
+// PAYROLL TAX DEDUCTION CALCULATION - STEP 1
+// Calculates monthly PAYE using the same NTA 2025 logic as the TaxCalc app.
+// HR currently has no Rent Relief field, so annualRentPaid defaults to 0.
+function calculateNta2025MonthlyPayeTaxFromComponents({
+  basicPay = 0,
+  housingAllowance = 0,
+  transportAllowance = 0,
+  utilityAllowance = 0,
+  otherAllowance = 0,
+  medicalAllowance = 0,
+  bonus = 0,
+  overtime = 0,
+  logisticsAllowance = 0,
+  dataAirtimeAllowance = 0,
+  annualRentPaid = 0,
+} = {}) {
+  const monthlyBasic = Number(basicPay || 0);
+  const monthlyHousing = Number(housingAllowance || 0);
+  const monthlyTransport = Number(transportAllowance || 0);
+
+  const monthlyGross =
+    monthlyBasic +
+    monthlyHousing +
+    monthlyTransport +
+    Number(utilityAllowance || 0) +
+    Number(otherAllowance || 0) +
+    Number(medicalAllowance || 0) +
+    Number(bonus || 0) +
+    Number(overtime || 0) +
+    Number(logisticsAllowance || 0) +
+    Number(dataAirtimeAllowance || 0);
+
+  const annualGross = monthlyGross * 12;
+
+  // PAYROLL TAX DEDUCTION CALCULATION - STEP 1
+  // TaxCalc model:
+  // Pension = 8% of Basic + Housing + Transport.
+  // NHF = 2.5% of Basic.
+  // NHIS = 5% of Basic.
+  const annualPension =
+    (monthlyBasic + monthlyHousing + monthlyTransport) * 12 * 0.08;
+
+  const annualNhf = monthlyBasic * 12 * 0.025;
+  const annualNhis = monthlyBasic * 12 * 0.05;
+
+  const annualRentRelief =
+    Number(annualRentPaid || 0) > 0
+      ? Math.min(Number(annualRentPaid || 0) * 0.2, 500000)
+      : 0;
+
+  const annualChargeableIncome = Math.max(
+    0,
+    annualGross - annualPension - annualNhf - annualNhis - annualRentRelief,
+  );
+
+  const annualPayeTax = calculateAnnualPayeFromBands(annualChargeableIncome);
+
+  return annualPayeTax / 12;
+}
+
 function calculatePayrollGrossPay() {
   return (
     toNullableNumber(state.dom.payrollBasicPay?.value) +
@@ -6872,14 +8998,35 @@ function calculatePayrollGrossPay() {
 }
 
 function calculatePayrollTotalDeductions() {
+  // EMERGENCY PAYROLL CALCULATION REPAIR
+  // Employee Pension is an employee deduction.
+  // Employer Pension is an employer cost, so it is not deducted from Net Pay.
+  //
+  // If the visible Employee Pension field has not refreshed yet but the
+  // Regular payroll model is selected, fall back to the calculated employee
+  // pension value so Total Deductions does not stay at 0.00 incorrectly.
+  const employeePensionValue = toNullableNumber(
+    state.dom.payrollEmployeePension?.value,
+  );
+
+  const resolvedEmployeePension =
+    employeePensionValue > 0 || !isAlpatechRegularSelected()
+      ? employeePensionValue
+      : calculateRegularEmployeePension();
+
   return (
     toNullableNumber(state.dom.payrollPayeTax?.value) +
     toNullableNumber(state.dom.payrollWhtTax?.value) +
-    toNullableNumber(state.dom.payrollEmployeePension?.value) +
+    resolvedEmployeePension +
     toNullableNumber(state.dom.payrollOtherDeductions?.value)
   );
 }
 
+// PAYROLL CALCULATION REPAIR - STEP 12A.2
+// Resolve the payroll model safely.
+// If the visible Regular/Contract selectors are missing from the running HTML,
+// a selected employee with a payroll master salary is treated as Regular.
+// This prevents the Regular payroll calculation from silently falling back to Generic.
 function getSelectedPayrollModel() {
   const explicitModel = String(state.dom.payrollModel?.value || "")
     .trim()
@@ -6896,8 +9043,98 @@ function getSelectedPayrollModel() {
   if (normalizedGroup === "REGULAR") return "REGULAR";
   if (normalizedGroup === "CONTRACT") return "CONTRACTOR";
 
+  const selectedEmployeeId = String(state.dom.payrollEmployeeId?.value || "").trim();
+  const hasPayrollMasterSalary =
+    selectedEmployeeId &&
+    Number(state.dom.payrollBaseSalary?.value || 0) > 0;
+
+  if (hasPayrollMasterSalary) {
+    return "REGULAR";
+  }
+
   return "GENERIC";
 }
+
+// PAYROLL CALCULATION REPAIR - STEP 12A.2
+// These fields are calculated by the Regular payroll model.
+// HR should not manually edit them because they are derived from Base Salary
+// and the Regular payroll percentages.
+function getRegularCalculatedPayrollFields() {
+  return [
+    state.dom.payrollBasicPay,
+    state.dom.payrollHousingAllowance,
+    state.dom.payrollTransportAllowance,
+    state.dom.payrollUtilityAllowance,
+    state.dom.payrollOtherAllowance,
+    state.dom.payrollEmployeePension,
+    state.dom.payrollEmployerPension,
+
+    // PAYROLL TAX DEDUCTION CALCULATION - STEP 1
+    // PAYE Tax is calculated automatically for Regular payroll
+    // using the NTA 2025 PAYE model.
+    state.dom.payrollPayeTax,
+  ].filter(Boolean);
+}
+
+// PAYROLL CALCULATION REPAIR - STEP 12A.2
+// Lock calculated fields whenever the resolved payroll model is Regular.
+// Gross Pay, Total Deductions, and Net Pay are always locked totals.
+function syncPayrollCalculatedFieldLockState() {
+  const isRegular = getSelectedPayrollModel() === "REGULAR";
+
+  getRegularCalculatedPayrollFields().forEach((field) => {
+    field.readOnly = isRegular;
+    field.classList.toggle("bg-light", isRegular);
+
+    if (isRegular) {
+      field.title = "Calculated automatically from Base Salary and the Regular payroll structure.";
+    } else {
+      field.removeAttribute("title");
+    }
+  });
+
+  [
+    state.dom.payrollGrossPay,
+    state.dom.payrollTotalDeductions,
+    state.dom.payrollNetPay,
+  ].forEach((field) => {
+    if (!field) return;
+
+    field.readOnly = true;
+    field.classList.add("bg-light");
+    field.title = "Calculated automatically by the payroll form.";
+  });
+}
+
+// PAYROLL CALCULATION REPAIR - STEP 12A.2
+// Keep excessive deductions and negative/zero Net Pay visibly invalid.
+function syncPayrollCalculationValidity() {
+  const grossPayValue = Number(state.dom.payrollGrossPay?.value || 0);
+  const totalDeductionsValue = Number(state.dom.payrollTotalDeductions?.value || 0);
+  const netPayValue = Number(state.dom.payrollNetPay?.value || 0);
+
+  const hasGrossPay = Number.isFinite(grossPayValue) && grossPayValue > 0;
+
+  const deductionsExceedGross =
+    hasGrossPay &&
+    Number.isFinite(totalDeductionsValue) &&
+    totalDeductionsValue > grossPayValue;
+
+  const netPayIsInvalid =
+    hasGrossPay &&
+    (!Number.isFinite(netPayValue) || netPayValue <= 0);
+
+  state.dom.payrollTotalDeductions?.classList.toggle(
+    "is-invalid",
+    deductionsExceedGross,
+  );
+
+  state.dom.payrollNetPay?.classList.toggle(
+    "is-invalid",
+    deductionsExceedGross || netPayIsInvalid,
+  );
+}
+
 
 function updatePayrollModelUi(source = "group") {
   const normalizedGroup = normalizePayrollGroupForPayload(
@@ -6930,6 +9167,14 @@ function updatePayrollModelUi(source = "group") {
   const isRegular = getSelectedPayrollModel() === "REGULAR";
 
   state.dom.alpatechRegularRev2Section?.classList.toggle("d-none", !isRegular);
+
+  // PAYROLL CALCULATION REPAIR - STEP 12A.1
+  // Apply field locking immediately when Regular/Contract/Generic changes.
+  syncPayrollCalculatedFieldLockState();
+
+  // PAYROLL STRUCTURE PREVIEW - STEP 12D
+  // Keep the compact preview aligned with Employee Group / Payroll Model.
+  renderPayrollStructurePreview();
 
   recalculatePayrollFormTotals();
 }
@@ -7020,6 +9265,26 @@ function calculateRegularEmployerPension() {
   return calculateRegularBht() * 0.1;
 }
 
+// PAYROLL TAX DEDUCTION CALCULATION - STEP 1
+// Calculates monthly PAYE for the Regular payroll structure using
+// NTA 2025 bands from the TaxCalc model.
+function calculateRegularPayeTax() {
+  return calculateNta2025MonthlyPayeTaxFromComponents({
+    basicPay: calculateRegularBasicPay(),
+    housingAllowance: calculateRegularHousingAllowance(),
+    transportAllowance: calculateRegularTransportAllowance(),
+    utilityAllowance: calculateRegularUtilityAllowance(),
+    otherAllowance: calculateRegularOtherAllowance(),
+
+    // These remain optional manual earning components on the HR form.
+    medicalAllowance: toNullableNumber(state.dom.payrollMedicalAllowance?.value),
+    bonus: toNullableNumber(state.dom.payrollBonus?.value),
+    overtime: toNullableNumber(state.dom.payrollOvertime?.value),
+    logisticsAllowance: toNullableNumber(state.dom.payrollLogisticsAllowance?.value),
+    dataAirtimeAllowance: toNullableNumber(state.dom.payrollDataAirtimeAllowance?.value),
+  });
+}
+
 function calculateRegularNetSalary() {
   return (
     calculateRegularNewBaseSalary() -
@@ -7078,6 +9343,15 @@ function applyAlpatechRegularRev2DerivedFields() {
     state.dom.payrollEmployerPension,
     calculateRegularEmployerPension(),
   );
+
+  // PAYROLL TAX DEDUCTION CALCULATION - STEP 1
+  // Populate PAYE Tax before Regular Net Salary and Total Deductions
+  // are recalculated, so tax is included in deductions automatically.
+  setNumericFieldValue(
+    state.dom.payrollPayeTax,
+    calculateRegularPayeTax(),
+  );
+
   setNumericFieldValue(
     state.dom.regularNetSalary,
     calculateRegularNetSalary(),
@@ -7089,6 +9363,10 @@ function applyAlpatechRegularRev2DerivedFields() {
 }
 
 function recalculatePayrollFormTotals() {
+  // PAYROLL CALCULATION REPAIR - STEP 12A.2
+  // Lock calculated fields before refreshing values.
+  syncPayrollCalculatedFieldLockState();
+
   if (isAlpatechRegularSelected()) {
     applyAlpatechRegularRev2DerivedFields();
   }
@@ -7100,12 +9378,23 @@ function recalculatePayrollFormTotals() {
   setNumericFieldValue(state.dom.payrollGrossPay, grossPay);
   setNumericFieldValue(state.dom.payrollTotalDeductions, totalDeductions);
   setNumericFieldValue(state.dom.payrollNetPay, netPay);
+
+  // PAYROLL CALCULATION REPAIR - STEP 12A.2
+  // Keep invalid calculations visibly blocked and keep Submit state accurate.
+  syncPayrollCalculationValidity();
+  updatePayrollSubmitButtonState();
 }
 
 function bindPayrollAutoCalculationEvents() {
+  // PAYROLL CALCULATION REPAIR - STEP 12A.2
+  // Only HR-controlled fields should trigger recalculation.
+  // Regular calculated fields are excluded because they are populated by
+  // applyAlpatechRegularRev2DerivedFields().
   const calculationFields = [
     state.dom.payrollEmployeeGroup,
+    state.dom.payrollModel,
     state.dom.payrollBaseSalary,
+
     state.dom.regularIncrementPercent,
     state.dom.regularMeritIncrement,
     state.dom.regularBasicPercent,
@@ -7114,12 +9403,7 @@ function bindPayrollAutoCalculationEvents() {
     state.dom.regularUtilityPercent,
     state.dom.regularOtherAllowancePercent,
 
-    state.dom.payrollBasicPay,
-    state.dom.payrollHousingAllowance,
-    state.dom.payrollTransportAllowance,
-    state.dom.payrollUtilityAllowance,
     state.dom.payrollMedicalAllowance,
-    state.dom.payrollOtherAllowance,
     state.dom.payrollBonus,
     state.dom.payrollOvertime,
     state.dom.payrollLogisticsAllowance,
@@ -7127,7 +9411,6 @@ function bindPayrollAutoCalculationEvents() {
 
     state.dom.payrollPayeTax,
     state.dom.payrollWhtTax,
-    state.dom.payrollEmployeePension,
     state.dom.payrollOtherDeductions,
   ];
 
@@ -7163,6 +9446,193 @@ function normalizePayrollGroupForPayload(value) {
   if (normalized === "OTHER") return "OTHER";
 
   return normalized;
+}
+
+// PAYROLL RECORDS GROUP LABELS - STEP 12C
+// Convert stored payroll group codes into clean HR-facing labels.
+// This is display-only and does not change saved database values.
+function formatPayrollGroupDisplayLabel(value) {
+  const normalizedGroup = normalizePayrollGroupForPayload(value);
+
+  if (!normalizedGroup) return "--";
+
+  const labels = {
+    REGULAR: "Regular",
+    CONTRACT: "Contract / Trainer",
+    SUPPORT_STAFF: "Support Staff",
+    HVAC: "HVAC",
+    TEMPORARY: "Temporary",
+    OTHER: "Other",
+  };
+
+  return labels[normalizedGroup] || formatStatusLabel(normalizedGroup);
+}
+
+// PAYROLL STRUCTURE PREVIEW - STEP 12D
+// Format percentage values for the compact payroll rule preview.
+function formatPayrollStructurePercent(field, fallbackPercent) {
+  const rawValue = String(field?.value ?? "").trim();
+  const numericValue = Number(rawValue);
+
+  if (!rawValue || !Number.isFinite(numericValue)) {
+    return `${fallbackPercent}%`;
+  }
+
+  return `${numericValue}%`;
+}
+
+// PAYROLL STRUCTURE PREVIEW - STEP 12D
+// Return the compact HR-facing structure summary for the selected group/model.
+// This is display-only; actual Regular calculations still happen in the
+// existing payroll calculation functions.
+function getPayrollStructurePreviewConfig() {
+  const group = normalizePayrollGroupForPayload(
+    state.dom.payrollEmployeeGroup?.value || "",
+  );
+
+  const model = getSelectedPayrollModel();
+
+  if (model === "REGULAR" || group === "REGULAR") {
+    return {
+      title: "Regular Payroll Structure",
+      badge: "Structured",
+      badgeClass: "text-bg-success",
+      description:
+        "Regular payroll is calculated automatically from Base Salary and the configured percentage split.",
+      items: [
+        `Basic ${formatPayrollStructurePercent(state.dom.regularBasicPercent, 50)}`,
+        `Housing ${formatPayrollStructurePercent(state.dom.regularHousingPercent, 10)}`,
+        `Transport ${formatPayrollStructurePercent(state.dom.regularTransportPercent, 10)}`,
+        `Utility ${formatPayrollStructurePercent(state.dom.regularUtilityPercent, 10)}`,
+        `Other Allowance ${formatPayrollStructurePercent(state.dom.regularOtherAllowancePercent, 20)}`,
+        "Employee Pension 8% of BHT",
+        "Employer Pension 10% of BHT",
+        "PAYE/WHT entered manually",
+      ],
+    };
+  }
+
+  if (model === "CONTRACTOR" || group === "CONTRACT") {
+    return {
+      title: "Contract / Trainer Structure",
+      badge: "Manual / Contract",
+      badgeClass: "text-bg-info",
+      description:
+        "Contractor payroll is based on agreed contract, session, day-rate, or service amount. It does not use the Regular allowance split.",
+      items: [
+        "Contract amount entered manually",
+        "WHT/manual deductions where applicable",
+        "No Regular allowance split",
+        "No pension by default unless contract terms require it",
+      ],
+    };
+  }
+
+  if (group === "SUPPORT_STAFF") {
+    return {
+      title: "Support Staff Structure",
+      badge: "Policy-based",
+      badgeClass: "text-bg-warning",
+      description:
+        "Support Staff can follow a separate internal allowance or grade policy. For now, use manual components until a dedicated rule is configured.",
+      items: [
+        "Salary or allowance policy applies",
+        "Manual allowances allowed",
+        "Deductions entered manually",
+        "Dedicated rule can be configured later",
+      ],
+    };
+  }
+
+  if (group === "HVAC") {
+    return {
+      title: "HVAC Structure",
+      badge: "Role-specific",
+      badgeClass: "text-bg-warning",
+      description:
+        "HVAC payroll may include technical, site, overtime, logistics, or call-out allowances depending on policy.",
+      items: [
+        "Technical/site allowance may apply",
+        "Overtime can be entered",
+        "Logistics can be entered",
+        "Deductions entered manually",
+      ],
+    };
+  }
+
+  if (group === "TEMPORARY") {
+    return {
+      title: "Temporary Staff Structure",
+      badge: "Temporary",
+      badgeClass: "text-bg-secondary",
+      description:
+        "Temporary payroll is normally short-term and simplified, using agreed temporary rate or manual pay entries.",
+      items: [
+        "Temporary rate/manual pay",
+        "Short-term deductions only",
+        "No Regular benefit split by default",
+        "Review before finalising",
+      ],
+    };
+  }
+
+  if (group === "OTHER" || model === "GENERIC") {
+    return {
+      title: "Generic / Other Structure",
+      badge: "Fallback",
+      badgeClass: "text-bg-secondary",
+      description:
+        "Generic is a fallback payroll model for employees who do not yet have a defined payroll structure.",
+      items: [
+        "Manual payroll components",
+        "No fixed percentage split",
+        "Use sparingly",
+        "Create a proper group rule later",
+      ],
+    };
+  }
+
+  return {
+    title: "Payroll Structure Preview",
+    badge: "Not selected",
+    badgeClass: "text-bg-secondary",
+    description:
+      "Select an employee group to preview the payroll calculation behaviour.",
+    items: ["No payroll structure selected"],
+  };
+}
+
+// PAYROLL STRUCTURE PREVIEW - STEP 12D
+// Render the compact preview panel without changing payroll calculations.
+function renderPayrollStructurePreview() {
+  const config = getPayrollStructurePreviewConfig();
+
+  if (state.dom.payrollStructurePreviewTitle) {
+    state.dom.payrollStructurePreviewTitle.textContent = config.title;
+  }
+
+  if (state.dom.payrollStructurePreviewBadge) {
+    state.dom.payrollStructurePreviewBadge.textContent = config.badge;
+    state.dom.payrollStructurePreviewBadge.className =
+      `badge rounded-pill ${config.badgeClass}`;
+  }
+
+  if (state.dom.payrollStructurePreviewDescription) {
+    state.dom.payrollStructurePreviewDescription.textContent =
+      config.description;
+  }
+
+  if (state.dom.payrollStructurePreviewItems) {
+    state.dom.payrollStructurePreviewItems.innerHTML = config.items
+      .map(
+        (item) => `
+          <span class="badge rounded-pill text-bg-light border text-dark">
+            ${escapeHtml(item)}
+          </span>
+        `,
+      )
+      .join("");
+  }
 }
 
 function buildRegularPayrollModelFields() {
@@ -7329,9 +9799,11 @@ function buildPayrollPayload() {
     currency:
       String(state.dom.payrollCurrency?.value || "NGN").trim().toUpperCase() ||
       "NGN",
-    // SUBMIT PAYROLL - DESCRIPTION ITEM 1 - STEP 2
-    // Force submitted payroll entries to be finalised/completed at save time.
-    is_finalised: true,
+    // PAYROLL BANK READINESS - STEP 11D
+    // Respect the Mark as Finalised checkbox.
+    // This allows payroll to be prepared as non-finalised when bank details
+    // are not ready, while finalisation remains protected.
+    is_finalised: Boolean(state.dom.payrollIsFinalised?.checked),
     notes: String(state.dom.payrollNotes?.value || "").trim() || null,
     processed_by: state.currentUser?.id || null,
     approved_by: Boolean(state.dom.payrollIsFinalised?.checked)
@@ -7343,29 +9815,197 @@ function buildPayrollPayload() {
   };
 }
 
-// SUBMIT PAYROLL - DESCRIPTION ITEM 2 - SCROLL FIX FINAL
-// Reliably move HR to Payroll Records after submit.
-// Uses window.scrollTo because scrollIntoView was not consistently moving
-// after the payroll form reset/re-render cycle.
+// HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+// Keep this existing function name because handlePayrollSave already calls it.
+// Internally it now uses the shared card/header redirect behaviour.
 function scrollToPayrollRecordsAfterSubmit() {
   setTimeout(() => {
-    const target =
-      document.getElementById("payrollRecordsCard") ||
-      state.dom.payrollRecordsCard ||
-      state.dom.payrollRecordsTableWrapper;
-
-    if (!target) return;
-
-    const targetTop =
-      target.getBoundingClientRect().top + window.scrollY - 24;
-
-    window.scrollTo({
-      top: targetTop,
-      behavior: "smooth",
-    });
-  }, 600);
+    redirectToPayrollRecordsAfterSave();
+  }, 250);
 }
+// BATCH PAYROLL DEFAULT - STEP 7
+// Saves the prepared batch payroll rows into payroll_records.
+// This is separate from handlePayrollSave because batch mode hides the
+// individual payroll form and uses its own pay period/date controls.
+async function handleBatchPayrollSubmit() {
+  clearPageAlert();
 
+  const preparedRows = state.batchPayrollPreparedRows || [];
+  const payCycle = String(state.dom.batchPayrollPayCycle?.value || "").trim();
+  const payDate = String(state.dom.batchPayrollPayDate?.value || "").trim();
+
+  if (!preparedRows.length) {
+    showPageAlert(
+      "warning",
+      "No ready employees are available for batch payroll submission.",
+    );
+    return;
+  }
+
+  if (!payCycle || !payDate) {
+    showPageAlert(
+      "warning",
+      "Please select a Batch Pay Period and Batch Pay Date before submitting payroll.",
+    );
+    return;
+  }
+
+  const selectedEmployeeIds = Array.from(state.selectedEmployeesForPayroll || [])
+    .map((employeeId) => String(employeeId || "").trim())
+    .filter(Boolean);
+
+  const readyEmployeeIds = preparedRows
+    .map((row) => String(row.employee_id || "").trim())
+    .filter(Boolean);
+
+  const missingReadyRows = selectedEmployeeIds.filter(
+    (employeeId) => !readyEmployeeIds.includes(employeeId),
+  );
+
+  if (missingReadyRows.length) {
+    showPageAlert(
+      "warning",
+      "Some selected employees are not ready for payroll. Fix their Payroll Master setup before submitting the batch.",
+    );
+    return;
+  }
+
+  // BATCH PAYROLL DEFAULT - STEP 8
+  // Stop duplicate batch payroll submission for the same employee
+  // and pay period before inserting new payroll_records.
+  const existingPayrollRecords =
+    await getExistingBatchPayrollRecordsForPeriod(payCycle, readyEmployeeIds);
+
+  if (existingPayrollRecords.length) {
+    // BATCH PAYROLL DEFAULT - STEP 9
+    // Group duplicate payroll records by employee before showing the warning.
+    // This prevents the same employee name from appearing repeatedly when
+    // that employee already has multiple records for the selected pay period.
+    const duplicateEmployeeMap = new Map();
+
+    existingPayrollRecords.forEach((record) => {
+      const employeeKey =
+        String(record.employee_id || "").trim() ||
+        String(record.work_email || "").trim() ||
+        String(record.id || "").trim();
+
+      if (!employeeKey) return;
+
+      const employeeName =
+        `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
+        record.work_email ||
+        "Unknown Employee";
+
+      const existingEntry = duplicateEmployeeMap.get(employeeKey);
+
+      duplicateEmployeeMap.set(employeeKey, {
+        name: employeeName,
+        recordCount: (existingEntry?.recordCount || 0) + 1,
+      });
+    });
+
+    const duplicateEmployees = Array.from(duplicateEmployeeMap.values());
+
+    const affectedEmployeeText = duplicateEmployees
+      .slice(0, 5)
+      .map((employee) => {
+        const recordLabel =
+          employee.recordCount === 1
+            ? "1 existing record"
+            : `${employee.recordCount} existing records`;
+
+        return `${employee.name} (${recordLabel})`;
+      });
+
+    const extraEmployeeCount =
+      duplicateEmployees.length - affectedEmployeeText.length;
+
+    // BATCH PAYROLL DEFAULT - STEP 10A
+    // Give HR a clear next action when duplicate payroll is blocked.
+    // The system must not overwrite or create duplicate payroll records.
+    const duplicateWarningMessage = `Batch payroll stopped because ${duplicateEmployees.length} selected employee(s) already have payroll record(s) for <strong>${escapeHtml(
+      payCycle,
+    )}</strong>. Affected: <strong>${escapeHtml(
+      affectedEmployeeText.join(", "),
+    )}${extraEmployeeCount > 0 ? `, and ${extraEmployeeCount} more` : ""}</strong>. Next action: change the Pay Period, remove the affected employee from this batch, or review the existing Payroll Record before submitting again.`;
+
+    showPageAlert("warning", duplicateWarningMessage);
+
+    showDashboardToast(
+      "warning",
+      "Batch payroll stopped",
+      duplicateWarningMessage,
+    );
+
+    return;
+  }
+
+  try {
+    setBatchPayrollSubmitLoading(true);
+
+    const batchPayload = preparedRows.map((preparedRow) =>
+      buildBatchPayrollRecordPayload(preparedRow),
+    );
+
+    const supabase = getSupabaseClient();
+
+    const response = await supabase
+      .from("payroll_records")
+      .insert(batchPayload)
+      .select("*");
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    state.lastSavedPayrollRecordIds = new Set(
+      (response.data || [])
+        .map((record) => String(record.id || "").trim())
+        .filter(Boolean),
+    );
+
+    clearPayrollRecordsFiltersBeforeRedirect();
+
+    await refreshPayrollWorkspace();
+
+    // BATCH PAYROLL DEFAULT - STEP 8B
+    // Keep the normal green page alert, but also show a bottom-right success
+    // toast so HR sees the confirmation immediately after batch submission.
+    const batchSubmitSuccessMessage = `${batchPayload.length} payroll record(s) for <strong>${escapeHtml(
+      payCycle,
+    )}</strong> were submitted successfully.`;
+
+    showPageAlert("success", batchSubmitSuccessMessage);
+
+    showDashboardToast(
+      "success",
+      "Batch payroll submitted",
+      batchSubmitSuccessMessage,
+    );
+
+    // BATCH PAYROLL DEFAULT - STEP 7
+    // Clear the batch working state after a successful submit so the same
+    // employees are not accidentally submitted twice.
+    state.selectedEmployeesForPayroll.clear();
+    state.batchPayrollPreparedRows = [];
+    state.isRunPayrollSelectionMode = false;
+
+    syncSelectAllEmployeesForPayrollCheckbox();
+    resetPayrollForm();
+
+    scrollToPayrollRecordsAfterSubmit();
+  } catch (error) {
+    console.error("Error submitting batch payroll:", error);
+    showPageAlert(
+      "danger",
+      error.message ||
+      "Batch payroll could not be submitted. Please check payroll record permissions and required fields.",
+    );
+  } finally {
+    setBatchPayrollSubmitLoading(false);
+    updateSubmitBatchPayrollButtonState();
+  }
+}
 async function handlePayrollSave() {
   clearPageAlert();
   recalculatePayrollFormTotals();
@@ -7380,6 +10020,35 @@ async function handlePayrollSave() {
 
   const editingId = String(state.dom.editingPayrollId?.value || "").trim();
   const isEditMode = Boolean(editingId);
+
+  // PAYROLL BANK READINESS - STEP 11D
+  // Work out which employee records are included in this payroll save.
+  // Single payroll uses the Employee dropdown.
+  // Batch payroll uses the checked employees from the Full Employee List.
+  const selectedBatchEmployeeIds = Array.from(
+    state.selectedEmployeesForPayroll || [],
+  ).filter(Boolean);
+
+  const selectedSingleEmployeeId = String(
+    state.dom.payrollEmployeeId?.value || "",
+  ).trim();
+
+  const isBatchPayrollSubmission =
+    selectedBatchEmployeeIds.length > 1 &&
+    !selectedSingleEmployeeId &&
+    !isEditMode;
+
+  const employeeIdsForThisPayrollSave = isBatchPayrollSubmission
+    ? selectedBatchEmployeeIds
+    : [selectedSingleEmployeeId].filter(Boolean);
+
+  // PAYROLL BANK READINESS - STEP 11D
+  // Block only finalisation when active bank details are missing.
+  // If Mark as Finalised is unticked, payroll can still be prepared/saved.
+  if (!validatePayrollFinalisationBankReadiness(employeeIdsForThisPayrollSave)) {
+    return;
+  }
+
   let payrollPayload = null;
 
   try {
@@ -7392,15 +10061,10 @@ async function handlePayrollSave() {
 
     // SUBMIT PAYROLL - DESCRIPTION ITEM 2 - STEP 3
     // Batch payroll: when multiple employees were selected from the Full Employee List,
-    // create one completed payroll record for each selected employee.
-    const selectedBatchEmployeeIds = Array.from(
-      state.selectedEmployeesForPayroll || [],
-    ).filter(Boolean);
-
-    const isBatchPayrollSubmission =
-      selectedBatchEmployeeIds.length > 1 &&
-      !String(state.dom.payrollEmployeeId?.value || "").trim() &&
-      !isEditMode;
+    // create one payroll record for each selected employee.
+    // PAYROLL BANK READINESS - STEP 11D
+    // selectedBatchEmployeeIds and isBatchPayrollSubmission are now calculated
+    // before the save starts, so finalisation readiness can be checked first.
 
     if (isBatchPayrollSubmission) {
       const batchPayload = selectedBatchEmployeeIds.map((employeeId) => ({
@@ -7416,6 +10080,18 @@ async function handlePayrollSave() {
       if (response.error) {
         throw new Error(response.error.message);
       }
+
+      // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+      // Remember the batch records just created so they appear first.
+      state.lastSavedPayrollRecordIds = new Set(
+        (response.data || [])
+          .map((record) => String(record.id || "").trim())
+          .filter(Boolean),
+      );
+
+      // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+      // Clear filters before refresh so the batch records are visible.
+      clearPayrollRecordsFiltersBeforeRedirect();
 
       await refreshPayrollWorkspace();
 
@@ -7459,6 +10135,18 @@ async function handlePayrollSave() {
       throw new Error(response.error.message);
     }
 
+    // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+    // Remember the payroll record just created/updated so it appears first.
+    state.lastSavedPayrollRecordIds = new Set(
+      [response.data?.id || editingId]
+        .map((id) => String(id || "").trim())
+        .filter(Boolean),
+    );
+
+    // HR SAVE/EDIT BEHAVIOUR - PAYROLL RECORDS STEP 5
+    // Clear filters before refresh so the saved/updated record is visible.
+    clearPayrollRecordsFiltersBeforeRedirect();
+
     await refreshPayrollWorkspace();
 
     showPageAlert(
@@ -7484,22 +10172,68 @@ async function handlePayrollSave() {
     setPayrollSaveLoading(false, isEditMode);
   }
 }
-
-function setPayrollSaveLoading(isLoading, isEditMode = false) {
-  const button = state.dom.savePayrollBtn;
+// BATCH PAYROLL DEFAULT - STEP 7
+// Shows a spinner only on the Submit Batch Payroll button.
+// This avoids interfering with the hidden individual payroll form buttons.
+function setBatchPayrollSubmitLoading(isLoading) {
+  const button = state.dom.submitBatchPayrollBtn;
   if (!button) return;
 
-  button.disabled = isLoading;
-
   if (isLoading) {
-    button.dataset.originalHtml = button.innerHTML;
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
     button.innerHTML = `
       <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-      ${isEditMode ? "Updating Payroll..." : "Saving Payroll..."}
+      Submitting Batch...
     `;
-  } else if (button.dataset.originalHtml) {
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
     button.innerHTML = button.dataset.originalHtml;
     delete button.dataset.originalHtml;
+  }
+}
+function setPayrollSaveLoading(isLoading, isEditMode = false) {
+  // EMERGENCY PAYROLL SPINNER REPAIR
+  // The top Submit Payroll button and the bottom Submit Payroll button
+  // submit the same form, so both must show the same loading state.
+  const buttons = [
+    state.dom.savePayrollBtn,
+    state.dom.topSubmitPayrollBtn,
+  ].filter(Boolean);
+
+  if (!buttons.length) return;
+
+  const loadingText = isEditMode ? "Updating Payroll..." : "Saving Payroll...";
+
+  buttons.forEach((button) => {
+    if (isLoading) {
+      if (!button.dataset.originalHtml) {
+        button.dataset.originalHtml = button.innerHTML;
+      }
+
+      button.disabled = true;
+      button.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+        ${loadingText}
+      `;
+      return;
+    }
+
+    if (button.dataset.originalHtml) {
+      button.innerHTML = button.dataset.originalHtml;
+      delete button.dataset.originalHtml;
+    }
+  });
+
+  if (!isLoading) {
     state.dom.savePayrollBtnText = document.getElementById("savePayrollBtnText");
+
+    // Restore the correct grey/blue state after the spinner is removed.
+    updatePayrollSubmitButtonState();
   }
 }
