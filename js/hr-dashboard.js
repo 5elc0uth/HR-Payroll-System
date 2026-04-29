@@ -1353,7 +1353,16 @@ function bindEvents() {
   });
 
   state.dom.hrTabEmployeesBtn?.addEventListener("click", () => {
+    // EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1
+    // Opening Employees directly should show the normal HR employee list,
+    // not the Run Payroll selection version with Pay checkboxes.
+    state.isRunPayrollSelectionMode = false;
+    state.selectedEmployeesForPayroll.clear();
+    state.dom.runPayrollSelectionNotice?.classList.add("d-none");
+
     switchHrWorkspace("employees");
+    applyEmployeeSearch();
+    syncSelectAllEmployeesForPayrollCheckbox();
   });
 
   state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
@@ -2861,14 +2870,24 @@ function renderPayrollAllowanceRecords(records) {
       record.work_email ||
       "Unknown Employee";
 
-    const masterLabel = `${fullName} — ${record.payroll_master_grade || "--"} — ${record.payroll_master_effective_date || "--"}`;
+    // ALLOWANCE RECORDS UI CLEANUP - STEP 1
+    // Grade has been removed from the active payroll flow, so Master Ref should no longer
+    // show the old "--" grade placeholder. Keep the reference clean with employee name
+    // and a readable effective date only.
+    const masterEffectiveDate = formatDate(record.payroll_master_effective_date);
 
     const row = document.createElement("tr");
     row.innerHTML = `
   <td>
-    <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 7
-         Keep the payroll master reference compact and readable in one primary cell. -->
-    <div class="fw-semibold">${escapeHtml(masterLabel)}</div>
+    <!-- ALLOWANCE RECORDS UI CLEANUP - STEP 1
+         Show a clean payroll master reference without the old grade placeholder.
+         This prevents awkward values like "Employee — -- — Date". -->
+    <div class="fw-semibold">${escapeHtml(fullName)}</div>
+
+    <div class="text-secondary small">
+      Effective: ${masterEffectiveDate}
+    </div>
+
     <div class="text-secondary small text-break">
       ${escapeHtml(record.work_email || "--")}
     </div>
@@ -4161,14 +4180,23 @@ function formatBytes(bytes) {
 }
 
 function formatCurrency(value, currency = "NGN") {
+  // CURRENCY DISPLAY FORMATTING - STEP 1
+  // Centralise money display formatting so all read-only currency values
+  // show Naira clearly and use comma grouping after every 3 digits.
+  // This is display-only and does not change saved numeric database values.
   const numericValue = Number(value || 0);
   const resolvedCurrency = String(currency || "NGN").toUpperCase();
 
+  const formattedAmount = numericValue.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  // CURRENCY DISPLAY FORMATTING - STEP 1
+  // For Nigerian payroll, use the Naira symbol instead of plain "NGN"
+  // so values read naturally across tables, previews, and summaries.
   if (resolvedCurrency === "NGN") {
-    return `NGN ${numericValue.toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return `₦${formattedAmount}`;
   }
 
   try {
@@ -4179,10 +4207,7 @@ function formatCurrency(value, currency = "NGN") {
       maximumFractionDigits: 2,
     }).format(numericValue);
   } catch (error) {
-    return `${resolvedCurrency} ${numericValue.toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return `${resolvedCurrency} ${formattedAmount}`;
   }
 }
 
@@ -4979,6 +5004,17 @@ function syncSelectAllEmployeesForPayrollCheckbox() {
   const summary = state.dom.employeePayrollSelectionSummary;
   const visibleEmployeeIds = getVisibleEmployeeIdsForPayrollSelection();
 
+  // EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1
+  // Pay checkboxes are only needed when HR is actively running payroll.
+  // In normal Employee List mode, hide the Pay header and payroll summary
+  // so the table behaves like a clean HR reference list.
+  const isPayrollSelectionMode = Boolean(state.isRunPayrollSelectionMode);
+  const payHeaderCell = checkbox?.closest("th");
+  const payrollSummaryRow = summary?.closest(".d-flex");
+
+  payHeaderCell?.classList.toggle("d-none", !isPayrollSelectionMode);
+  payrollSummaryRow?.classList.toggle("d-none", !isPayrollSelectionMode);
+
   const selectedVisibleCount = visibleEmployeeIds.filter((employeeId) =>
     state.selectedEmployeesForPayroll.has(employeeId),
   ).length;
@@ -5007,7 +5043,10 @@ function syncSelectAllEmployeesForPayrollCheckbox() {
 
   if (!checkbox) return;
 
-  if (!visibleEmployeeIds.length) {
+  // EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1
+  // When not in Run Payroll mode, keep the hidden master checkbox cleared
+  // and disabled so no stale selection remains active in the background.
+  if (!isPayrollSelectionMode) {
     checkbox.checked = false;
     checkbox.indeterminate = false;
     checkbox.disabled = true;
@@ -5497,12 +5536,13 @@ function renderEmployeeRecords(employees) {
     if (state.dom.employeeRecordsEmptyState) {
       state.dom.employeeRecordsEmptyState.classList.remove("d-none");
     }
+
     if (state.dom.employeeRecordsTableWrapper) {
       state.dom.employeeRecordsTableWrapper.classList.add("d-none");
     }
 
-    // DESCRIPTION ITEM 9 - STEP 2
-    // Keep the master checkbox disabled when no visible employees remain.
+    // EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 4
+    // Keep the master checkbox disabled when no employee rows are visible.
     syncSelectAllEmployeesForPayrollCheckbox();
     return;
   }
@@ -5510,140 +5550,119 @@ function renderEmployeeRecords(employees) {
   if (state.dom.employeeRecordsEmptyState) {
     state.dom.employeeRecordsEmptyState.classList.add("d-none");
   }
+
   if (state.dom.employeeRecordsTableWrapper) {
     state.dom.employeeRecordsTableWrapper.classList.remove("d-none");
   }
 
   const documentCountMap = buildEmployeeDocumentCountMap();
 
-  // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
-  // Show the newest/most recently updated employee first in the list.
+  // EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 4
+  // Keep the existing newest-first behaviour.
   const employeesToRender = sortEmployeeRecordsByLatestActivity(employees);
+    // EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1
+  // Row-level Pay checkboxes should only show during the Run Payroll flow.
+  const isPayrollSelectionMode = Boolean(state.isRunPayrollSelectionMode);
 
   employeesToRender.forEach((employee) => {
-// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
-// Show full employee identity using First + Middle + Last where available.
-const fullName = [
-  employee.first_name,
-  employee.middle_name,
-  employee.last_name,
-]
-  .map((namePart) => String(namePart || "").trim())
-  .filter(Boolean)
-  .join(" ");
+    // EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 4
+    // Build employee display name from First + Middle + Last where available.
+    const fullName = [
+      employee.first_name,
+      employee.middle_name,
+      employee.last_name,
+    ]
+      .map((namePart) => String(namePart || "").trim())
+      .filter(Boolean)
+      .join(" ");
+
     const documentCount = documentCountMap.get(String(employee.id)) || 0;
     const accountLinkage = getEmployeeAccountLinkage(employee);
-
-    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1L
-    // Grade has been fully removed from the active HR/payroll display.
-    // Keep Payroll Master lookup only for salary and pay cycle visibility.
-    const latestPayrollProfile = getLatestPayrollMasterProfileForEmployee(employee.id);
-
-    // DESCRIPTION ITEM 5 - STEP 4
-    // Resolve salary and pay cycle from the latest payroll master record.
-    // This completes payroll visibility without adding another table column.
-    const resolvedBaseSalary = latestPayrollProfile?.basic_salary
-      ? formatCurrency(latestPayrollProfile.basic_salary, "NGN")
-      : "";
-
-    const resolvedPayCycle =
-      String(latestPayrollProfile?.pay_cycle || "").trim();
-
-    const resolvedPayInfo =
-      resolvedBaseSalary && resolvedPayCycle
-        ? `${resolvedBaseSalary} • ${resolvedPayCycle}`
-        : resolvedBaseSalary || resolvedPayCycle || "";
+    const safeEmployeeId = String(employee.id || "").replaceAll("'", "\\'");
 
     const row = document.createElement("tr");
-    row.innerHTML = `
-      <td class="text-center">
-        <!-- DESCRIPTION ITEM 9 - STEP 1
-             Add a payroll selection checkbox beside each employee row
-             so HR can mark who should be included in the current month's pay run. -->
+
+        row.innerHTML = `
+      <td class="text-center align-middle py-3 ${isPayrollSelectionMode ? "" : "d-none"}">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Hide the row checkbox outside Run Payroll mode so the Employee
+             header and Employee row data start in the same column. -->
         <input
           type="checkbox"
           class="form-check-input mt-0"
           aria-label="Select employee for payroll"
           ${isEmployeeSelectedForPayroll(employee.id) ? "checked" : ""}
-          onchange="window.hrToggleEmployeePayrollSelection('${String(employee.id).replaceAll("'", "\\'")}', this.checked)"
+          onchange="window.hrToggleEmployeePayrollSelection('${safeEmployeeId}', this.checked)"
         />
       </td>
 
-<td>
-  <!-- DESCRIPTION ITEM 5 - STEP 1
-       Fold the key reporting detail into the Employee cell so the table
-       gains space for later HR detail expansion without widening further. -->
-  <div class="fw-semibold">${escapeHtml(fullName || "Unnamed Employee")}</div>
-  <div class="text-secondary small">
-    ${escapeHtml(employee.employee_number || "--")}
-  </div>
-  <div class="text-secondary small">
-    Mgr: ${escapeHtml(employee.line_manager || "--")}
-  </div>
-</td>
+      <td class="align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Keep Employee compact and vertically centred: name + employee number only. -->
+        <div class="fw-semibold text-nowrap">${escapeHtml(fullName || "Unnamed Employee")}</div>
+        <div class="text-secondary small text-nowrap">
+          ${escapeHtml(employee.employee_number || "--")}
+        </div>
+      </td>
 
-      <td>
-        <!-- DESCRIPTION ITEM 1 - STEP 3
-             Group contact details together to reduce table width. -->
+      <td class="align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Keep Contact compact and vertically centred. -->
         <div class="text-break">${escapeHtml(employee.work_email || "--")}</div>
-        <div class="text-secondary small">
+        <div class="text-secondary small text-nowrap">
           ${escapeHtml(employee.phone_number || "--")}
         </div>
       </td>
 
-<td>
-  <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1L
-       Grade removed from the Employee List Role cell.
-       Role now shows department, job title, and payroll salary/cycle only. -->
-  <div>${escapeHtml(employee.department || "--")}</div>
-  <div class="text-secondary small">
-    ${escapeHtml(employee.job_title || "--")}
-  </div>
-${resolvedPayInfo
-        ? `<div class="text-secondary small text-nowrap" style="white-space:nowrap;">${escapeHtml(resolvedPayInfo)}</div>`
-        : ""
-      }
-</td>
+      <td class="align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Keep Role compact and salary-free because salary is confidential payroll data. -->
+        <div>${escapeHtml(employee.department || "--")}</div>
+        <div class="text-secondary small">
+          ${escapeHtml(employee.job_title || "--")}
+        </div>
+      </td>
 
-      <td>
+      <td class="text-center align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Centre badge content within the existing Status column. -->
         <span class="badge ${getStatusBadgeClass(employee.status)}">
           ${escapeHtml(formatStatusLabel(employee.status))}
         </span>
       </td>
 
-      <td>
-        <!-- DESCRIPTION ITEM 1 - STEP 4
-             Keep account status simple here since contact details are already shown
-             in the Contact column. -->
+      <td class="text-center align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Centre account badge content within the existing Account column. -->
         <span class="badge ${accountLinkage.badgeClass}">
           ${escapeHtml(accountLinkage.label)}
         </span>
       </td>
 
-      <td>
-        <!-- DESCRIPTION ITEM 1 - STEP 4
-             Show documents as a compact icon + count only so the table stays cleaner. -->
+      <td class="text-center align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Centre document count within the existing Docs column. -->
         <span class="badge ${documentCount > 0 ? "text-bg-info" : "text-bg-light border text-dark"} text-nowrap">
           <i class="bi bi-paperclip me-1"></i>${documentCount}
         </span>
       </td>
 
-      <td class="text-nowrap">
-        <!-- DESCRIPTION ITEM 1 - STEP 4
-             Prevent the start date from wrapping awkwardly in narrower widths. -->
+      <td class="text-nowrap align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Keep date on one line and vertically centred. -->
         ${formatDate(employee.employment_date)}
       </td>
 
-      <td class="text-center">
-        <!-- DESCRIPTION ITEM 1 - STEP 3
-             Use compact icon-only actions so the row stays clean and inline. -->
+      <td class="text-center align-middle py-3">
+        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+             Keep existing compact icon actions centred. -->
         <div class="d-inline-flex align-items-center gap-2 flex-nowrap">
           <button
             type="button"
             class="btn btn-sm btn-outline-primary"
             title="Edit employee"
             aria-label="Edit employee"
-            onclick="window.hrEditEmployee('${String(employee.id).replaceAll("'", "\\'")}')"
+            onclick="window.hrEditEmployee('${safeEmployeeId}')"
           >
             <i class="bi bi-pencil-square"></i>
           </button>
@@ -5653,7 +5672,7 @@ ${resolvedPayInfo
             class="btn btn-sm btn-outline-secondary"
             title="View employee documents"
             aria-label="View employee documents"
-            onclick="window.hrViewEmployeeDocuments('${String(employee.id).replaceAll("'", "\\'")}')"
+            onclick="window.hrViewEmployeeDocuments('${safeEmployeeId}')"
           >
             <i class="bi bi-paperclip"></i>
           </button>
@@ -5664,8 +5683,8 @@ ${resolvedPayInfo
     tbody.appendChild(row);
   });
 
-  // DESCRIPTION ITEM 9 - STEP 2
-  // Recalculate the master checkbox state after every table render.
+  // EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 4
+  // Recalculate master checkbox state after every employee table render.
   syncSelectAllEmployeesForPayrollCheckbox();
 }
 
@@ -7538,15 +7557,20 @@ function renderEmployeeBankDetailsTable(records) {
   state.dom.employeeBankDetailsEmptyState?.classList.add("d-none");
   state.dom.employeeBankDetailsTableWrapper?.classList.remove("d-none");
 
-  // HR SAVE/EDIT BEHAVIOUR - EMPLOYEE BANK DETAILS STEP 4
-  // Render newest/most recently updated employee bank records first.
+  // EMPLOYEE BANK DETAILS RECOVERY - STEP 1B
+  // Restore Employee Bank Records to its own bank-details table layout.
+  // The Employee List payroll checkbox code must not live in this function
+  // because this table has no Run Payroll selection behaviour.
   const recordsToRender = sortEmployeeBankDetailsRecordsByLatestActivity(records);
 
   recordsToRender.forEach((record) => {
     const row = document.createElement("tr");
+    const safeEmployeeBankDetailsId = String(record.id || "").replaceAll("'", "\\'");
 
     row.innerHTML = `
       <td>
+        <!-- EMPLOYEE BANK DETAILS RECOVERY - STEP 1B
+             Show the employee linked to this bank account record only. -->
         <div class="fw-semibold">${escapeHtml(record.employee_name || "Unknown Employee")}</div>
         <div class="text-secondary small text-break">
           ${escapeHtml(record.employee_email || record.employee_number || "--")}
@@ -7567,19 +7591,20 @@ function renderEmployeeBankDetailsTable(records) {
         </span>
       </td>
 
-<td class="text-center">
-  <!-- EMPLOYEE BANK DETAILS - STEP 9
-       Enable edit so HR can update employee bank details from the table. -->
-  <button
-    type="button"
-    class="btn btn-sm btn-outline-primary"
-    title="Edit employee bank details"
-    aria-label="Edit employee bank details"
-    onclick="window.hrEditEmployeeBankDetailsRecord('${String(record.id).replaceAll("'", "\\'")}')"
-  >
-    <i class="bi bi-pencil-square"></i>
-  </button>
-</td>
+      <td class="text-center">
+        <!-- EMPLOYEE BANK DETAILS RECOVERY - STEP 1B
+             Keep the existing edit action for Employee Bank Details.
+             No payroll selection checkbox belongs in this table. -->
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          title="Edit employee bank details"
+          aria-label="Edit employee bank details"
+          onclick="window.hrEditEmployeeBankDetailsRecord('${safeEmployeeBankDetailsId}')"
+        >
+          <i class="bi bi-pencil-square"></i>
+        </button>
+      </td>
     `;
 
     tbody.appendChild(row);
@@ -8564,104 +8589,110 @@ function renderPayrollRecords(records) {
     // Payslip preview should only be available for finalised payroll records.
     const canPreviewPayslip = Boolean(record.is_finalised);
 
-    const row = document.createElement("tr");
+        const row = document.createElement("tr");
+
     row.innerHTML = `
-      <td>
-        <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
-             Combine employee identity and department details into one cell
-             so the payroll records table fits inside one card without side scroll. -->
-        <div class="fw-semibold">${escapeHtml(fullName || "Unknown Employee")}</div>
-        <div class="text-secondary small text-break">
-          ${escapeHtml(record.work_email || "--")}
-        </div>
+      <td class="text-center align-top ${isPayrollSelectionMode ? "" : "d-none"}">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Align the payroll selection checkbox to the top of the row so all
+             visible row content starts from the same vertical position. -->
+        <input
+          type="checkbox"
+          class="form-check-input mt-0"
+          aria-label="Select employee for payroll"
+          ${isEmployeeSelectedForPayroll(employee.id) ? "checked" : ""}
+          onchange="window.hrToggleEmployeePayrollSelection('${String(employee.id).replaceAll("'", "\\'")}', this.checked)"
+        />
+      </td>
+
+      <td class="align-top">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Keep employee identity details grouped and aligned with the checkbox. -->
+        <div class="fw-semibold text-nowrap">${escapeHtml(fullName || "Unnamed Employee")}</div>
         <div class="text-secondary small">
-          ${escapeHtml(record.department || "--")} • ${escapeHtml(record.job_title || "--")}
+          ${escapeHtml(employee.employee_number || "--")}
         </div>
+        <!-- EMPLOYEE LIST EXISTING TABLE CLEANUP - STEP 1
+             Manager is intentionally not shown in the Full Employee List table.
+             This keeps the grouped employee cell compact and aligned with
+             Contact and Role, without changing the wider table design. -->
       </td>
 
-      <td>
-        <!-- PAYROLL RECORDS GROUP LABELS - STEP 12C
-             Display payroll group labels consistently without changing
-             the stored database values. -->
-        <div class="fw-semibold">${escapeHtml(formatPayrollGroupDisplayLabel(record.employee_group))}</div>
+      <td class="align-top">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Keep contact details aligned from the same top line as Employee and Role. -->
+        <div class="text-break">${escapeHtml(employee.work_email || "--")}</div>
         <div class="text-secondary small">
-          ${escapeHtml(record.pay_cycle || "--")}
+          ${escapeHtml(employee.phone_number || "--")}
         </div>
       </td>
 
-<td class="align-middle">
-  <!-- PAYROLL RECORDS DATE CLARITY - STEP 12B
-       Pay Date is the payroll/payment date.
-       Submitted is the audit timestamp when HR created or updated the record.
-       Short labels prevent the table from becoming too wide. -->
-  <div class="fw-medium text-nowrap" title="Payroll pay date">
-    Pay: ${formatDate(record.pay_date)}
-  </div>
-  <div class="text-secondary small text-nowrap" title="Submitted date and time" style="margin-top: 4px;">
-    Sub: ${formatCompactDateTime(record.updated_at || record.created_at)}
-  </div>
-</td>
-
-      <td>
-        <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
-             Group payroll money values into one summary cell instead of three separate columns. -->
-        <div class="small">
-          <span class="text-secondary">Gross:</span>
-          <span class="fw-semibold">${formatCurrency(record.gross_pay, record.currency || "NGN")}</span>
-        </div>
-        <div class="small">
-          <span class="text-secondary">Ded:</span>
-          <span class="fw-semibold">${formatCurrency(record.total_deductions, record.currency || "NGN")}</span>
-        </div>
-        <div class="small">
-          <span class="text-secondary">Net:</span>
-          <span class="fw-semibold">${formatCurrency(record.net_pay, record.currency || "NGN")}</span>
+      <td class="align-top">
+        <!-- EMPLOYEE LIST CONFIDENTIAL SALARY CLEANUP - STEP 1
+             Full Employee List shows HR identity and role details only.
+             Salary and pay-cycle values are confidential payroll data and are
+             intentionally not displayed in this HR reference table. -->
+        <div>${escapeHtml(employee.department || "--")}</div>
+        <div class="text-secondary small">
+          ${escapeHtml(employee.job_title || "--")}
         </div>
       </td>
 
-      <td>
-        <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
-             Combine payroll status and finalisation into one compact status cell. -->
-        <div class="mb-1">
-          <span class="badge ${getPayrollStatusBadgeClass(record.status)}">
-            ${escapeHtml(formatStatusLabel(record.status))}
-          </span>
-        </div>
-        <div>
-          <span class="badge ${record.is_finalised
-        ? "text-bg-success"
-        : "text-bg-light border text-dark"
-      }">
-            ${record.is_finalised ? "Finalised" : "Not Finalised"}
-          </span>
+      <td class="align-top">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Align status badge with the checkbox and wording cells. -->
+        <span class="badge ${getStatusBadgeClass(employee.status)}">
+          ${escapeHtml(formatStatusLabel(employee.status))}
+        </span>
+      </td>
+
+      <td class="align-top">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Align account badge with the checkbox and wording cells. -->
+        <span class="badge ${accountLinkage.badgeClass}">
+          ${escapeHtml(accountLinkage.label)}
+        </span>
+      </td>
+
+      <td class="align-top">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Align document count badge with the checkbox and wording cells. -->
+        <span class="badge ${documentCount > 0 ? "text-bg-info" : "text-bg-light border text-dark"} text-nowrap">
+          <i class="bi bi-paperclip me-1"></i>${documentCount}
+        </span>
+      </td>
+
+      <td class="text-nowrap align-top">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Align start date with the checkbox and wording cells. -->
+        ${formatDate(employee.employment_date)}
+      </td>
+
+      <td class="text-center align-top">
+        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
+             Align action buttons with the checkbox and wording cells. -->
+        <div class="d-inline-flex align-items-start gap-2 flex-nowrap">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            title="Edit employee"
+            aria-label="Edit employee"
+            onclick="window.hrEditEmployee('${String(employee.id).replaceAll("'", "\\'")}')"
+          >
+            <i class="bi bi-pencil-square"></i>
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            title="View employee documents"
+            aria-label="View employee documents"
+            onclick="window.hrViewEmployeeDocuments('${String(employee.id).replaceAll("'", "\\'")}')"
+          >
+            <i class="bi bi-paperclip"></i>
+          </button>
         </div>
       </td>
-<td class="text-center">
-  <!-- DESCRIPTION ITEM 4 - STEP 7
-       Add payslip preview beside edit.
-       Preview is disabled until the payroll record is finalised. -->
-  <div class="d-inline-flex justify-content-center gap-2">
-    <button
-      type="button"
-      class="btn btn-sm ${canPreviewPayslip ? "btn-outline-secondary" : "btn-outline-light border"}"
-      title="${canPreviewPayslip ? "Preview payslip" : "Preview available after payroll is finalised"}"
-      aria-label="Preview payslip"
-      ${canPreviewPayslip ? `onclick="window.hrPreviewPayslipRecord('${safePayrollRecordId}')"` : "disabled"}
-    >
-      <i class="bi bi-receipt"></i>
-    </button>
-
-    <button
-      type="button"
-      class="btn btn-sm btn-outline-primary"
-      title="Edit payroll record"
-      aria-label="Edit payroll record"
-      onclick="window.hrEditPayrollRecord('${safePayrollRecordId}')"
-    >
-      <i class="bi bi-pencil-square"></i>
-    </button>
-  </div>
-</td>
     `;
 
     tbody.appendChild(row);
@@ -9354,13 +9385,16 @@ async function startPayrollEdit(payrollId) {
   const isRegularPayrollRecord =
     normalizePayrollGroupForPayload(payrollRecord.employee_group || "") === "REGULAR";
 
-  if (state.dom.regularIncrementPercent) {
-    state.dom.regularIncrementPercent.value = isRegularPayrollRecord
-      ? payrollRecord.increment_percent != null
-        ? (Number(payrollRecord.increment_percent) * 100).toFixed(2)
-        : "5.00"
-      : "5.00";
-  }
+if (state.dom.regularIncrementPercent) {
+  // PAYROLL CALCULATION CLARITY - STEP 1C
+  // Existing records without an increment should display 0.00, not 5.00.
+  // This prevents HR from seeing or saving an unintended salary increase.
+  state.dom.regularIncrementPercent.value = isRegularPayrollRecord
+    ? payrollRecord.increment_percent != null
+      ? (Number(payrollRecord.increment_percent) * 100).toFixed(2)
+      : "0.00"
+    : "0.00";
+}
 
   if (state.dom.regularMeritIncrement) {
     state.dom.regularMeritIncrement.value = isRegularPayrollRecord
@@ -9783,7 +9817,7 @@ function syncPayrollCalculatedFieldLockState() {
     field.classList.toggle("bg-light", isRegular);
 
     if (isRegular) {
-      field.title = "Calculated automatically from Base Salary and the Regular payroll structure.";
+field.title = "Calculated automatically from Monthly Gross Salary and the Regular payroll structure.";
     } else {
       field.removeAttribute("title");
     }
@@ -9896,13 +9930,20 @@ function percentInputToDecimal(value, fallbackPercent = 0) {
 }
 
 function calculateRegularIncrementAmount() {
+  // PAYROLL CALCULATION CLARITY - STEP 1C
+  // Do not apply a hidden/default salary increment.
+  // If HR has not entered an increment percentage, the increment must be 0%.
+  // Monthly Gross Salary should remain the salary source for Basic Pay and allowances.
   return (
     toNullableNumber(state.dom.payrollBaseSalary?.value) *
-    percentInputToDecimal(state.dom.regularIncrementPercent?.value, 5)
+    percentInputToDecimal(state.dom.regularIncrementPercent?.value, 0)
   );
 }
 
 function calculateRegularNewBaseSalary() {
+  // PAYROLL CALCULATION CLARITY - STEP 1C
+  // Revised salary only changes when HR explicitly enters an increment
+  // percentage or a merit increment. Otherwise it remains Monthly Gross Salary.
   return (
     toNullableNumber(state.dom.payrollBaseSalary?.value) +
     calculateRegularIncrementAmount() +
@@ -10216,8 +10257,8 @@ function getPayrollStructurePreviewConfig() {
       title: "Regular Payroll Structure",
       badge: "Structured",
       badgeClass: "text-bg-success",
-      description:
-        "Regular payroll is calculated automatically from Base Salary and the configured percentage split.",
+description:
+  "Regular payroll is calculated automatically from Monthly Gross Salary and the configured percentage split.",
       items: [
         `Basic ${formatPayrollStructurePercent(state.dom.regularBasicPercent, 50)}`,
         `Housing ${formatPayrollStructurePercent(state.dom.regularHousingPercent, 10)}`,
@@ -10364,10 +10405,10 @@ function buildRegularPayrollModelFields() {
     structure_variant: "ALPATECH_REGULAR_REV2",
     payslip_layout: "ALPATECH_REGULAR_REV2",
 
-    increment_percent: percentInputToDecimal(
-      state.dom.regularIncrementPercent?.value,
-      5,
-    ),
+increment_percent: percentInputToDecimal(
+  state.dom.regularIncrementPercent?.value,
+  0,
+),
     increment_amount: toNullableNumber(state.dom.regularIncrementAmount?.value),
     merit_increment: toNullableNumber(state.dom.regularMeritIncrement?.value),
 
