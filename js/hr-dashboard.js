@@ -35,6 +35,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Initialise allowance workspace as part of HR payroll load.
     // =========================================================
     await refreshEmployeeWorkspace();
+
+    // MANAGE ORGANIZATION CARD - STEP 3
+    // Load the single organization settings record after HR access is confirmed.
+    await refreshOrganizationSettingsWorkspace();
+
+    // ORGANIZATION HR SETUP VALUES - STEP 3
+    // Load HR-managed Departments and Job Titles before employee/payroll forms
+    // need dropdown values. This is read-only for now.
+    await refreshOrganizationHrSetupValues();
+
     await refreshPayrollMasterWorkspace();
     await refreshPayrollAllowanceWorkspace();
     await refreshPayrollWorkspace();
@@ -65,10 +75,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     // BATCH PAYROLL DEFAULT - STEP 11
-// Expose the remove action used by the Batch Payroll Review table.
-window.hrRemoveEmployeeFromPayrollBatch = (employeeId) => {
-  removeEmployeeFromCurrentPayrollBatch(employeeId);
-};
+    // Expose the remove action used by the Batch Payroll Review table.
+    window.hrRemoveEmployeeFromPayrollBatch = (employeeId) => {
+      removeEmployeeFromCurrentPayrollBatch(employeeId);
+    };
 
     window.hrOpenEmployeeDocument = async (documentId) => {
       await openEmployeeDocument(documentId);
@@ -98,6 +108,18 @@ window.hrRemoveEmployeeFromPayrollBatch = (employeeId) => {
     // =========================================================
     window.hrEditPayrollMasterRecord = (payrollMasterId) => {
       startPayrollMasterEdit(payrollMasterId);
+    };
+
+    // ORGANIZATION HR SETUP VALUES - STEP 4A
+    // Expose Department edit action for the Department Records table.
+    window.hrEditOrganizationDepartmentRecord = (departmentId) => {
+      startOrganizationDepartmentEdit(departmentId);
+    };
+
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4
+    // Expose Job Title edit action for the Job Title Records table.
+    window.hrEditOrganizationJobTitleRecord = (jobTitleId) => {
+      startOrganizationJobTitleEdit(jobTitleId);
     };
 
     // BANK DIRECTORY - STEP 8
@@ -130,6 +152,33 @@ const state = {
   currentProfile: null,
   employees: [],
   filteredEmployees: [],
+  // MANAGE ORGANIZATION CARD - STEP 3
+  // Holds the single company/organization settings record loaded from Supabase.
+  organizationSettings: null,
+
+  // ORGANIZATION HR SETUP VALUES - STEP 3
+  // Holds HR-managed Departments and Job Titles loaded from Supabase.
+  // These will later replace the hardcoded employee Department/Job Title lists.
+  organizationDepartments: [],
+  organizationJobTitles: [],
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4A
+  // Tracks the Department currently being edited inside Manage Organization.
+  currentEditingOrganizationDepartment: null,
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4A
+  // Keeps the latest saved/updated Department at the top after refresh.
+  lastSavedOrganizationDepartmentKey: null,
+
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+  // Tracks the Job Title currently being edited inside Manage Organization.
+  // Save/edit logic will be added in the next step.
+  currentEditingOrganizationJobTitle: null,
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+  // Reserved for keeping the latest saved/updated Job Title first
+  // once Job Title saving is added.
+  lastSavedOrganizationJobTitleKey: null,
 
   // DESCRIPTION ITEM 9 - STEP 1
   // Keeps the current page-session selection of employees marked
@@ -293,6 +342,70 @@ function cacheDomElements() {
       "missingEmployeeNumberValue",
     ),
 
+    // MANAGE ORGANIZATION CARD - STEP 3
+    // Cache organization settings card, summary values, and form fields.
+    toggleOrganizationSettingsCardBtn: document.getElementById("toggleOrganizationSettingsCardBtn"),
+    organizationSettingsCardCollapse: document.getElementById("organizationSettingsCardCollapse"),
+    organizationSettingsForm: document.getElementById("organizationSettingsForm"),
+    organizationSummaryName: document.getElementById("organizationSummaryName"),
+    organizationSummaryCurrency: document.getElementById("organizationSummaryCurrency"),
+    organizationSummaryPayCycle: document.getElementById("organizationSummaryPayCycle"),
+    organizationSummaryStatus: document.getElementById("organizationSummaryStatus"),
+    organizationName: document.getElementById("organizationName"),
+    organizationEmail: document.getElementById("organizationEmail"),
+    organizationPhoneNumber: document.getElementById("organizationPhoneNumber"),
+    organizationPayrollContactEmail: document.getElementById("organizationPayrollContactEmail"),
+    organizationAddressLine: document.getElementById("organizationAddressLine"),
+    organizationCity: document.getElementById("organizationCity"),
+    organizationCountry: document.getElementById("organizationCountry"),
+    organizationTin: document.getElementById("organizationTin"),
+    organizationRegistrationNumber: document.getElementById("organizationRegistrationNumber"),
+    organizationDefaultCurrency: document.getElementById("organizationDefaultCurrency"),
+    organizationDefaultPayCycle: document.getElementById("organizationDefaultPayCycle"),
+    organizationStatus: document.getElementById("organizationStatus"),
+    organizationNotes: document.getElementById("organizationNotes"),
+    saveOrganizationSettingsBtn: document.getElementById("saveOrganizationSettingsBtn"),
+    organizationSettingsSubmitLabel: document.getElementById("organizationSettingsSubmitLabel"),
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+// Section anchors used for clean post-save redirects.
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+// Section anchors used for clean post-save redirects.
+organizationDepartmentsSection: document.getElementById("organizationDepartmentsSection"),
+organizationJobTitlesSection: document.getElementById("organizationJobTitlesSection"),
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+// Records anchors used after create/update so HR lands on the saved records,
+// not back at the input form.
+organizationDepartmentRecordsHeader: document.getElementById("organizationDepartmentRecordsHeader"),
+organizationJobTitleRecordsHeader: document.getElementById("organizationJobTitleRecordsHeader"),
+
+organizationDepartmentForm: document.getElementById("organizationDepartmentForm"),
+    editingOrganizationDepartmentId: document.getElementById("editingOrganizationDepartmentId"),
+    organizationDepartmentName: document.getElementById("organizationDepartmentName"),
+    organizationDepartmentStatus: document.getElementById("organizationDepartmentStatus"),
+    organizationDepartmentNotes: document.getElementById("organizationDepartmentNotes"),
+    saveOrganizationDepartmentBtn: document.getElementById("saveOrganizationDepartmentBtn"),
+    organizationDepartmentSubmitLabel: document.getElementById("organizationDepartmentSubmitLabel"),
+    cancelOrganizationDepartmentEditBtn: document.getElementById("cancelOrganizationDepartmentEditBtn"),
+    organizationDepartmentsEmptyState: document.getElementById("organizationDepartmentsEmptyState"),
+    organizationDepartmentsTableWrapper: document.getElementById("organizationDepartmentsTableWrapper"),
+    organizationDepartmentsTableBody: document.getElementById("organizationDepartmentsTableBody"),
+
+        // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+    // Cache Job Title management fields inside the Manage Organization card.
+    organizationJobTitleForm: document.getElementById("organizationJobTitleForm"),
+    editingOrganizationJobTitleId: document.getElementById("editingOrganizationJobTitleId"),
+    organizationJobTitleDepartmentId: document.getElementById("organizationJobTitleDepartmentId"),
+    organizationJobTitleName: document.getElementById("organizationJobTitleName"),
+    organizationJobTitleStatus: document.getElementById("organizationJobTitleStatus"),
+    organizationJobTitleNotes: document.getElementById("organizationJobTitleNotes"),
+    saveOrganizationJobTitleBtn: document.getElementById("saveOrganizationJobTitleBtn"),
+    organizationJobTitleSubmitLabel: document.getElementById("organizationJobTitleSubmitLabel"),
+    cancelOrganizationJobTitleEditBtn: document.getElementById("cancelOrganizationJobTitleEditBtn"),
+    organizationJobTitlesEmptyState: document.getElementById("organizationJobTitlesEmptyState"),
+    organizationJobTitlesTableWrapper: document.getElementById("organizationJobTitlesTableWrapper"),
+    organizationJobTitlesTableBody: document.getElementById("organizationJobTitlesTableBody"),
+
     employeeCreateForm: document.getElementById("employeeCreateForm"),
     saveEmployeeBtn: document.getElementById("saveEmployeeBtn"),
     saveEmployeeBtnText: document.getElementById("saveEmployeeBtnText"),
@@ -301,15 +414,15 @@ function cacheDomElements() {
     employeeFormModeBadge: document.getElementById("employeeFormModeBadge"),
     editingEmployeeId: document.getElementById("editingEmployeeId"),
 
-firstName: document.getElementById("firstName"),
+    firstName: document.getElementById("firstName"),
 
-// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
-// Optional Middle Name field for fuller employee identity records.
-middleName: document.getElementById("middleName"),
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+    // Optional Middle Name field for fuller employee identity records.
+    middleName: document.getElementById("middleName"),
 
-lastName: document.getElementById("lastName"),
-workEmail: document.getElementById("workEmail"),
-phoneNumber: document.getElementById("phoneNumber"),
+    lastName: document.getElementById("lastName"),
+    workEmail: document.getElementById("workEmail"),
+    phoneNumber: document.getElementById("phoneNumber"),
     department: document.getElementById("department"),
     jobTitle: document.getElementById("jobTitle"),
 
@@ -714,13 +827,13 @@ phoneNumber: document.getElementById("phoneNumber"),
     payrollLogisticsAllowance: document.getElementById("payrollLogisticsAllowance"),
     payrollDataAirtimeAllowance: document.getElementById("payrollDataAirtimeAllowance"),
     payrollGrossPay: document.getElementById("payrollGrossPay"),
-payrollPayeTax: document.getElementById("payrollPayeTax"),
+    payrollPayeTax: document.getElementById("payrollPayeTax"),
 
-// PAYROLL TAX DEDUCTION CALCULATION - STEP 2
-// Helper note shown only when NTA 2025 PAYE calculates as zero.
-payrollPayeTaxNote: document.getElementById("payrollPayeTaxNote"),
+    // PAYROLL TAX DEDUCTION CALCULATION - STEP 2
+    // Helper note shown only when NTA 2025 PAYE calculates as zero.
+    payrollPayeTaxNote: document.getElementById("payrollPayeTaxNote"),
 
-payrollWhtTax: document.getElementById("payrollWhtTax"),
+    payrollWhtTax: document.getElementById("payrollWhtTax"),
     payrollEmployeePension: document.getElementById("payrollEmployeePension"),
     payrollEmployerPension: document.getElementById("payrollEmployerPension"),
     payrollOtherDeductions: document.getElementById("payrollOtherDeductions"),
@@ -733,7 +846,7 @@ payrollWhtTax: document.getElementById("payrollWhtTax"),
     // BATCH PAYROLL DEFAULT - STEP 6D
     // Floating page-level shortcut for long HR/payroll screens.
     backToTopBtn: document.getElementById("backToTopBtn"),
-        // BATCH PAYROLL DEFAULT - STEP 8A
+    // BATCH PAYROLL DEFAULT - STEP 8A
     // Floating notification card used for important blocking messages.
     dashboardToast: document.getElementById("dashboardToast"),
     dashboardToastAccent: document.getElementById("dashboardToastAccent"),
@@ -1267,8 +1380,8 @@ function redirectToPayrollRecordsAfterSave() {
   // matching the cleaner spacing shown in the preferred layout.
   scrollToDashboardTarget(
     state.dom.payrollRecordsCard ||
-      state.dom.payrollRecordsHeader ||
-      state.dom.payrollRecordsTableWrapper,
+    state.dom.payrollRecordsHeader ||
+    state.dom.payrollRecordsTableWrapper,
     16,
   );
 }
@@ -1336,7 +1449,7 @@ function bindEvents() {
     scrollDashboardBackToTop();
   });
 
-    // BATCH PAYROLL DEFAULT - STEP 8A
+  // BATCH PAYROLL DEFAULT - STEP 8A
   // Let HR dismiss the floating notification manually.
   state.dom.dashboardToastCloseBtn?.addEventListener("click", () => {
     hideDashboardToast();
@@ -1425,7 +1538,7 @@ function bindEvents() {
     applyEmployeeSearch();
   });
 
-    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
   // Keep Create/Update Employee disabled until the required employee form
   // fields are complete and the work email is valid.
   [
@@ -1475,6 +1588,83 @@ function bindEvents() {
     state.dom.employeeListCardCollapse,
   );
 
+  // MANAGE ORGANIZATION CARD - STEP 3
+  // Keep the new Manage Organization card consistent with existing dashboard cards.
+  bindCardCollapseToggle(
+    state.dom.toggleOrganizationSettingsCardBtn,
+    state.dom.organizationSettingsCardCollapse,
+  );
+
+  state.dom.organizationSettingsForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await handleOrganizationSettingsSave();
+  });
+  // MANAGE ORGANIZATION CARD - STEP 4A FIX
+  // Keep Save Organization Details grey/disabled until the required
+  // organization fields are complete.
+  [
+    state.dom.organizationName,
+    state.dom.organizationDefaultCurrency,
+    state.dom.organizationDefaultPayCycle,
+    state.dom.organizationStatus,
+  ].forEach((field) => {
+    field?.addEventListener("input", updateOrganizationSettingsSaveButtonState);
+    field?.addEventListener("change", updateOrganizationSettingsSaveButtonState);
+  });
+
+  updateOrganizationSettingsSaveButtonState();
+  // ORGANIZATION HR SETUP VALUES - STEP 4A
+  // Save Department from Manage Organization without touching employee records yet.
+  state.dom.organizationDepartmentForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await handleOrganizationDepartmentSave();
+  });
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4A
+  // Cancel edit returns the Department form to clean create mode.
+  state.dom.cancelOrganizationDepartmentEditBtn?.addEventListener("click", () => {
+    resetOrganizationDepartmentForm();
+  });
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4A
+  // Keep Department button grey/disabled until required fields are complete.
+  [
+    state.dom.organizationDepartmentName,
+    state.dom.organizationDepartmentStatus,
+  ].forEach((field) => {
+    field?.addEventListener("input", updateOrganizationDepartmentSaveButtonState);
+    field?.addEventListener("change", updateOrganizationDepartmentSaveButtonState);
+  });
+
+  updateOrganizationDepartmentSaveButtonState();
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-4
+  // Save or update Job Title records from Manage Organization.
+  // This only writes to organization_job_titles and does not touch employee records yet.
+  state.dom.organizationJobTitleForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await handleOrganizationJobTitleSave();
+  });
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+  // Cancel edit returns the Job Title form to clean create mode.
+  state.dom.cancelOrganizationJobTitleEditBtn?.addEventListener("click", () => {
+    resetOrganizationJobTitleForm();
+  });
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+  // Keep Job Title button grey/disabled until required fields are complete.
+  [
+    state.dom.organizationJobTitleDepartmentId,
+    state.dom.organizationJobTitleName,
+    state.dom.organizationJobTitleStatus,
+  ].forEach((field) => {
+    field?.addEventListener("input", updateOrganizationJobTitleSaveButtonState);
+    field?.addEventListener("change", updateOrganizationJobTitleSaveButtonState);
+  });
+
+  updateOrganizationJobTitleSaveButtonState();
+
   state.dom.employeeDocumentsInput?.addEventListener("change", (event) => {
     addPendingFiles(event.target.files);
   });
@@ -1483,7 +1673,7 @@ function bindEvents() {
     clearPendingFiles();
   });
 
-    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H FIX
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H FIX
   // Saved documents are rendered dynamically, so use one delegated listener.
   // This keeps Open and Remove working even after the attached document list refreshes.
   state.dom.attachedDocumentsList?.addEventListener("click", async (event) => {
@@ -1827,7 +2017,7 @@ function bindEvents() {
     updatePayDateFromPayCycle();
   });
 
-    // BATCH PAYROLL DEFAULT - STEP 7
+  // BATCH PAYROLL DEFAULT - STEP 7
   // Submit prepared batch payroll records from the review table.
   state.dom.submitBatchPayrollBtn?.addEventListener("click", async () => {
     await handleBatchPayrollSubmit();
@@ -4389,10 +4579,72 @@ const EMPLOYEE_DEPARTMENT_JOB_TITLES = Object.freeze({
   ],
 });
 
-// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
-// Rebuild Job Title options based on the selected Department.
-// This keeps Department and Job Title aligned while still preserving
-// an existing saved job title during edit mode if it is not in the new list.
+// ORGANIZATION HR SETUP VALUES - STEP 5A
+// Rebuild the Create/Edit Employee Department dropdown from active
+// Manage Organization departments.
+// Employee records currently save department as text, so option values remain
+// department names instead of department IDs.
+function populateEmployeeDepartmentOptionsFromOrganizationSetup(preferredDepartment = "") {
+  const departmentSelect = state.dom.department;
+  if (!departmentSelect) return;
+
+  const currentValue = String(
+    preferredDepartment || departmentSelect.value || "",
+  ).trim();
+
+  const activeDepartments = (state.organizationDepartments || [])
+    .filter((department) => normalizeText(department.status) === "active")
+    .sort((a, b) =>
+      String(a.department_name || "").localeCompare(
+        String(b.department_name || ""),
+      ),
+    );
+
+  // ORGANIZATION HR SETUP VALUES - STEP 5A
+  // If setup values have not loaded yet, keep existing hardcoded HTML options.
+  // This preserves existing employee form behaviour instead of leaving HR stuck.
+  if (!activeDepartments.length) {
+    return;
+  }
+
+  departmentSelect.innerHTML = "";
+
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = "Select department";
+  departmentSelect.appendChild(placeholderOption);
+
+  activeDepartments.forEach((department) => {
+    const option = document.createElement("option");
+    option.value = department.department_name || "";
+    option.textContent = department.department_name || "Unnamed Department";
+    departmentSelect.appendChild(option);
+  });
+
+  if (currentValue) {
+    const matchingOption = Array.from(departmentSelect.options).find(
+      (option) => normalizeText(option.value) === normalizeText(currentValue),
+    );
+
+    if (matchingOption) {
+      departmentSelect.value = matchingOption.value;
+    } else {
+      // ORGANIZATION HR SETUP VALUES - STEP 5A
+      // Preserve an older saved department during edit mode, even if HR has
+      // since marked that department inactive or renamed it.
+      const savedOption = document.createElement("option");
+      savedOption.value = currentValue;
+      savedOption.textContent = `${currentValue} (saved value)`;
+      departmentSelect.appendChild(savedOption);
+      departmentSelect.value = currentValue;
+    }
+  }
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 5A
+// Rebuild Create/Edit Employee Job Title options based on the selected
+// Department using Manage Organization setup values.
+// Falls back to the old hardcoded mapping only if setup values are unavailable.
 function populateJobTitleOptionsForDepartment(preferredJobTitle = "") {
   const department = String(state.dom.department?.value || "").trim();
   const jobTitleSelect = state.dom.jobTitle;
@@ -4402,8 +4654,6 @@ function populateJobTitleOptionsForDepartment(preferredJobTitle = "") {
   const savedOrCurrentJobTitle = String(
     preferredJobTitle || jobTitleSelect.value || "",
   ).trim();
-
-  const jobTitles = EMPLOYEE_DEPARTMENT_JOB_TITLES[department] || [];
 
   jobTitleSelect.innerHTML = "";
 
@@ -4415,6 +4665,40 @@ function populateJobTitleOptionsForDepartment(preferredJobTitle = "") {
 
   jobTitleSelect.appendChild(placeholderOption);
 
+  let jobTitles = [];
+
+  // ORGANIZATION HR SETUP VALUES - STEP 5A
+  // Preferred source: active Job Titles saved under active Departments
+  // in Manage Organization.
+  const matchingDepartment = (state.organizationDepartments || []).find(
+    (departmentRecord) =>
+      normalizeText(departmentRecord.department_name) === normalizeText(department) &&
+      normalizeText(departmentRecord.status) === "active",
+  );
+
+  if (matchingDepartment) {
+    jobTitles = (state.organizationJobTitles || [])
+      .filter((jobTitle) => {
+        const isSameDepartment =
+          String(jobTitle.department_id || "").trim() ===
+          String(matchingDepartment.id || "").trim();
+
+        const isActive = normalizeText(jobTitle.status) === "active";
+
+        return isSameDepartment && isActive;
+      })
+      .map((jobTitle) => String(jobTitle.job_title || "").trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  // ORGANIZATION HR SETUP VALUES - STEP 5A
+  // Safe fallback: use the old hardcoded mapping only if the setup table
+  // has not provided titles for this department yet.
+  if (!jobTitles.length && department) {
+    jobTitles = EMPLOYEE_DEPARTMENT_JOB_TITLES[department] || [];
+  }
+
   jobTitles.forEach((jobTitle) => {
     const option = document.createElement("option");
     option.value = jobTitle;
@@ -4422,9 +4706,9 @@ function populateJobTitleOptionsForDepartment(preferredJobTitle = "") {
     jobTitleSelect.appendChild(option);
   });
 
-  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
-  // Preserve old/saved job titles during edit mode, even if that title
-  // is not part of the controlled list yet.
+  // ORGANIZATION HR SETUP VALUES - STEP 5A
+  // Preserve old/saved job titles during edit mode, even if HR later made
+  // the title inactive or it is not part of the active controlled list.
   if (savedOrCurrentJobTitle) {
     const titleExists = jobTitles.some(
       (jobTitle) =>
@@ -4451,6 +4735,10 @@ function populateJobTitleOptionsForDepartment(preferredJobTitle = "") {
   updateEmployeeSaveButtonState();
 }
 
+// EMPLOYEE ACCOUNT PANEL RECOVERY - STEP 5A
+// Restores the helper used by resetEmployeeForm() and enterEmployeeEditMode().
+// This keeps the Account Access & Profile Setup panel working without
+// touching employee save, department setup, job title setup, or payroll logic.
 function setEmployeeAccountPanel(accountLinkage = null) {
   const linkage = accountLinkage || {
     label: "No User Account",
@@ -4798,6 +5086,1275 @@ async function uploadHrProfileImage() {
     );
   } finally {
     setProfileImageSaveLoading(false);
+  }
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 3
+// Load HR-managed Departments and Job Titles from Supabase.
+// This step is read-only and does not change existing employee dropdown behaviour yet.
+async function refreshOrganizationHrSetupValues() {
+  try {
+    const supabase = getSupabaseClient();
+
+    const [departmentsResponse, jobTitlesResponse] = await Promise.all([
+      supabase
+        .from("organization_departments")
+        .select("*")
+        .order("department_name", { ascending: true }),
+
+      supabase
+        .from("organization_job_titles")
+        .select(`
+          *,
+          organization_departments (
+            id,
+            department_name,
+            status
+          )
+        `)
+        .order("job_title", { ascending: true }),
+    ]);
+
+    if (departmentsResponse.error) throw departmentsResponse.error;
+    if (jobTitlesResponse.error) throw jobTitlesResponse.error;
+
+    state.organizationDepartments = Array.isArray(departmentsResponse.data)
+      ? departmentsResponse.data
+      : [];
+
+    state.organizationJobTitles = Array.isArray(jobTitlesResponse.data)
+      ? jobTitlesResponse.data
+      : [];
+
+    // ORGANIZATION HR SETUP VALUES - STEP 4A
+    // Render Department Records after loading setup values.
+    // Employee form dropdowns are not changed yet.
+    renderOrganizationDepartmentsTable();
+    updateOrganizationDepartmentSaveButtonState();
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-2
+// Populate the Job Title Department dropdown from saved active Departments.
+// This still does not change the Create/Edit Employee form yet.
+populateOrganizationJobTitleDepartmentOptions();
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-3
+// Display the seeded Job Titles in the Job Title Records table.
+// This is read-only for now; save/edit comes after this is confirmed stable.
+renderOrganizationJobTitlesTable();
+
+// ORGANIZATION HR SETUP VALUES - STEP 5A
+// Keep the Create/Edit Employee Department and Job Title dropdowns aligned
+// with the latest Manage Organization setup records.
+populateEmployeeDepartmentOptionsFromOrganizationSetup(
+  state.dom.department?.value || "",
+);
+populateJobTitleOptionsForDepartment(
+  state.dom.jobTitle?.value || "",
+);
+
+updateOrganizationJobTitleSaveButtonState();
+  } catch (error) {
+    console.error("Error loading organization HR setup values:", error);
+
+    state.organizationDepartments = [];
+    state.organizationJobTitles = [];
+
+    showPageAlert(
+      "danger",
+      error.message || "Organization HR setup values could not be loaded.",
+    );
+  }
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+// After Department create/update, return HR to Department Records,
+// not the form. Offset keeps the records heading visible.
+function redirectToOrganizationDepartmentRecordsAfterSave() {
+  setDashboardCardExpanded(
+    state.dom.toggleOrganizationSettingsCardBtn,
+    state.dom.organizationSettingsCardCollapse,
+    true,
+  );
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-4C
+  // Use a larger offset so the Department Records heading is not cut off
+  // after create/update/duplicate feedback.
+  scrollToDashboardTarget(
+    state.dom.organizationDepartmentRecordsHeader ||
+      state.dom.organizationDepartmentsTableWrapper ||
+      state.dom.organizationDepartmentsSection ||
+      state.dom.organizationSettingsCardCollapse,
+    96,
+  );
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+// After Job Title create/update, return HR to Job Title Records,
+// not the form. Offset keeps the records heading visible.
+function redirectToOrganizationJobTitleRecordsAfterSave() {
+  setDashboardCardExpanded(
+    state.dom.toggleOrganizationSettingsCardBtn,
+    state.dom.organizationSettingsCardCollapse,
+    true,
+  );
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-4C
+  // Use a larger offset so the Job Title Records heading is not cut off
+  // after create/update/duplicate feedback.
+  scrollToDashboardTarget(
+    state.dom.organizationJobTitleRecordsHeader ||
+      state.dom.organizationJobTitlesTableWrapper ||
+      state.dom.organizationJobTitlesSection ||
+      state.dom.organizationSettingsCardCollapse,
+    96,
+  );
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Stable key used to identify a Department after save/update.
+function buildOrganizationDepartmentSortKey(record = {}) {
+  const id = String(record.id || "").trim();
+
+  if (id) {
+    return `id:${id}`;
+  }
+
+  return `name:${normalizeText(record.department_name)}`;
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Show the latest saved/updated Department first, then newest updated records.
+function sortOrganizationDepartmentsByLatestActivity(records = []) {
+  const lastSavedKey = String(state.lastSavedOrganizationDepartmentKey || "").trim();
+
+  return [...records].sort((a, b) => {
+    const aKey = buildOrganizationDepartmentSortKey(a);
+    const bKey = buildOrganizationDepartmentSortKey(b);
+
+    if (lastSavedKey && aKey === lastSavedKey && bKey !== lastSavedKey) return -1;
+    if (lastSavedKey && bKey === lastSavedKey && aKey !== lastSavedKey) return 1;
+
+    const aTime = new Date(a.updated_at || a.created_at || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || 0).getTime() || 0;
+
+    return bTime - aTime;
+  });
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Department button follows the same grey/blue behaviour as other HR forms.
+function isOrganizationDepartmentFormReadyForSubmit() {
+  const hasDepartmentName = Boolean(
+    String(state.dom.organizationDepartmentName?.value || "").trim(),
+  );
+
+  const hasStatus = Boolean(
+    String(state.dom.organizationDepartmentStatus?.value || "").trim(),
+  );
+
+  return hasDepartmentName && hasStatus;
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Uses the shared button helper already used by other app forms.
+function updateOrganizationDepartmentSaveButtonState() {
+  setPrimaryActionButtonReadyState(
+    state.dom.saveOrganizationDepartmentBtn,
+    isOrganizationDepartmentFormReadyForSubmit(),
+  );
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Validate Department fields only.
+function validateOrganizationDepartmentForm() {
+  let isValid = true;
+  let firstInvalidField = null;
+
+  const requiredFields = [
+    state.dom.organizationDepartmentName,
+    state.dom.organizationDepartmentStatus,
+  ];
+
+  requiredFields.forEach((field) => {
+    const value = String(field?.value || "").trim();
+
+    if (!value) {
+      field?.classList.add("is-invalid");
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = field;
+    } else {
+      field?.classList.remove("is-invalid");
+    }
+  });
+
+  if (!isValid && firstInvalidField?.focus) {
+    firstInvalidField.focus();
+  }
+
+  return isValid;
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Build a clean Department payload without touching employee records.
+function buildOrganizationDepartmentPayload(isEditMode = false) {
+  const payload = {
+    department_name: String(state.dom.organizationDepartmentName?.value || "").trim(),
+    status: String(state.dom.organizationDepartmentStatus?.value || "Active").trim(),
+    notes: String(state.dom.organizationDepartmentNotes?.value || "").trim() || null,
+    updated_by: state.currentUser?.id || null,
+  };
+
+  if (!isEditMode) {
+    payload.created_by = state.currentUser?.id || null;
+  }
+
+  return payload;
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Show visible feedback while Department is saving/updating.
+function setOrganizationDepartmentSaveLoading(isLoading, isEditMode = false) {
+  const button = state.dom.saveOrganizationDepartmentBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      ${isEditMode ? "Updating Department..." : "Saving Department..."}
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  updateOrganizationDepartmentSaveButtonState();
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Reset Department form to create mode.
+function resetOrganizationDepartmentForm() {
+  state.dom.organizationDepartmentForm?.reset();
+
+  state.currentEditingOrganizationDepartment = null;
+
+  if (state.dom.editingOrganizationDepartmentId) {
+    state.dom.editingOrganizationDepartmentId.value = "";
+  }
+
+  if (state.dom.organizationDepartmentStatus) {
+    state.dom.organizationDepartmentStatus.value = "Active";
+    state.dom.organizationDepartmentStatus.classList.remove("is-invalid");
+  }
+
+  state.dom.organizationDepartmentName?.classList.remove("is-invalid");
+
+  if (state.dom.organizationDepartmentSubmitLabel) {
+    state.dom.organizationDepartmentSubmitLabel.textContent = "Create Department";
+  }
+
+  state.dom.cancelOrganizationDepartmentEditBtn?.classList.add("d-none");
+
+  updateOrganizationDepartmentSaveButtonState();
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Save or update one Department record.
+async function handleOrganizationDepartmentSave() {
+  clearPageAlert();
+
+  if (!validateOrganizationDepartmentForm()) {
+    showPageAlert(
+      "warning",
+      "Please enter a department name before saving.",
+    );
+    return;
+  }
+
+  const editingId = String(state.dom.editingOrganizationDepartmentId?.value || "").trim();
+  const isEditMode = Boolean(editingId);
+  const payload = buildOrganizationDepartmentPayload(isEditMode);
+
+  const duplicateDepartment = (state.organizationDepartments || []).find((department) => {
+    const isSameName =
+      normalizeText(department.department_name) === normalizeText(payload.department_name);
+
+    const isDifferentRecord =
+      String(department.id || "").trim() !== editingId;
+
+    return isSameName && isDifferentRecord;
+  });
+
+if (duplicateDepartment) {
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+  // Duplicate Department should show both the page alert and popup.
+  const message = `Department <strong>${escapeHtml(payload.department_name)}</strong> already exists.`;
+
+  showPageAlert("warning", message);
+  showDashboardToast("warning", "Duplicate Department", message);
+  redirectToOrganizationDepartmentRecordsAfterSave();
+  return;
+}
+
+  try {
+    setOrganizationDepartmentSaveLoading(true, isEditMode);
+
+    const supabase = getSupabaseClient();
+
+    const response = isEditMode
+      ? await supabase
+        .from("organization_departments")
+        .update(payload)
+        .eq("id", editingId)
+        .select("*")
+        .maybeSingle()
+      : await supabase
+        .from("organization_departments")
+        .insert([payload])
+        .select("*")
+        .maybeSingle();
+
+    if (response.error) throw response.error;
+
+    state.lastSavedOrganizationDepartmentKey = buildOrganizationDepartmentSortKey(
+      response.data || {
+        id: editingId,
+        department_name: payload.department_name,
+      },
+    );
+
+resetOrganizationDepartmentForm();
+await refreshOrganizationHrSetupValues();
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+// After Department save/update, land on Department Records.
+redirectToOrganizationDepartmentRecordsAfterSave();
+
+const successMessage = isEditMode
+  ? `Department <strong>${escapeHtml(payload.department_name)}</strong> was updated successfully.`
+  : `Department <strong>${escapeHtml(payload.department_name)}</strong> was created successfully.`;
+
+showPageAlert("success", successMessage);
+showDashboardToast("success", "Department Saved", successMessage);
+  } catch (error) {
+    console.error("Error saving organization department:", error);
+
+    if (
+      String(error.message || "").toLowerCase().includes("duplicate key value")
+    ) {
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+// Duplicate caught from database constraint.
+const message = `Department <strong>${escapeHtml(payload.department_name)}</strong> already exists.`;
+
+showPageAlert("warning", message);
+showDashboardToast("warning", "Duplicate Department", message);
+redirectToOrganizationDepartmentRecordsAfterSave();
+return;
+    }
+
+    showPageAlert(
+      "danger",
+      error.message || "Department could not be saved.",
+    );
+  } finally {
+    setOrganizationDepartmentSaveLoading(false, isEditMode);
+  }
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Render Department records inside Manage Organization.
+function renderOrganizationDepartmentsTable() {
+  const tbody = state.dom.organizationDepartmentsTableBody;
+  if (!tbody) return;
+
+  const records = sortOrganizationDepartmentsByLatestActivity(
+    state.organizationDepartments || [],
+  );
+
+  tbody.innerHTML = "";
+
+  if (!records.length) {
+    state.dom.organizationDepartmentsEmptyState?.classList.remove("d-none");
+    state.dom.organizationDepartmentsTableWrapper?.classList.add("d-none");
+    return;
+  }
+
+  state.dom.organizationDepartmentsEmptyState?.classList.add("d-none");
+  state.dom.organizationDepartmentsTableWrapper?.classList.remove("d-none");
+
+  records.forEach((department) => {
+    const safeDepartmentId = String(department.id || "").replaceAll("'", "\\'");
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>
+        <div class="fw-semibold">${escapeHtml(department.department_name || "--")}</div>
+        <div class="text-secondary small">${escapeHtml(department.notes || "")}</div>
+      </td>
+
+      <td>
+        <span class="badge ${getStatusBadgeClass(department.status)}">
+          ${escapeHtml(formatStatusLabel(department.status))}
+        </span>
+      </td>
+
+      <td class="text-nowrap">
+        ${formatDate(department.updated_at || department.created_at)}
+      </td>
+
+      <td class="text-center">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          title="Edit department"
+          aria-label="Edit department"
+          onclick="window.hrEditOrganizationDepartmentRecord('${safeDepartmentId}')"
+        >
+          <i class="bi bi-pencil-square"></i>
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-2 FIX
+  // Keep Manage Job Titles Department dropdown in sync every time
+  // Department Records are rendered or refreshed.
+  populateOrganizationJobTitleDepartmentOptions();
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4A
+// Load a Department into the form for editing.
+function startOrganizationDepartmentEdit(departmentId) {
+  const record = (state.organizationDepartments || []).find(
+    (department) => String(department.id) === String(departmentId),
+  );
+
+  if (!record) {
+    showPageAlert(
+      "warning",
+      "The selected department could not be found. Please refresh and try again.",
+    );
+    return;
+  }
+
+  state.currentEditingOrganizationDepartment = record;
+
+  if (state.dom.editingOrganizationDepartmentId) {
+    state.dom.editingOrganizationDepartmentId.value = record.id || "";
+  }
+
+  if (state.dom.organizationDepartmentName) {
+    state.dom.organizationDepartmentName.value = record.department_name || "";
+  }
+
+  if (state.dom.organizationDepartmentStatus) {
+    state.dom.organizationDepartmentStatus.value = record.status || "Active";
+  }
+
+  if (state.dom.organizationDepartmentNotes) {
+    state.dom.organizationDepartmentNotes.value = record.notes || "";
+  }
+
+  if (state.dom.organizationDepartmentSubmitLabel) {
+    state.dom.organizationDepartmentSubmitLabel.textContent = "Update Department";
+  }
+
+  state.dom.cancelOrganizationDepartmentEditBtn?.classList.remove("d-none");
+
+  updateOrganizationDepartmentSaveButtonState();
+
+  state.dom.organizationDepartmentName?.focus();
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-2 FIX
+// Rebuild the Department dropdown used by the Manage Job Titles form.
+// This uses the Departments already loaded from Supabase.
+// Only Active departments are shown for new Job Titles.
+function populateOrganizationJobTitleDepartmentOptions(preferredDepartmentId = "") {
+  const select = state.dom.organizationJobTitleDepartmentId;
+  if (!select) return;
+
+  const currentValue = String(preferredDepartmentId || select.value || "").trim();
+
+  const departments = Array.isArray(state.organizationDepartments)
+    ? state.organizationDepartments
+    : [];
+
+  select.innerHTML = "";
+
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = departments.length
+    ? "Select department"
+    : "Create an active department first";
+  select.appendChild(placeholderOption);
+
+  departments
+    .filter((department) => normalizeText(department.status) === "active")
+    .sort((a, b) =>
+      String(a.department_name || "").localeCompare(
+        String(b.department_name || ""),
+      ),
+    )
+    .forEach((department) => {
+      const option = document.createElement("option");
+      option.value = department.id;
+      option.textContent = department.department_name || "Unnamed Department";
+      select.appendChild(option);
+    });
+
+  if (currentValue) {
+    const matchingOption = Array.from(select.options).find(
+      (option) => String(option.value) === currentValue,
+    );
+
+    if (matchingOption) {
+      select.value = currentValue;
+    }
+  }
+
+  updateOrganizationJobTitleSaveButtonState();
+}
+// ORGANIZATION HR SETUP VALUES - STEP 4B-2
+// Job Title form follows the same grey/blue button behaviour used elsewhere.
+function isOrganizationJobTitleFormReadyForSubmit() {
+  const hasDepartment = Boolean(
+    String(state.dom.organizationJobTitleDepartmentId?.value || "").trim(),
+  );
+
+  const hasJobTitle = Boolean(
+    String(state.dom.organizationJobTitleName?.value || "").trim(),
+  );
+
+  const hasStatus = Boolean(
+    String(state.dom.organizationJobTitleStatus?.value || "").trim(),
+  );
+
+  return hasDepartment && hasJobTitle && hasStatus;
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-2
+// Incomplete Job Title form = grey and disabled.
+// Complete Job Title form = blue and enabled.
+function updateOrganizationJobTitleSaveButtonState() {
+  setPrimaryActionButtonReadyState(
+    state.dom.saveOrganizationJobTitleBtn,
+    isOrganizationJobTitleFormReadyForSubmit(),
+  );
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-2
+// Reset Job Title form to clean create mode.
+// Save/edit behaviour will be added in the next step.
+function resetOrganizationJobTitleForm() {
+  state.dom.organizationJobTitleForm?.reset();
+
+  state.currentEditingOrganizationJobTitle = null;
+
+  if (state.dom.editingOrganizationJobTitleId) {
+    state.dom.editingOrganizationJobTitleId.value = "";
+  }
+
+  if (state.dom.organizationJobTitleStatus) {
+    state.dom.organizationJobTitleStatus.value = "Active";
+  }
+
+  if (state.dom.organizationJobTitleSubmitLabel) {
+    state.dom.organizationJobTitleSubmitLabel.textContent = "Create Job Title";
+  }
+
+  state.dom.cancelOrganizationJobTitleEditBtn?.classList.add("d-none");
+
+  populateOrganizationJobTitleDepartmentOptions("");
+  updateOrganizationJobTitleSaveButtonState();
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-3
+// Stable key used to identify a Job Title record when sorting.
+function buildOrganizationJobTitleSortKey(record = {}) {
+  const id = String(record.id || "").trim();
+
+  if (id) {
+    return `id:${id}`;
+  }
+
+  return [
+    "fallback",
+    normalizeText(record.department_id),
+    normalizeText(record.job_title),
+  ].join("|");
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-3
+// Show the latest saved/updated Job Title first later.
+// For seeded records, this also gives a clean newest-updated ordering.
+function sortOrganizationJobTitlesByLatestActivity(records = []) {
+  const lastSavedKey = String(state.lastSavedOrganizationJobTitleKey || "").trim();
+
+  return [...records].sort((a, b) => {
+    const aKey = buildOrganizationJobTitleSortKey(a);
+    const bKey = buildOrganizationJobTitleSortKey(b);
+
+    if (lastSavedKey && aKey === lastSavedKey && bKey !== lastSavedKey) return -1;
+    if (lastSavedKey && bKey === lastSavedKey && aKey !== lastSavedKey) return 1;
+
+    const aTime = new Date(a.updated_at || a.created_at || 0).getTime() || 0;
+    const bTime = new Date(b.updated_at || b.created_at || 0).getTime() || 0;
+
+    if (bTime !== aTime) {
+      return bTime - aTime;
+    }
+
+    return String(a.job_title || "").localeCompare(String(b.job_title || ""));
+  });
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-3
+// Render Job Title records inside Manage Organization.
+// This only displays records already loaded from Supabase.
+function renderOrganizationJobTitlesTable() {
+  const tbody = state.dom.organizationJobTitlesTableBody;
+  if (!tbody) return;
+
+  const records = sortOrganizationJobTitlesByLatestActivity(
+    state.organizationJobTitles || [],
+  );
+
+  tbody.innerHTML = "";
+
+  if (!records.length) {
+    state.dom.organizationJobTitlesEmptyState?.classList.remove("d-none");
+    state.dom.organizationJobTitlesTableWrapper?.classList.add("d-none");
+    return;
+  }
+
+  state.dom.organizationJobTitlesEmptyState?.classList.add("d-none");
+  state.dom.organizationJobTitlesTableWrapper?.classList.remove("d-none");
+
+  records.forEach((jobTitle) => {
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4
+    // Safe ID used by the edit button for this Job Title row.
+    const safeJobTitleId = String(jobTitle.id || "").replaceAll("'", "\\'");
+    const linkedDepartment = jobTitle.organization_departments || {};
+
+    const fallbackDepartment = (state.organizationDepartments || []).find(
+      (department) => String(department.id) === String(jobTitle.department_id),
+    );
+
+    const departmentName =
+      linkedDepartment.department_name ||
+      fallbackDepartment?.department_name ||
+      "--";
+
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>
+        <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-3
+             Show seeded or manually created Job Title name with optional note. -->
+        <div class="fw-semibold">${escapeHtml(jobTitle.job_title || "--")}</div>
+        <div class="text-secondary small">${escapeHtml(jobTitle.notes || "")}</div>
+      </td>
+
+      <td>${escapeHtml(departmentName)}</td>
+
+      <td>
+        <span class="badge ${getStatusBadgeClass(jobTitle.status)}">
+          ${escapeHtml(formatStatusLabel(jobTitle.status))}
+        </span>
+      </td>
+
+      <td class="text-nowrap">
+        ${formatDate(jobTitle.updated_at || jobTitle.created_at)}
+      </td>
+
+      <td class="text-center">
+        <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4
+             Edit button loads the selected Job Title into the form above. -->
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          title="Edit job title"
+          aria-label="Edit job title"
+          onclick="window.hrEditOrganizationJobTitleRecord('${safeJobTitleId}')"
+        >
+          <i class="bi bi-pencil-square"></i>
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(row);
+  });
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4
+// Validate required Job Title fields before saving.
+function validateOrganizationJobTitleForm() {
+  let isValid = true;
+  let firstInvalidField = null;
+
+  const requiredFields = [
+    state.dom.organizationJobTitleDepartmentId,
+    state.dom.organizationJobTitleName,
+    state.dom.organizationJobTitleStatus,
+  ];
+
+  requiredFields.forEach((field) => {
+    const value = String(field?.value || "").trim();
+
+    if (!value) {
+      field?.classList.add("is-invalid");
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = field;
+    } else {
+      field?.classList.remove("is-invalid");
+    }
+  });
+
+  if (!isValid && firstInvalidField?.focus) {
+    firstInvalidField.focus();
+  }
+
+  return isValid;
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4
+// Build one clean Job Title payload for insert/update.
+// This only affects organization_job_titles.
+function buildOrganizationJobTitlePayload(isEditMode = false) {
+  const payload = {
+    department_id: String(state.dom.organizationJobTitleDepartmentId?.value || "").trim(),
+    job_title: String(state.dom.organizationJobTitleName?.value || "").trim(),
+    status: String(state.dom.organizationJobTitleStatus?.value || "Active").trim(),
+    notes: String(state.dom.organizationJobTitleNotes?.value || "").trim() || null,
+    updated_by: state.currentUser?.id || null,
+  };
+
+  if (!isEditMode) {
+    payload.created_by = state.currentUser?.id || null;
+  }
+
+  return payload;
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4
+// Show a small spinner while Job Title is saving/updating.
+function setOrganizationJobTitleSaveLoading(isLoading, isEditMode = false) {
+  const button = state.dom.saveOrganizationJobTitleBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      ${isEditMode ? "Updating Job Title..." : "Saving Job Title..."}
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  updateOrganizationJobTitleSaveButtonState();
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4
+// Save or update one Job Title record.
+// Duplicate protection is scoped to Department + Job Title.
+async function handleOrganizationJobTitleSave() {
+  clearPageAlert();
+
+  if (!validateOrganizationJobTitleForm()) {
+    showPageAlert(
+      "warning",
+      "Please select a department and enter a job title before saving.",
+    );
+    return;
+  }
+
+  const editingId = String(state.dom.editingOrganizationJobTitleId?.value || "").trim();
+  const isEditMode = Boolean(editingId);
+  const payload = buildOrganizationJobTitlePayload(isEditMode);
+
+  const duplicateJobTitle = (state.organizationJobTitles || []).find((jobTitle) => {
+    const isSameDepartment =
+      String(jobTitle.department_id || "").trim() === payload.department_id;
+
+    const isSameTitle =
+      normalizeText(jobTitle.job_title) === normalizeText(payload.job_title);
+
+    const isDifferentRecord =
+      String(jobTitle.id || "").trim() !== editingId;
+
+    return isSameDepartment && isSameTitle && isDifferentRecord;
+  });
+
+  if (duplicateJobTitle) {
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4C
+    // Duplicate Job Title should show both the normal page alert
+    // and the floating popup so HR sees the block immediately.
+    const message = `Job Title <strong>${escapeHtml(payload.job_title)}</strong> already exists under the selected department.`;
+
+    showPageAlert("warning", message);
+    showDashboardToast("warning", "Duplicate Job Title", message);
+
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4C
+    // Keep HR around the Job Title Records area after the duplicate block.
+    redirectToOrganizationJobTitleRecordsAfterSave();
+    return;
+  }
+
+  try {
+    setOrganizationJobTitleSaveLoading(true, isEditMode);
+
+    const supabase = getSupabaseClient();
+
+    const response = isEditMode
+      ? await supabase
+          .from("organization_job_titles")
+          .update(payload)
+          .eq("id", editingId)
+          .select("*")
+          .maybeSingle()
+      : await supabase
+          .from("organization_job_titles")
+          .insert([payload])
+          .select("*")
+          .maybeSingle();
+
+    if (response.error) throw response.error;
+
+    state.lastSavedOrganizationJobTitleKey = buildOrganizationJobTitleSortKey(
+      response.data || {
+        id: editingId,
+        department_id: payload.department_id,
+        job_title: payload.job_title,
+      },
+    );
+
+resetOrganizationJobTitleForm();
+await refreshOrganizationHrSetupValues();
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+// Keep HR around the Job Title Records area and show popup feedback.
+redirectToOrganizationJobTitleRecordsAfterSave();
+
+const successMessage = isEditMode
+  ? `Job Title <strong>${escapeHtml(payload.job_title)}</strong> was updated successfully.`
+  : `Job Title <strong>${escapeHtml(payload.job_title)}</strong> was created successfully.`;
+
+showPageAlert("success", successMessage);
+showDashboardToast("success", "Job Title Saved", successMessage);
+  } catch (error) {
+    console.error("Error saving organization job title:", error);
+
+    if (
+      String(error.message || "").toLowerCase().includes("duplicate key value")
+    ) {
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+// Duplicate caught from database constraint.
+const message = `Job Title <strong>${escapeHtml(payload.job_title)}</strong> already exists under the selected department.`;
+
+showPageAlert("warning", message);
+showDashboardToast("warning", "Duplicate Job Title", message);
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+// After Job Title save/update, land on Job Title Records.
+redirectToOrganizationJobTitleRecordsAfterSave();
+return;
+    }
+
+    showPageAlert(
+      "danger",
+      error.message || "Job Title could not be saved.",
+    );
+  } finally {
+    setOrganizationJobTitleSaveLoading(false, isEditMode);
+  }
+}
+
+// ORGANIZATION HR SETUP VALUES - STEP 4B-4
+// Load a Job Title into the form for editing.
+function startOrganizationJobTitleEdit(jobTitleId) {
+  const record = (state.organizationJobTitles || []).find(
+    (jobTitle) => String(jobTitle.id) === String(jobTitleId),
+  );
+
+  if (!record) {
+    showPageAlert(
+      "warning",
+      "The selected job title could not be found. Please refresh and try again.",
+    );
+    return;
+  }
+
+  state.currentEditingOrganizationJobTitle = record;
+
+  if (state.dom.editingOrganizationJobTitleId) {
+    state.dom.editingOrganizationJobTitleId.value = record.id || "";
+  }
+
+  populateOrganizationJobTitleDepartmentOptions(record.department_id || "");
+
+  if (state.dom.organizationJobTitleName) {
+    state.dom.organizationJobTitleName.value = record.job_title || "";
+  }
+
+  if (state.dom.organizationJobTitleStatus) {
+    state.dom.organizationJobTitleStatus.value = record.status || "Active";
+  }
+
+  if (state.dom.organizationJobTitleNotes) {
+    state.dom.organizationJobTitleNotes.value = record.notes || "";
+  }
+
+  if (state.dom.organizationJobTitleSubmitLabel) {
+    state.dom.organizationJobTitleSubmitLabel.textContent = "Update Job Title";
+  }
+
+  state.dom.cancelOrganizationJobTitleEditBtn?.classList.remove("d-none");
+
+  updateOrganizationJobTitleSaveButtonState();
+
+  state.dom.organizationJobTitleName?.focus();
+}
+
+// MANAGE ORGANIZATION CARD - STEP 3
+// Load the single organization settings record and render it into the card.
+async function refreshOrganizationSettingsWorkspace() {
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("organization_settings")
+      .select("*")
+      .eq("singleton_key", true)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    state.organizationSettings = data || null;
+    renderOrganizationSettingsCard();
+  } catch (error) {
+    console.error("Error loading organization settings:", error);
+    showPageAlert(
+      "danger",
+      error.message || "Organization settings could not be loaded.",
+    );
+  }
+}
+
+// MANAGE ORGANIZATION CARD - STEP 3
+// Render summary values and form values from the saved organization record.
+function renderOrganizationSettingsCard() {
+  const record = state.organizationSettings || null;
+
+  if (state.dom.organizationSummaryName) {
+    state.dom.organizationSummaryName.textContent =
+      record?.organization_name || "Not set";
+  }
+
+  if (state.dom.organizationSummaryCurrency) {
+    state.dom.organizationSummaryCurrency.textContent =
+      record?.default_currency || "NGN";
+  }
+
+  if (state.dom.organizationSummaryPayCycle) {
+    state.dom.organizationSummaryPayCycle.textContent =
+      record?.default_pay_cycle || "Monthly";
+  }
+
+  if (state.dom.organizationSummaryStatus) {
+    state.dom.organizationSummaryStatus.textContent =
+      record?.status || "Not set";
+  }
+
+  // MANAGE ORGANIZATION CARD - STEP 4B-1 FIX 2
+  // Do not auto-fill the editable Organization form from saved data on page load.
+  // The saved values should show in the summary tiles above, while the form
+  // stays clean/defaulted until HR intentionally enters new changes.
+  if (state.dom.organizationSettingsForm) {
+    state.dom.organizationSettingsForm.reset();
+  }
+
+  if (state.dom.organizationCountry) {
+    state.dom.organizationCountry.value = "Nigeria";
+  }
+
+  if (state.dom.organizationDefaultCurrency) {
+    state.dom.organizationDefaultCurrency.value = "NGN";
+  }
+
+  if (state.dom.organizationDefaultPayCycle) {
+    state.dom.organizationDefaultPayCycle.value = "Monthly";
+  }
+
+  if (state.dom.organizationStatus) {
+    state.dom.organizationStatus.value = "Active";
+  }
+
+  if (state.dom.organizationSettingsSubmitLabel) {
+    state.dom.organizationSettingsSubmitLabel.textContent = record?.id
+      ? "Update Organization Details"
+      : "Save Organization Details";
+  }
+
+  // MANAGE ORGANIZATION CARD - STEP 4A FIX
+  // After saved values are loaded into the form, refresh the button state.
+  updateOrganizationSettingsSaveButtonState();
+}
+// MANAGE ORGANIZATION CARD - STEP 4A FIX
+// Organization Details follows the same grey/blue button behaviour
+// used across the HR & Payroll System forms.
+function isOrganizationSettingsFormReadyForSubmit() {
+  const requiredFields = [
+    state.dom.organizationName,
+    state.dom.organizationDefaultCurrency,
+    state.dom.organizationDefaultPayCycle,
+    state.dom.organizationStatus,
+  ];
+
+  return requiredFields.every((field) =>
+    Boolean(String(field?.value || "").trim()),
+  );
+}
+
+// MANAGE ORGANIZATION CARD - STEP 4A FIX
+// Incomplete Organization form = grey and disabled.
+// Complete Organization form = blue and enabled.
+function updateOrganizationSettingsSaveButtonState() {
+  setPrimaryActionButtonReadyState(
+    state.dom.saveOrganizationSettingsBtn,
+    isOrganizationSettingsFormReadyForSubmit(),
+  );
+}
+
+// MANAGE ORGANIZATION CARD - STEP 4B-1 FIX
+// Clear the editable Organization form after save/update while keeping
+// the saved summary values visible at the top of the card.
+function resetOrganizationSettingsFormAfterSave() {
+  state.dom.organizationSettingsForm?.reset();
+
+  const fieldsToReset = [
+    state.dom.organizationName,
+    state.dom.organizationEmail,
+    state.dom.organizationPhoneNumber,
+    state.dom.organizationPayrollContactEmail,
+    state.dom.organizationAddressLine,
+    state.dom.organizationCity,
+    state.dom.organizationCountry,
+    state.dom.organizationTin,
+    state.dom.organizationRegistrationNumber,
+    state.dom.organizationDefaultCurrency,
+    state.dom.organizationDefaultPayCycle,
+    state.dom.organizationStatus,
+    state.dom.organizationNotes,
+  ];
+
+  fieldsToReset.forEach((field) => {
+    field?.classList.remove("is-invalid");
+  });
+
+  // MANAGE ORGANIZATION CARD - STEP 4B-1 FIX
+  // Keep safe defaults after clearing the form.
+  if (state.dom.organizationCountry) {
+    state.dom.organizationCountry.value = "Nigeria";
+  }
+
+  if (state.dom.organizationDefaultCurrency) {
+    state.dom.organizationDefaultCurrency.value = "NGN";
+  }
+
+  if (state.dom.organizationDefaultPayCycle) {
+    state.dom.organizationDefaultPayCycle.value = "Monthly";
+  }
+
+  if (state.dom.organizationStatus) {
+    state.dom.organizationStatus.value = "Active";
+  }
+
+  updateOrganizationSettingsSaveButtonState();
+}
+
+// MANAGE ORGANIZATION CARD - STEP 3
+// Validate only required organization settings fields.
+function validateOrganizationSettingsForm() {
+  let isValid = true;
+  let firstInvalidField = null;
+
+  const requiredFields = [
+    state.dom.organizationName,
+    state.dom.organizationDefaultCurrency,
+    state.dom.organizationDefaultPayCycle,
+    state.dom.organizationStatus,
+  ];
+
+  requiredFields.forEach((field) => {
+    const value = String(field?.value || "").trim();
+
+    if (!value) {
+      field?.classList.add("is-invalid");
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = field;
+    } else {
+      field?.classList.remove("is-invalid");
+    }
+  });
+
+  if (!isValid && firstInvalidField?.focus) {
+    firstInvalidField.focus();
+  }
+
+  return isValid;
+}
+
+// MANAGE ORGANIZATION CARD - STEP 3
+// Build one clean payload for insert/update without touching other tables.
+function buildOrganizationSettingsPayload(isEditMode = false) {
+  const payload = {
+    singleton_key: true,
+    organization_name: String(state.dom.organizationName?.value || "").trim(),
+    organization_email: String(state.dom.organizationEmail?.value || "").trim() || null,
+    phone_number: String(state.dom.organizationPhoneNumber?.value || "").trim() || null,
+    payroll_contact_email: String(state.dom.organizationPayrollContactEmail?.value || "").trim() || null,
+    address_line: String(state.dom.organizationAddressLine?.value || "").trim() || null,
+    city: String(state.dom.organizationCity?.value || "").trim() || null,
+    country: String(state.dom.organizationCountry?.value || "").trim() || "Nigeria",
+    tax_identification_number: String(state.dom.organizationTin?.value || "").trim() || null,
+    registration_number: String(state.dom.organizationRegistrationNumber?.value || "").trim() || null,
+    default_currency: String(state.dom.organizationDefaultCurrency?.value || "NGN").trim(),
+    // MANAGE ORGANIZATION CARD - STEP 3A
+    // The HR & Payroll System currently supports monthly payroll only.
+    // Save Monthly explicitly so unsupported cycles cannot be stored from the UI.
+    default_pay_cycle: "Monthly",
+    status: String(state.dom.organizationStatus?.value || "Active").trim(),
+    notes: String(state.dom.organizationNotes?.value || "").trim() || null,
+    updated_by: state.currentUser?.id || null,
+  };
+
+  if (!isEditMode) {
+    payload.created_by = state.currentUser?.id || null;
+  }
+
+  return payload;
+}
+
+// MANAGE ORGANIZATION CARD - STEP 3
+// Show a small spinner while saving organization details.
+function setOrganizationSettingsSaveLoading(isLoading, isEditMode = false) {
+  const button = state.dom.saveOrganizationSettingsBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      ${isEditMode ? "Updating Organization..." : "Saving Organization..."}
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+   // MANAGE ORGANIZATION CARD - STEP 4A FIX
+  // After spinner finishes, return to the shared grey/blue readiness behaviour.
+  updateOrganizationSettingsSaveButtonState();
+}
+
+// MANAGE ORGANIZATION CARD - STEP 3
+// Save or update the single organization settings record.
+async function handleOrganizationSettingsSave() {
+  clearPageAlert();
+
+  if (!validateOrganizationSettingsForm()) {
+    showPageAlert(
+      "warning",
+      "Please complete the required organization fields before saving.",
+    );
+    return;
+  }
+
+  const existingId = String(state.organizationSettings?.id || "").trim();
+  const isEditMode = Boolean(existingId);
+  const payload = buildOrganizationSettingsPayload(isEditMode);
+
+  try {
+    setOrganizationSettingsSaveLoading(true, isEditMode);
+
+    const supabase = getSupabaseClient();
+
+    const response = isEditMode
+      ? await supabase
+        .from("organization_settings")
+        .update(payload)
+        .eq("id", existingId)
+        .select("*")
+        .maybeSingle()
+      : await supabase
+        .from("organization_settings")
+        .insert([payload])
+        .select("*")
+        .maybeSingle();
+
+    if (response.error) throw response.error;
+
+    state.organizationSettings = response.data || null;
+
+    // MANAGE ORGANIZATION CARD - STEP 4B-1 FIX
+    // First refresh the saved summary from Supabase response.
+    renderOrganizationSettingsCard();
+
+    // MANAGE ORGANIZATION CARD - STEP 4B-1 FIX
+    // Then clear the editable form so create/update behaves like the other forms.
+    // The summary tiles above still show the saved Organization details.
+    resetOrganizationSettingsFormAfterSave();
+
+    showPageAlert(
+      "success",
+      isEditMode
+        ? "Organization details were updated successfully."
+        : "Organization details were saved successfully.",
+    );
+  } catch (error) {
+    console.error("Error saving organization settings:", error);
+
+    if (
+      String(error.message || "").toLowerCase().includes("duplicate key value")
+    ) {
+      showPageAlert(
+        "warning",
+        "Organization details already exist. Refresh the page and update the existing record instead.",
+      );
+      return;
+    }
+
+    showPageAlert(
+      "danger",
+      error.message || "Organization details could not be saved.",
+    );
+  } finally {
+    setOrganizationSettingsSaveLoading(false, isEditMode);
   }
 }
 
@@ -5560,7 +7117,7 @@ function renderEmployeeRecords(employees) {
   // EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 4
   // Keep the existing newest-first behaviour.
   const employeesToRender = sortEmployeeRecordsByLatestActivity(employees);
-    // EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1
+  // EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1
   // Row-level Pay checkboxes should only show during the Run Payroll flow.
   const isPayrollSelectionMode = Boolean(state.isRunPayrollSelectionMode);
 
@@ -5582,7 +7139,7 @@ function renderEmployeeRecords(employees) {
 
     const row = document.createElement("tr");
 
-        row.innerHTML = `
+    row.innerHTML = `
       <td class="text-center align-middle py-3 ${isPayrollSelectionMode ? "" : "d-none"}">
         <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
              Hide the row checkbox outside Run Payroll mode so the Employee
@@ -5694,17 +7251,17 @@ function resetEmployeeForm() {
   state.dom.employeeCreateForm.reset();
   state.currentEditingEmployee = null;
 
-const fieldsToReset = [
-  state.dom.firstName,
+  const fieldsToReset = [
+    state.dom.firstName,
 
-  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
-  // Clear optional Middle Name when the employee form resets.
-  state.dom.middleName,
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+    // Clear optional Middle Name when the employee form resets.
+    state.dom.middleName,
 
-  state.dom.lastName,
-  state.dom.workEmail,
-  state.dom.phoneNumber,
-  state.dom.department,
+    state.dom.lastName,
+    state.dom.workEmail,
+    state.dom.phoneNumber,
+    state.dom.department,
     state.dom.jobTitle,
 
     state.dom.lineManager,
@@ -5781,20 +7338,28 @@ function enterEmployeeEditMode(employee) {
   state.currentEditingEmployee = employee;
 
   if (state.dom.editingEmployeeId) state.dom.editingEmployeeId.value = employee.id || "";
-if (state.dom.firstName) state.dom.firstName.value = employee.first_name || "";
+  if (state.dom.firstName) state.dom.firstName.value = employee.first_name || "";
 
-// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
-// Load optional Middle Name when HR edits an employee profile.
-if (state.dom.middleName) state.dom.middleName.value = employee.middle_name || "";
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+  // Load optional Middle Name when HR edits an employee profile.
+  if (state.dom.middleName) state.dom.middleName.value = employee.middle_name || "";
 
-if (state.dom.lastName) state.dom.lastName.value = employee.last_name || "";
-if (state.dom.workEmail) state.dom.workEmail.value = employee.work_email || "";
+  if (state.dom.lastName) state.dom.lastName.value = employee.last_name || "";
+  if (state.dom.workEmail) state.dom.workEmail.value = employee.work_email || "";
   if (state.dom.phoneNumber) state.dom.phoneNumber.value = employee.phone_number || "";
-  if (state.dom.department) state.dom.department.value = employee.department || "";
 
-  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
-  // Edit mode must rebuild the Job Title list for the saved Department,
-  // then select the employee's saved Job Title.
+  // ORGANIZATION HR SETUP VALUES - STEP 5A
+  // Edit mode must rebuild the Department dropdown from Manage Organization
+  // before selecting the employee's saved department.
+  populateEmployeeDepartmentOptionsFromOrganizationSetup(employee.department || "");
+
+  if (state.dom.department) {
+    state.dom.department.value = employee.department || "";
+  }
+
+  // ORGANIZATION HR SETUP VALUES - STEP 5A
+  // After the saved Department is selected, rebuild Job Title options
+  // from active Manage Organization Job Titles under that Department.
   populateJobTitleOptionsForDepartment(employee.job_title || "");
 
   if (state.dom.lineManager) state.dom.lineManager.value = employee.line_manager || "";
@@ -5853,7 +7418,7 @@ if (state.dom.workEmail) state.dom.workEmail.value = employee.work_email || "";
 
   void loadEmployeeDocuments(employee.id);
 
-   // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
   // Edit mode loads existing values into the form, so recalculate whether
   // the Update Employee button should be enabled.
   updateEmployeeSaveButtonState();
@@ -5983,15 +7548,15 @@ function buildEmployeePayload() {
     state.dom.employmentStatus?.value || "active",
   ).trim();
 
-return {
-  first_name: String(state.dom.firstName?.value || "").trim(),
+  return {
+    first_name: String(state.dom.firstName?.value || "").trim(),
 
-  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
-  // Middle Name is optional, so save blank values as null.
-  middle_name: String(state.dom.middleName?.value || "").trim() || null,
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+    // Middle Name is optional, so save blank values as null.
+    middle_name: String(state.dom.middleName?.value || "").trim() || null,
 
-  last_name: String(state.dom.lastName?.value || "").trim(),
-  work_email: String(state.dom.workEmail?.value || "")
+    last_name: String(state.dom.lastName?.value || "").trim(),
+    work_email: String(state.dom.workEmail?.value || "")
       .trim()
       .toLowerCase(),
     phone_number: String(state.dom.phoneNumber?.value || "").trim() || null,
@@ -6613,16 +8178,16 @@ async function handleEmployeeSave() {
 
     const supabase = getSupabaseClient();
     let savedEmployeeId = editingId;
-// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
-// Build the success-message name with optional Middle Name.
-let savedEmployeeName = [
-  employeePayload.first_name,
-  employeePayload.middle_name,
-  employeePayload.last_name,
-]
-  .map((namePart) => String(namePart || "").trim())
-  .filter(Boolean)
-  .join(" ");
+    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1C
+    // Build the success-message name with optional Middle Name.
+    let savedEmployeeName = [
+      employeePayload.first_name,
+      employeePayload.middle_name,
+      employeePayload.last_name,
+    ]
+      .map((namePart) => String(namePart || "").trim())
+      .filter(Boolean)
+      .join(" ");
     let savedEmployeeNumber = String(employeePayload.employee_number || "").trim();
 
     if (isEditMode) {
@@ -6639,14 +8204,14 @@ let savedEmployeeName = [
       }
 
       savedEmployeeId = data.id;
-savedEmployeeName = [
-  data.first_name || employeePayload.first_name,
-  data.middle_name || employeePayload.middle_name,
-  data.last_name || employeePayload.last_name,
-]
-  .map((namePart) => String(namePart || "").trim())
-  .filter(Boolean)
-  .join(" ");
+      savedEmployeeName = [
+        data.first_name || employeePayload.first_name,
+        data.middle_name || employeePayload.middle_name,
+        data.last_name || employeePayload.last_name,
+      ]
+        .map((namePart) => String(namePart || "").trim())
+        .filter(Boolean)
+        .join(" ");
 
       // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
       // Keep the returned employee number available for messaging.
@@ -6700,13 +8265,13 @@ savedEmployeeName = [
     // Edit mode should not suggest that the Employee ID was regenerated.
     const employeeSaveSuccessMessage = isEditMode
       ? `Employee profile for <strong>${escapeHtml(
-          savedEmployeeName,
-        )}</strong> was updated successfully.`
+        savedEmployeeName,
+      )}</strong> was updated successfully.`
       : `Employee profile for <strong>${escapeHtml(
-          savedEmployeeName,
-        )}</strong> was created successfully with Employee ID <strong>${escapeHtml(
-          savedEmployeeNumber || employeePayload.employee_number || "--",
-        )}</strong>.`;
+        savedEmployeeName,
+      )}</strong> was created successfully with Employee ID <strong>${escapeHtml(
+        savedEmployeeNumber || employeePayload.employee_number || "--",
+      )}</strong>.`;
 
     showPageAlert("success", employeeSaveSuccessMessage);
 
@@ -8551,6 +10116,10 @@ function renderPayrollRecordsLoadingState() {
   `;
 }
 
+// MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A RECOVERY
+// Payroll Records must render payroll rows only.
+// This removes accidental Employee List checkbox/employee-variable code
+// that caused "isPayrollSelectionMode is not defined" after payroll save.
 function renderPayrollRecords(records) {
   const tbody = state.dom.payrollRecordsTableBody;
   if (!tbody) return;
@@ -8561,15 +10130,18 @@ function renderPayrollRecords(records) {
     if (state.dom.payrollRecordsEmptyState) {
       state.dom.payrollRecordsEmptyState.classList.remove("d-none");
     }
+
     if (state.dom.payrollRecordsTableWrapper) {
       state.dom.payrollRecordsTableWrapper.classList.add("d-none");
     }
+
     return;
   }
 
   if (state.dom.payrollRecordsEmptyState) {
     state.dom.payrollRecordsEmptyState.classList.add("d-none");
   }
+
   if (state.dom.payrollRecordsTableWrapper) {
     state.dom.payrollRecordsTableWrapper.classList.remove("d-none");
   }
@@ -8579,7 +10151,10 @@ function renderPayrollRecords(records) {
   const recordsToRender = sortPayrollRecordsByLatestActivity(records);
 
   recordsToRender.forEach((record) => {
-    const fullName = `${record.first_name || ""} ${record.last_name || ""}`.trim();
+    const fullName =
+      `${record.first_name || ""} ${record.last_name || ""}`.trim() ||
+      record.work_email ||
+      "Unknown Employee";
 
     // DESCRIPTION ITEM 4 - STEP 7
     // Prepare a safe payroll record id for inline table actions.
@@ -8589,107 +10164,106 @@ function renderPayrollRecords(records) {
     // Payslip preview should only be available for finalised payroll records.
     const canPreviewPayslip = Boolean(record.is_finalised);
 
-        const row = document.createElement("tr");
+    const row = document.createElement("tr");
 
     row.innerHTML = `
-      <td class="text-center align-top ${isPayrollSelectionMode ? "" : "d-none"}">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Align the payroll selection checkbox to the top of the row so all
-             visible row content starts from the same vertical position. -->
-        <input
-          type="checkbox"
-          class="form-check-input mt-0"
-          aria-label="Select employee for payroll"
-          ${isEmployeeSelectedForPayroll(employee.id) ? "checked" : ""}
-          onchange="window.hrToggleEmployeePayrollSelection('${String(employee.id).replaceAll("'", "\\'")}', this.checked)"
-        />
-      </td>
-
-      <td class="align-top">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Keep employee identity details grouped and aligned with the checkbox. -->
-        <div class="fw-semibold text-nowrap">${escapeHtml(fullName || "Unnamed Employee")}</div>
-        <div class="text-secondary small">
-          ${escapeHtml(employee.employee_number || "--")}
+      <td>
+        <!-- MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A RECOVERY
+             Payroll Records should show payroll record identity only.
+             Employee List checkbox code does not belong here. -->
+        <div class="fw-semibold">${escapeHtml(fullName)}</div>
+        <div class="text-secondary small text-break">
+          ${escapeHtml(record.work_email || "--")}
         </div>
-        <!-- EMPLOYEE LIST EXISTING TABLE CLEANUP - STEP 1
-             Manager is intentionally not shown in the Full Employee List table.
-             This keeps the grouped employee cell compact and aligned with
-             Contact and Role, without changing the wider table design. -->
-      </td>
-
-      <td class="align-top">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Keep contact details aligned from the same top line as Employee and Role. -->
-        <div class="text-break">${escapeHtml(employee.work_email || "--")}</div>
         <div class="text-secondary small">
-          ${escapeHtml(employee.phone_number || "--")}
+          ${escapeHtml(record.department || "--")} • ${escapeHtml(record.job_title || "--")}
         </div>
       </td>
 
-      <td class="align-top">
-        <!-- EMPLOYEE LIST CONFIDENTIAL SALARY CLEANUP - STEP 1
-             Full Employee List shows HR identity and role details only.
-             Salary and pay-cycle values are confidential payroll data and are
-             intentionally not displayed in this HR reference table. -->
-        <div>${escapeHtml(employee.department || "--")}</div>
+      <td>
+        <!-- PAYROLL RECORDS GROUP LABELS - STEP 12C
+             Display payroll group labels consistently without changing
+             the stored database values. -->
+        <div class="fw-semibold">
+          ${escapeHtml(formatPayrollGroupDisplayLabel(record.employee_group))}
+        </div>
         <div class="text-secondary small">
-          ${escapeHtml(employee.job_title || "--")}
+          ${escapeHtml(record.pay_cycle || "--")}
         </div>
       </td>
 
-      <td class="align-top">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Align status badge with the checkbox and wording cells. -->
-        <span class="badge ${getStatusBadgeClass(employee.status)}">
-          ${escapeHtml(formatStatusLabel(employee.status))}
-        </span>
+      <td class="align-middle">
+        <!-- PAYROLL RECORDS DATE CLARITY - STEP 12B
+             Pay Date is the payroll/payment date.
+             Submitted is the audit timestamp when HR created or updated the record. -->
+        <div class="fw-medium text-nowrap" title="Payroll pay date">
+          Pay: ${formatDate(record.pay_date)}
+        </div>
+        <div class="text-secondary small text-nowrap" title="Submitted date and time" style="margin-top: 4px;">
+          Sub: ${formatCompactDateTime(record.updated_at || record.created_at)}
+        </div>
       </td>
 
-      <td class="align-top">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Align account badge with the checkbox and wording cells. -->
-        <span class="badge ${accountLinkage.badgeClass}">
-          ${escapeHtml(accountLinkage.label)}
-        </span>
+      <td>
+        <!-- MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A RECOVERY
+             Keep payroll money values grouped in Payroll Records.
+             This is display-only and does not change saved payroll values. -->
+        <div class="small">
+          <span class="text-secondary">Gross:</span>
+          <span class="fw-semibold">${formatCurrency(record.gross_pay, record.currency || "NGN")}</span>
+        </div>
+        <div class="small">
+          <span class="text-secondary">Ded:</span>
+          <span class="fw-semibold">${formatCurrency(record.total_deductions, record.currency || "NGN")}</span>
+        </div>
+        <div class="small">
+          <span class="text-secondary">Net:</span>
+          <span class="fw-semibold">${formatCurrency(record.net_pay, record.currency || "NGN")}</span>
+        </div>
       </td>
 
-      <td class="align-top">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Align document count badge with the checkbox and wording cells. -->
-        <span class="badge ${documentCount > 0 ? "text-bg-info" : "text-bg-light border text-dark"} text-nowrap">
-          <i class="bi bi-paperclip me-1"></i>${documentCount}
-        </span>
+      <td>
+        <!-- MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A RECOVERY
+             Status and finalisation remain compact in one Payroll Records cell. -->
+        <div class="mb-1">
+          <span class="badge ${getPayrollStatusBadgeClass(record.status)}">
+            ${escapeHtml(formatStatusLabel(record.status))}
+          </span>
+        </div>
+        <div>
+          <span class="badge ${
+            record.is_finalised
+              ? "text-bg-success"
+              : "text-bg-light border text-dark"
+          }">
+            ${record.is_finalised ? "Finalised" : "Not Finalised"}
+          </span>
+        </div>
       </td>
 
-      <td class="text-nowrap align-top">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Align start date with the checkbox and wording cells. -->
-        ${formatDate(employee.employment_date)}
-      </td>
-
-      <td class="text-center align-top">
-        <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 3
-             Align action buttons with the checkbox and wording cells. -->
-        <div class="d-inline-flex align-items-start gap-2 flex-nowrap">
+      <td class="text-center">
+        <!-- DESCRIPTION ITEM 4 - STEP 7
+             Keep payslip preview beside edit.
+             Preview is disabled until the payroll record is finalised. -->
+        <div class="d-inline-flex justify-content-center gap-2">
           <button
             type="button"
-            class="btn btn-sm btn-outline-primary"
-            title="Edit employee"
-            aria-label="Edit employee"
-            onclick="window.hrEditEmployee('${String(employee.id).replaceAll("'", "\\'")}')"
+            class="btn btn-sm ${canPreviewPayslip ? "btn-outline-secondary" : "btn-outline-light border"}"
+            title="${canPreviewPayslip ? "Preview payslip" : "Preview available after payroll is finalised"}"
+            aria-label="Preview payslip"
+            ${canPreviewPayslip ? `onclick="window.hrPreviewPayslipRecord('${safePayrollRecordId}')"` : "disabled"}
           >
-            <i class="bi bi-pencil-square"></i>
+            <i class="bi bi-receipt"></i>
           </button>
 
           <button
             type="button"
-            class="btn btn-sm btn-outline-secondary"
-            title="View employee documents"
-            aria-label="View employee documents"
-            onclick="window.hrViewEmployeeDocuments('${String(employee.id).replaceAll("'", "\\'")}')"
+            class="btn btn-sm btn-outline-primary"
+            title="Edit payroll record"
+            aria-label="Edit payroll record"
+            onclick="window.hrEditPayrollRecord('${safePayrollRecordId}')"
           >
-            <i class="bi bi-paperclip"></i>
+            <i class="bi bi-pencil-square"></i>
           </button>
         </div>
       </td>
@@ -9125,9 +10699,74 @@ function renderPayslipPreview(payrollRecord) {
     payrollRecord.work_email ||
     "Unknown Employee";
 
+  // MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A-2
+  // Payslip Preview may receive a payroll_records row that does not include
+  // Employee Number directly. Resolve it from the already-loaded HR employee list
+  // without changing payroll_records or saved payroll data.
+  const linkedPayslipEmployee = (state.employees || []).find((employee) => {
+    const sameEmployeeId =
+      String(employee.id || "").trim() === String(payrollRecord.employee_id || "").trim();
+
+    const sameWorkEmail =
+      normalizeText(employee.work_email) === normalizeText(payrollRecord.work_email);
+
+    return sameEmployeeId || sameWorkEmail;
+  });
+
+  const payslipEmployeeNumber =
+    payrollRecord.employee_number ||
+    linkedPayslipEmployee?.employee_number ||
+    "--";
+
+  const payslipDepartment =
+    payrollRecord.department ||
+    linkedPayslipEmployee?.department ||
+    "--";
+
+  const payslipJobTitle =
+    payrollRecord.job_title ||
+    linkedPayslipEmployee?.job_title ||
+    "--";
+
+  // MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A
+  // Pull saved Organization details into the payslip preview header.
+  // This is display-only and does not change payroll records or email sending.
+  const organization = state.organizationSettings || {};
+  const organizationName =
+    organization.organization_name ||
+    "Organization not set";
+
+  const organizationContactLines = [
+    organization.organization_email,
+    organization.phone_number,
+    organization.payroll_contact_email
+      ? `Payroll: ${organization.payroll_contact_email}`
+      : "",
+  ].filter(Boolean);
+
+  const organizationAddress = [
+    organization.address_line,
+    organization.city,
+    organization.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const organizationRegistrationLines = [
+    organization.tax_identification_number
+      ? `Tax ID / TIN: ${organization.tax_identification_number}`
+      : "",
+    organization.registration_number
+      ? `Registration No: ${organization.registration_number}`
+      : "",
+  ].filter(Boolean);
+
   const earningsHtml = renderPayslipPreviewLineItems(
     [
-      { label: "Base Salary", amount: payrollRecord.basic_salary },
+      // MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A-2
+      // Basic Pay is the core earning component and must be visible on the payslip.
+      // Monthly Gross Salary/Base Salary remains represented by Gross Pay summary.
+      { label: "Basic Pay", amount: payrollRecord.basic_pay },
       { label: "Housing Allowance", amount: payrollRecord.housing_allowance },
       { label: "Transport Allowance", amount: payrollRecord.transport_allowance },
       { label: "Utility Allowance", amount: payrollRecord.utility_allowance },
@@ -9135,6 +10774,8 @@ function renderPayslipPreview(payrollRecord) {
       { label: "Logistics Allowance", amount: payrollRecord.logistics_allowance },
       { label: "Data & Airtime", amount: payrollRecord.data_airtime_allowance },
       { label: "Other Allowance", amount: payrollRecord.other_allowance },
+      { label: "Bonus", amount: payrollRecord.bonus },
+      { label: "Overtime", amount: payrollRecord.overtime },
     ],
     currency,
     "No earnings or allowance breakdown recorded.",
@@ -9142,10 +10783,12 @@ function renderPayslipPreview(payrollRecord) {
 
   const deductionsHtml = renderPayslipPreviewLineItems(
     [
+      // MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A-2
+      // Employer Pension is not an employee deduction, so it is not shown here.
+      // This keeps the Deductions list aligned with Total Deductions and Net Pay.
       { label: "PAYE Tax", amount: payrollRecord.paye_tax },
       { label: "WHT Tax", amount: payrollRecord.wht_tax },
       { label: "Employee Pension", amount: payrollRecord.employee_pension },
-      { label: "Employer Pension", amount: payrollRecord.employer_pension },
       { label: "Other Deductions", amount: payrollRecord.other_deductions },
     ],
     currency,
@@ -9157,7 +10800,52 @@ function renderPayslipPreview(payrollRecord) {
   }
 
   content.innerHTML = `
+    <!-- MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A
+         Payslip preview now uses saved Manage Organization details.
+         This keeps the preview aligned with the organisation setup card
+         without touching Send Payslips email delivery. -->
     <div class="border rounded-4 p-4 mb-4 bg-light-subtle">
+      <div class="d-flex flex-column flex-lg-row justify-content-between gap-4">
+        <div>
+          <div class="text-secondary small">Organization</div>
+          <div class="h4 mb-1">${escapeHtml(organizationName)}</div>
+
+          ${
+            organizationContactLines.length
+              ? `<div class="text-secondary small text-break">
+                  ${organizationContactLines.map((line) => escapeHtml(line)).join("<br>")}
+                </div>`
+              : ""
+          }
+
+          ${
+            organizationAddress
+              ? `<div class="text-secondary small mt-2 text-break">
+                  ${escapeHtml(organizationAddress)}
+                </div>`
+              : ""
+          }
+
+          ${
+            organizationRegistrationLines.length
+              ? `<div class="text-secondary small mt-2 text-break">
+                  ${organizationRegistrationLines.map((line) => escapeHtml(line)).join("<br>")}
+                </div>`
+              : ""
+          }
+        </div>
+
+        <div class="text-lg-end">
+          <div class="text-secondary small">Payslip</div>
+          <div class="fw-semibold">${escapeHtml(payrollRecord.pay_cycle || "Payroll")}</div>
+
+          <div class="text-secondary small mt-2">Pay Date</div>
+          <div class="fw-semibold">${formatDate(payrollRecord.pay_date)}</div>
+        </div>
+      </div>
+
+      <hr class="my-4" />
+
       <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
         <div>
           <div class="text-secondary small">Employee</div>
@@ -9165,16 +10853,16 @@ function renderPayslipPreview(payrollRecord) {
           <div class="text-secondary small text-break">
             ${escapeHtml(payrollRecord.work_email || "--")}
           </div>
-          <div class="text-secondary small">
-            ${escapeHtml(payrollRecord.department || "--")} • ${escapeHtml(payrollRecord.job_title || "--")}
+            ${escapeHtml(payslipDepartment)} • ${escapeHtml(payslipJobTitle)}
           </div>
         </div>
 
         <div class="text-md-end">
-          <div class="text-secondary small">Pay Cycle</div>
-          <div class="fw-semibold">${escapeHtml(payrollRecord.pay_cycle || "--")}</div>
-          <div class="text-secondary small mt-2">Pay Date</div>
-          <div class="fw-semibold">${formatDate(payrollRecord.pay_date)}</div>
+          <div class="text-secondary small">Employee No.</div>
+          <!-- MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A-2
+               Show Employee Number from the HR employee source when it is
+               not stored directly on the payroll_records row. -->
+          <div class="fw-semibold">${escapeHtml(payslipEmployeeNumber)}</div>
         </div>
       </div>
     </div>
@@ -9345,8 +11033,8 @@ async function startPayrollEdit(payrollId) {
 
   scrollToDashboardTarget(
     state.dom.payrollCreateForm?.closest(".dashboard-section-card") ||
-      state.dom.payrollCreateForm ||
-      state.dom.payrollRecordCardCollapse,
+    state.dom.payrollCreateForm ||
+    state.dom.payrollRecordCardCollapse,
     16,
   );
 
@@ -9385,16 +11073,16 @@ async function startPayrollEdit(payrollId) {
   const isRegularPayrollRecord =
     normalizePayrollGroupForPayload(payrollRecord.employee_group || "") === "REGULAR";
 
-if (state.dom.regularIncrementPercent) {
-  // PAYROLL CALCULATION CLARITY - STEP 1C
-  // Existing records without an increment should display 0.00, not 5.00.
-  // This prevents HR from seeing or saving an unintended salary increase.
-  state.dom.regularIncrementPercent.value = isRegularPayrollRecord
-    ? payrollRecord.increment_percent != null
-      ? (Number(payrollRecord.increment_percent) * 100).toFixed(2)
-      : "0.00"
-    : "0.00";
-}
+  if (state.dom.regularIncrementPercent) {
+    // PAYROLL CALCULATION CLARITY - STEP 1C
+    // Existing records without an increment should display 0.00, not 5.00.
+    // This prevents HR from seeing or saving an unintended salary increase.
+    state.dom.regularIncrementPercent.value = isRegularPayrollRecord
+      ? payrollRecord.increment_percent != null
+        ? (Number(payrollRecord.increment_percent) * 100).toFixed(2)
+        : "0.00"
+      : "0.00";
+  }
 
   if (state.dom.regularMeritIncrement) {
     state.dom.regularMeritIncrement.value = isRegularPayrollRecord
@@ -9817,7 +11505,7 @@ function syncPayrollCalculatedFieldLockState() {
     field.classList.toggle("bg-light", isRegular);
 
     if (isRegular) {
-field.title = "Calculated automatically from Monthly Gross Salary and the Regular payroll structure.";
+      field.title = "Calculated automatically from Monthly Gross Salary and the Regular payroll structure.";
     } else {
       field.removeAttribute("title");
     }
@@ -10257,8 +11945,8 @@ function getPayrollStructurePreviewConfig() {
       title: "Regular Payroll Structure",
       badge: "Structured",
       badgeClass: "text-bg-success",
-description:
-  "Regular payroll is calculated automatically from Monthly Gross Salary and the configured percentage split.",
+      description:
+        "Regular payroll is calculated automatically from Monthly Gross Salary and the configured percentage split.",
       items: [
         `Basic ${formatPayrollStructurePercent(state.dom.regularBasicPercent, 50)}`,
         `Housing ${formatPayrollStructurePercent(state.dom.regularHousingPercent, 10)}`,
@@ -10268,9 +11956,9 @@ description:
         "Employee Pension 8% of BHT",
         "Employer Pension 10% of BHT",
         // PAYROLL TAX DEDUCTION CALCULATION - STEP 3
-// PAYE is now auto-calculated for Regular payroll.
-// WHT remains manual because it is not normally applied to regular salary.
-"PAYE auto-calculated • WHT manual if applicable",
+        // PAYE is now auto-calculated for Regular payroll.
+        // WHT remains manual because it is not normally applied to regular salary.
+        "PAYE auto-calculated • WHT manual if applicable",
       ],
     };
   }
@@ -10405,10 +12093,10 @@ function buildRegularPayrollModelFields() {
     structure_variant: "ALPATECH_REGULAR_REV2",
     payslip_layout: "ALPATECH_REGULAR_REV2",
 
-increment_percent: percentInputToDecimal(
-  state.dom.regularIncrementPercent?.value,
-  0,
-),
+    increment_percent: percentInputToDecimal(
+      state.dom.regularIncrementPercent?.value,
+      0,
+    ),
     increment_amount: toNullableNumber(state.dom.regularIncrementAmount?.value),
     merit_increment: toNullableNumber(state.dom.regularMeritIncrement?.value),
 
@@ -10655,8 +12343,8 @@ async function handleBatchPayrollSubmit() {
 
     scrollToDashboardTarget(
       state.dom.batchPayrollReviewPanel ||
-        state.dom.batchPayrollSetupWarning ||
-        state.dom.payrollRecordCardCollapse,
+      state.dom.batchPayrollSetupWarning ||
+      state.dom.payrollRecordCardCollapse,
       32,
     );
 

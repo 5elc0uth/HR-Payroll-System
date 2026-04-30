@@ -241,6 +241,404 @@
 
       <section class="card dashboard-section-card mb-4">
         <div class="card-body p-4 p-lg-5">
+          <!-- MANAGE ORGANIZATION CARD - STEP 3
+               This card stores company-level HR/payroll details in one place.
+               These details can later be reused on payslips, reports, and HR documents. -->
+          <div class="mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+              <div>
+                <h2 class="section-heading h4 mb-1">Manage Organization</h2>
+                <p class="section-subtext mb-0">
+                  Maintain company details used across HR and payroll records.
+                </p>
+              </div>
+
+              <button type="button" id="toggleOrganizationSettingsCardBtn"
+                class="btn btn-outline-secondary dashboard-action-btn align-self-start" aria-expanded="true"
+                aria-controls="organizationSettingsCardCollapse">
+                <i class="bi bi-chevron-up me-2"></i>
+                <span>Collapse</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="organizationSettingsCardCollapse">
+            <div class="row g-4 mb-4">
+              <div class="col-md-6 col-xl-3">
+                <div class="summary-tile">
+                  <div class="summary-tile-label">Organization</div>
+                  <div class="summary-tile-value h6 mb-0" id="organizationSummaryName">Not set</div>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-xl-3">
+                <div class="summary-tile">
+                  <div class="summary-tile-label">Default Currency</div>
+                  <div class="summary-tile-value h6 mb-0" id="organizationSummaryCurrency">NGN</div>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-xl-3">
+                <div class="summary-tile">
+                  <div class="summary-tile-label">Default Pay Cycle</div>
+                  <div class="summary-tile-value h6 mb-0" id="organizationSummaryPayCycle">Monthly</div>
+                </div>
+              </div>
+
+              <div class="col-md-6 col-xl-3">
+                <div class="summary-tile">
+                  <div class="summary-tile-label">Status</div>
+                  <div class="summary-tile-value h6 mb-0" id="organizationSummaryStatus">Not set</div>
+                </div>
+              </div>
+            </div>
+
+            <form id="organizationSettingsForm" novalidate>
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <label for="organizationName" class="form-label fw-semibold">
+                    Organization Name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="organizationName" class="form-control" placeholder="Enter organization name"
+                    required />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="organizationEmail" class="form-label fw-semibold">
+                    Organization Email
+                  </label>
+                  <input type="email" id="organizationEmail" class="form-control"
+                    placeholder="Enter organization email" />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="organizationPhoneNumber" class="form-label fw-semibold">
+                    Phone Number
+                  </label>
+                  <input type="text" id="organizationPhoneNumber" class="form-control"
+                    placeholder="Enter phone number" />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="organizationPayrollContactEmail" class="form-label fw-semibold">
+                    Payroll Contact Email
+                  </label>
+                  <input type="email" id="organizationPayrollContactEmail" class="form-control"
+                    placeholder="Enter payroll contact email" />
+                </div>
+
+                <div class="col-12">
+                  <label for="organizationAddressLine" class="form-label fw-semibold">
+                    Address
+                  </label>
+                  <input type="text" id="organizationAddressLine" class="form-control"
+                    placeholder="Enter organization address" />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="organizationCity" class="form-label fw-semibold">
+                    City
+                  </label>
+                  <input type="text" id="organizationCity" class="form-control" placeholder="Enter city" />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="organizationCountry" class="form-label fw-semibold">
+                    Country
+                  </label>
+                  <input type="text" id="organizationCountry" class="form-control" placeholder="Enter country" />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="organizationTin" class="form-label fw-semibold">
+                    Tax ID / TIN
+                  </label>
+                  <input type="text" id="organizationTin" class="form-control"
+                    placeholder="Enter tax identification number" />
+                </div>
+
+                <div class="col-md-6">
+                  <label for="organizationRegistrationNumber" class="form-label fw-semibold">
+                    Registration Number
+                  </label>
+                  <input type="text" id="organizationRegistrationNumber" class="form-control"
+                    placeholder="Enter registration number" />
+                </div>
+
+                <div class="col-md-4">
+                  <label for="organizationDefaultCurrency" class="form-label fw-semibold">
+                    Default Currency <span class="text-danger">*</span>
+                  </label>
+                  <select id="organizationDefaultCurrency" class="form-select" required>
+                    <option value="NGN">NGN - Nigerian Naira</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4">
+                  <label for="organizationDefaultPayCycle" class="form-label fw-semibold">
+                    Default Pay Cycle <span class="text-danger">*</span>
+                  </label>
+                  <select id="organizationDefaultPayCycle" class="form-select" required>
+                    <!-- MANAGE ORGANIZATION CARD - STEP 3A
+       Payroll currently supports monthly processing only, so the organization
+       default pay cycle is restricted to Monthly to avoid unsupported setup. -->
+                    <option value="Monthly">Monthly</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4">
+                  <label for="organizationStatus" class="form-label fw-semibold">
+                    Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="organizationStatus" class="form-select" required>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <div class="col-12">
+                  <label for="organizationNotes" class="form-label fw-semibold">
+                    Notes
+                  </label>
+                  <textarea id="organizationNotes" class="form-control" rows="3"
+                    placeholder="Optional notes for HR/payroll use"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <button type="submit" id="saveOrganizationSettingsBtn" class="btn btn-secondary dashboard-action-btn"
+                    disabled>
+                    <!-- MANAGE ORGANIZATION CARD - STEP 4A FIX
+       Button starts grey/disabled and only turns blue when required
+       Organization fields are complete. -->
+                    <i class="bi bi-save me-2"></i>
+                    <span id="organizationSettingsSubmitLabel">Save Organization Details</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+            <!-- ORGANIZATION HR SETUP VALUES - STEP 4A
+                 Department management belongs inside Manage Organization because
+                 departments are company-controlled HR setup values. -->
+            <hr class="my-5" />
+
+<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+     Anchor used after Department save/update so HR lands back on this section
+     without the heading being cut off. -->
+<div id="organizationDepartmentsSection" class="mb-4">
+  <h3 class="section-heading h5 mb-1">Manage Departments</h3>
+              <p class="section-subtext mb-0">
+                Create and maintain approved departments for employee records.
+              </p>
+            </div>
+
+            <form id="organizationDepartmentForm" novalidate>
+              <input type="hidden" id="editingOrganizationDepartmentId" />
+
+              <div class="row g-4 align-items-end">
+                <div class="col-md-5">
+                  <label for="organizationDepartmentName" class="form-label fw-semibold">
+                    Department Name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="organizationDepartmentName" class="form-control"
+                    placeholder="Example: Human Resources" required />
+                </div>
+
+                <div class="col-md-3">
+                  <label for="organizationDepartmentStatus" class="form-label fw-semibold">
+                    Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="organizationDepartmentStatus" class="form-select" required>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4">
+                  <label for="organizationDepartmentNotes" class="form-label fw-semibold">
+                    Notes
+                  </label>
+                  <input type="text" id="organizationDepartmentNotes" class="form-control"
+                    placeholder="Optional department note" />
+                </div>
+
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 pt-2">
+                    <!-- ORGANIZATION HR SETUP VALUES - STEP 4A
+                         Button starts grey/disabled and only turns active when
+                         required Department fields are complete. -->
+                    <button type="submit" id="saveOrganizationDepartmentBtn"
+                      class="btn btn-secondary dashboard-action-btn" disabled>
+                      <i class="bi bi-save me-2"></i>
+                      <span id="organizationDepartmentSubmitLabel">Create Department</span>
+                    </button>
+
+                    <button type="button" id="cancelOrganizationDepartmentEditBtn"
+                      class="btn btn-outline-secondary dashboard-action-btn d-none">
+                      <i class="bi bi-x-circle me-2"></i>
+                      Cancel Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <div class="mt-4">
+              <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+                <div>
+<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+     Anchor used after Department create/update so HR lands on the
+     Department Records table without the heading being cut off. -->
+<h4 id="organizationDepartmentRecordsHeader" class="h6 fw-semibold mb-1">
+  Department Records
+</h4>
+                  <p class="text-secondary small mb-0">
+                    Saved departments will be used later as controlled employee dropdown values.
+                  </p>
+                </div>
+              </div>
+
+              <div id="organizationDepartmentsEmptyState" class="alert alert-light border mb-0">
+                No departments have been created yet.
+              </div>
+
+<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-3 FIX
+     Keep long Department Records contained inside the Manage Organization card.
+     This prevents the whole page from scrolling endlessly. -->
+<div id="organizationDepartmentsTableWrapper" class="table-responsive d-none"
+  style="max-height: 360px; overflow-y: auto;">
+                <table class="table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Department</th>
+                      <th>Status</th>
+                      <th>Updated</th>
+                      <th class="text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="organizationDepartmentsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+                        <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-1
+                 Job Titles are managed inside Manage Organization because
+                 they are controlled HR setup values linked to Departments.
+                 JS save/load behaviour will be added in the next step. -->
+            <hr class="my-5" />
+
+<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+     Anchor used after Job Title save/update so HR lands back on this section
+     without the heading being cut off. -->
+<div id="organizationJobTitlesSection" class="mb-4">
+  <h3 class="section-heading h5 mb-1">Manage Job Titles</h3>
+              <p class="section-subtext mb-0">
+                Create and maintain approved job titles under each department.
+              </p>
+            </div>
+
+            <form id="organizationJobTitleForm" novalidate>
+              <input type="hidden" id="editingOrganizationJobTitleId" />
+
+              <div class="row g-4 align-items-end">
+                <div class="col-md-4">
+                  <label for="organizationJobTitleDepartmentId" class="form-label fw-semibold">
+                    Department <span class="text-danger">*</span>
+                  </label>
+                  <select id="organizationJobTitleDepartmentId" class="form-select" required>
+                    <option value="">Select department</option>
+                  </select>
+                </div>
+
+                <div class="col-md-4">
+                  <label for="organizationJobTitleName" class="form-label fw-semibold">
+                    Job Title <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="organizationJobTitleName" class="form-control"
+                    placeholder="Example: HR Officer" required />
+                </div>
+
+                <div class="col-md-4">
+                  <label for="organizationJobTitleStatus" class="form-label fw-semibold">
+                    Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="organizationJobTitleStatus" class="form-select" required>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <div class="col-12">
+                  <label for="organizationJobTitleNotes" class="form-label fw-semibold">
+                    Notes
+                  </label>
+                  <input type="text" id="organizationJobTitleNotes" class="form-control"
+                    placeholder="Optional job title note" />
+                </div>
+
+                <div class="col-12">
+                  <div class="d-flex flex-wrap gap-2 pt-2">
+                    <button type="submit" id="saveOrganizationJobTitleBtn"
+                      class="btn btn-secondary dashboard-action-btn" disabled>
+                      <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-1
+                           Button starts grey/disabled. JS will enable it only
+                           when Department, Job Title, and Status are complete. -->
+                      <i class="bi bi-save me-2"></i>
+                      <span id="organizationJobTitleSubmitLabel">Create Job Title</span>
+                    </button>
+
+                    <button type="button" id="cancelOrganizationJobTitleEditBtn"
+                      class="btn btn-outline-secondary dashboard-action-btn d-none">
+                      <i class="bi bi-x-circle me-2"></i>
+                      Cancel Edit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <div class="mt-4">
+              <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+                <div>
+<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+     Anchor used after Job Title create/update so HR lands on the
+     Job Title Records table without the heading being cut off. -->
+<h4 id="organizationJobTitleRecordsHeader" class="h6 fw-semibold mb-1">
+  Job Title Records
+</h4>
+                  <p class="text-secondary small mb-0">
+                    Saved job titles will later appear in the employee Job Title dropdown.
+                  </p>
+                </div>
+              </div>
+
+              <div id="organizationJobTitlesEmptyState" class="alert alert-light border mb-0">
+                No job titles have been created yet.
+              </div>
+
+<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-3 FIX
+     Keep long Job Title Records contained inside the Manage Organization card.
+     This is needed because seeded job titles can create a long list. -->
+<div id="organizationJobTitlesTableWrapper" class="table-responsive d-none"
+  style="max-height: 360px; overflow-y: auto;">
+                <table class="table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Job Title</th>
+                      <th>Department</th>
+                      <th>Status</th>
+                      <th>Updated</th>
+                      <th class="text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="organizationJobTitlesTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
           <!-- DESCRIPTION ITEM 1 - STEP 5
      Add a persistent header row so the Create Employee Profile card
      can collapse and expand without losing its title/action control. -->
@@ -725,12 +1123,12 @@
             </div>
 
             <div class="dashboard-table-hint">Swipe to view more →</div>
-<div id="employeeRecordsTableWrapper" class="dashboard-table-wrap table-responsive d-none">
-  <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 1
+            <div id="employeeRecordsTableWrapper" class="dashboard-table-wrap table-responsive d-none">
+              <!-- EMPLOYEE LIST ROW ALIGNMENT CLEANUP - STEP 1
        Use top alignment so Employee, Contact, Role, Status, Account,
        Docs, Start Date, and Action all begin from the same vertical line.
        This prevents short badge/action cells from sitting lower than text cells. -->
-  <table class="table align-top">
+              <table class="table align-top">
                 <thead>
                   <tr>
                     <th class="text-center">
@@ -740,17 +1138,17 @@
                         <span>Pay</span>
                       </div>
                     </th>
-<!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
+                    <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
      Keep the existing grouped table design, but prevent header wrapping
      and align badge/action headers with their centred row content. -->
-<th class="text-nowrap">Employee</th>
-<th>Contact</th>
-<th class="text-nowrap">Role</th>
-<th class="text-center text-nowrap">Status</th>
-<th class="text-center text-nowrap">Account</th>
-<th class="text-center text-nowrap">Docs</th>
-<th class="text-nowrap">Start Date</th>
-<th class="text-center text-nowrap">Action</th>
+                    <th class="text-nowrap">Employee</th>
+                    <th>Contact</th>
+                    <th class="text-nowrap">Role</th>
+                    <th class="text-center text-nowrap">Status</th>
+                    <th class="text-center text-nowrap">Account</th>
+                    <th class="text-center text-nowrap">Docs</th>
+                    <th class="text-nowrap">Start Date</th>
+                    <th class="text-center text-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody id="employeeRecordsTableBody">
@@ -1950,36 +2348,29 @@
                     </div>
                   </div>
 
-<div class="col-md-6 col-xl-3">
-  <!-- PAYROLL CALCULATION CLARITY - STEP 1D
+                  <div class="col-md-6 col-xl-3">
+                    <!-- PAYROLL CALCULATION CLARITY - STEP 1D
        Add the same hover-style guidance used for WHT Tax.
        Basic Pay is calculated by the system from Monthly Gross Salary,
        so this helps HR understand why the value appears automatically. -->
-  <label for="payrollBasicPay" class="form-label fw-semibold d-flex align-items-center gap-2">
-    <span>Basic Pay</span>
+                    <label for="payrollBasicPay" class="form-label fw-semibold d-flex align-items-center gap-2">
+                      <span>Basic Pay</span>
 
-    <span
-      class="badge rounded-pill text-bg-light border text-secondary"
-      tabindex="0"
-      role="img"
-      aria-label="Basic Pay guidance"
-      title="Basic Pay is the core fixed part of the Monthly Gross Salary. In this structure, it is calculated as 50% of Monthly Gross Salary and forms part of Gross Pay.">
-      <i class="bi bi-info-circle"></i>
-    </span>
-  </label>
+                      <span class="badge rounded-pill text-bg-light border text-secondary" tabindex="0" role="img"
+                        aria-label="Basic Pay guidance"
+                        title="Basic Pay is the core fixed part of the Monthly Gross Salary. In this structure, it is calculated as 50% of Monthly Gross Salary and forms part of Gross Pay.">
+                        <i class="bi bi-info-circle"></i>
+                      </span>
+                    </label>
 
-  <input
-    type="number"
-    id="payrollBasicPay"
-    class="form-control"
-    step="0.01"
-    min="0"
-    aria-describedby="payrollBasicPayHelp" />
+                    <input type="number" id="payrollBasicPay" class="form-control" step="0.01" min="0"
+                      aria-describedby="payrollBasicPayHelp" />
 
-  <div id="payrollBasicPayHelp" class="visually-hidden">
-    Basic Pay is the core fixed part of the Monthly Gross Salary. In this structure, it is calculated as 50% of Monthly Gross Salary and forms part of Gross Pay.
-  </div>
-</div>
+                    <div id="payrollBasicPayHelp" class="visually-hidden">
+                      Basic Pay is the core fixed part of the Monthly Gross Salary. In this structure, it is calculated
+                      as 50% of Monthly Gross Salary and forms part of Gross Pay.
+                    </div>
+                  </div>
 
                   <div class="col-md-6 col-xl-3">
                     <label for="payrollHousingAllowance" class="form-label fw-semibold">Housing Allowance</label>
