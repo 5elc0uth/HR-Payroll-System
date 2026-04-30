@@ -421,11 +421,11 @@
                  departments are company-controlled HR setup values. -->
             <hr class="my-5" />
 
-<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+            <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4A
      Anchor used after Department save/update so HR lands back on this section
      without the heading being cut off. -->
-<div id="organizationDepartmentsSection" class="mb-4">
-  <h3 class="section-heading h5 mb-1">Manage Departments</h3>
+            <div id="organizationDepartmentsSection" class="mb-4">
+              <h3 class="section-heading h5 mb-1">Manage Departments</h3>
               <p class="section-subtext mb-0">
                 Create and maintain approved departments for employee records.
               </p>
@@ -485,12 +485,12 @@
             <div class="mt-4">
               <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
                 <div>
-<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+                  <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4B
      Anchor used after Department create/update so HR lands on the
      Department Records table without the heading being cut off. -->
-<h4 id="organizationDepartmentRecordsHeader" class="h6 fw-semibold mb-1">
-  Department Records
-</h4>
+                  <h4 id="organizationDepartmentRecordsHeader" class="h6 fw-semibold mb-1">
+                    Department Records
+                  </h4>
                   <p class="text-secondary small mb-0">
                     Saved departments will be used later as controlled employee dropdown values.
                   </p>
@@ -501,11 +501,11 @@
                 No departments have been created yet.
               </div>
 
-<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-3 FIX
+              <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-3 FIX
      Keep long Department Records contained inside the Manage Organization card.
      This prevents the whole page from scrolling endlessly. -->
-<div id="organizationDepartmentsTableWrapper" class="table-responsive d-none"
-  style="max-height: 360px; overflow-y: auto;">
+              <div id="organizationDepartmentsTableWrapper" class="table-responsive d-none"
+                style="max-height: 360px; overflow-y: auto;">
                 <table class="table align-middle mb-0">
                   <thead>
                     <tr>
@@ -519,17 +519,17 @@
                 </table>
               </div>
             </div>
-                        <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-1
+            <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-1
                  Job Titles are managed inside Manage Organization because
                  they are controlled HR setup values linked to Departments.
                  JS save/load behaviour will be added in the next step. -->
             <hr class="my-5" />
 
-<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+            <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4A
      Anchor used after Job Title save/update so HR lands back on this section
      without the heading being cut off. -->
-<div id="organizationJobTitlesSection" class="mb-4">
-  <h3 class="section-heading h5 mb-1">Manage Job Titles</h3>
+            <div id="organizationJobTitlesSection" class="mb-4">
+              <h3 class="section-heading h5 mb-1">Manage Job Titles</h3>
               <p class="section-subtext mb-0">
                 Create and maintain approved job titles under each department.
               </p>
@@ -598,12 +598,12 @@
             <div class="mt-4">
               <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
                 <div>
-<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+                  <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-4B
      Anchor used after Job Title create/update so HR lands on the
      Job Title Records table without the heading being cut off. -->
-<h4 id="organizationJobTitleRecordsHeader" class="h6 fw-semibold mb-1">
-  Job Title Records
-</h4>
+                  <h4 id="organizationJobTitleRecordsHeader" class="h6 fw-semibold mb-1">
+                    Job Title Records
+                  </h4>
                   <p class="text-secondary small mb-0">
                     Saved job titles will later appear in the employee Job Title dropdown.
                   </p>
@@ -614,11 +614,11 @@
                 No job titles have been created yet.
               </div>
 
-<!-- ORGANIZATION HR SETUP VALUES - STEP 4B-3 FIX
+              <!-- ORGANIZATION HR SETUP VALUES - STEP 4B-3 FIX
      Keep long Job Title Records contained inside the Manage Organization card.
      This is needed because seeded job titles can create a long list. -->
-<div id="organizationJobTitlesTableWrapper" class="table-responsive d-none"
-  style="max-height: 360px; overflow-y: auto;">
+              <div id="organizationJobTitlesTableWrapper" class="table-responsive d-none"
+                style="max-height: 360px; overflow-y: auto;">
                 <table class="table align-middle mb-0">
                   <thead>
                     <tr>
@@ -844,15 +844,30 @@
                   <div class="invalid-feedback">Job title is required.</div>
                 </div>
 
-                <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
-     Line Manager remains useful HR reference data, but it should not block
-     employee creation because Approver Email already handles workflow routing. -->
+                <!-- ASSIGN LINE MANAGER - STEP 1
+     HR now selects an existing active employee as the assigned line manager.
+     The selected manager will populate Line Manager and Approver Email below. -->
+                <div class="col-md-6 col-xl-4">
+                  <label for="assignedLineManagerEmployeeId" class="form-label fw-semibold">
+                    Assign Line Manager
+                  </label>
+                  <select id="assignedLineManagerEmployeeId" class="form-select">
+                    <option value="">Select line manager</option>
+                  </select>
+                  <div class="form-text">
+                    Select an active employee to auto-fill manager name and approver email.
+                  </div>
+                </div>
+
+                <!-- ASSIGN LINE MANAGER - STEP 1
+     This field is now auto-filled from Assign Line Manager.
+     It stays in the form because existing save logic already stores line_manager. -->
                 <div class="col-md-6 col-xl-4">
                   <label for="lineManager" class="form-label fw-semibold">
                     Line Manager
                   </label>
-                  <input type="text" id="lineManager" class="form-control" placeholder="Enter line manager name"
-                    autocomplete="off" />
+                  <input type="text" id="lineManager" class="form-control bg-light"
+                    placeholder="Auto-filled from selected manager" autocomplete="off" readonly />
                 </div>
 
                 <!-- DESCRIPTION ITEM 5 - SYNC FOUNDATION STEP 3A
@@ -867,12 +882,15 @@
                   <div class="invalid-feedback">Employment date is required.</div>
                 </div>
 
+                <!-- ASSIGN LINE MANAGER - STEP 1
+     Approver Email is now auto-filled from the selected manager's work email.
+     This keeps workflow routing consistent and avoids manual typing errors. -->
                 <div class="col-md-6 col-xl-4">
                   <label for="approverEmail" class="form-label fw-semibold">
                     Approver Email <span class="text-danger">*</span>
                   </label>
-                  <input type="email" id="approverEmail" class="form-control" placeholder="manager@company.com"
-                    required />
+                  <input type="email" id="approverEmail" class="form-control bg-light"
+                    placeholder="Auto-filled from selected manager" readonly />
                   <div class="form-text">
                     This email is used for workflow routing and approvals.
                   </div>
@@ -904,25 +922,42 @@
                   </select>
                 </div>
 
-                <div class="col-md-6 col-xl-4">
-                  <label for="systemRole" class="form-label fw-semibold">
-                    System Role
-                  </label>
-                  <select id="systemRole" class="form-select">
-                    <option value="">Select role (optional)</option>
-                    <option value="employee">Employee</option>
-                    <option value="manager">Manager</option>
-                    <option value="supervisor">Supervisor</option>
-                    <option value="hr">HR</option>
-                    <option value="hr_manager">HR Manager</option>
-                    <option value="payroll">Payroll</option>
-                    <option value="payroll_manager">Payroll Manager</option>
-                    <option value="leadership">Leadership / Executive</option>
-                    <option value="system_admin">System Admin</option>
-                    <option value="auditor">Auditor</option>
-                    <option value="qa_analyst">QA Analyst</option>
-                  </select>
-                </div>
+<!-- ASSIGN LINE MANAGER - STEP 1E
+     System Role is now saved with the employee record.
+     Manager-level roles are used by Assign Line Manager. -->
+<div class="col-md-6 col-xl-4">
+  <label for="systemRole" class="form-label fw-semibold">
+    System Role
+  </label>
+
+  <select id="systemRole" class="form-select">
+    <option value="">Select role (optional)</option>
+    <option value="employee">Employee</option>
+    <option value="manager">Manager</option>
+    <option value="supervisor">Supervisor</option>
+    <option value="hr">HR</option>
+    <option value="hr_manager">HR Manager</option>
+    <option value="payroll">Payroll</option>
+    <option value="payroll_manager">Payroll Manager</option>
+    <option value="leadership">Leadership / Executive</option>
+    <option value="system_admin">System Admin</option>
+    <option value="auditor">Auditor</option>
+    <option value="qa_analyst">QA Analyst</option>
+    <option value="custom">Other / Add new role</option>
+  </select>
+
+  <input
+    type="text"
+    id="customSystemRole"
+    class="form-control mt-2 d-none"
+    placeholder="Enter new system role"
+    autocomplete="off"
+  />
+
+  <div class="form-text">
+    Manager, Supervisor, HR Manager, and Leadership can be used as line managers.
+  </div>
+</div>
 
                 <div class="col-12">
                   <h3 class="h6 fw-bold mb-3 mt-2">Supporting Documents</h3>

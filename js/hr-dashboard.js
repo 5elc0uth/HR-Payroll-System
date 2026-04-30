@@ -426,12 +426,22 @@ organizationDepartmentForm: document.getElementById("organizationDepartmentForm"
     department: document.getElementById("department"),
     jobTitle: document.getElementById("jobTitle"),
 
+    // ASSIGN LINE MANAGER - STEP 1
+    // Dropdown used to select an existing active employee as the manager.
+    // It auto-fills the existing Line Manager and Approver Email fields.
+    assignedLineManagerEmployeeId: document.getElementById("assignedLineManagerEmployeeId"),
+
     lineManager: document.getElementById("lineManager"),
     employmentDate: document.getElementById("employmentDate"),
     approverEmail: document.getElementById("approverEmail"),
     employeeNumber: document.getElementById("employeeNumber"),
     employmentStatus: document.getElementById("employmentStatus"),
+
+    // ASSIGN LINE MANAGER - STEP 1E
+    // System Role is saved on employee records and displayed in the employee list.
+    // Custom System Role allows HR to add a new role label without changing HTML again.
     systemRole: document.getElementById("systemRole"),
+    customSystemRole: document.getElementById("customSystemRole"),
 
     employeeAccountStatusBadge: document.getElementById(
       "employeeAccountStatusBadge",
@@ -1554,9 +1564,23 @@ function bindEvents() {
     state.dom.approverEmail,
     state.dom.employmentStatus,
     state.dom.systemRole,
+
+    // ASSIGN LINE MANAGER - STEP 1E
+    // Clear custom role validation/state when the form resets.
+    state.dom.customSystemRole,
+
+    // ASSIGN LINE MANAGER - STEP 1E
+    // Custom role is optional but should still trigger save-state refresh.
+    state.dom.customSystemRole,
   ].forEach((field) => {
     field?.addEventListener("input", updateEmployeeSaveButtonState);
     field?.addEventListener("change", updateEmployeeSaveButtonState);
+  });
+
+  // ASSIGN LINE MANAGER - STEP 1E
+  // Show/hide the custom role input when HR selects Other.
+  state.dom.systemRole?.addEventListener("change", () => {
+    syncCustomSystemRoleVisibility();
   });
 
   // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
@@ -1566,7 +1590,14 @@ function bindEvents() {
     populateJobTitleOptionsForDepartment("");
   });
 
+  // ASSIGN LINE MANAGER - STEP 1
+  // Selecting a manager auto-fills Line Manager and Approver Email.
+  state.dom.assignedLineManagerEmployeeId?.addEventListener("change", () => {
+    applyAssignedLineManagerSelection();
+  });
+
   populateJobTitleOptionsForDepartment(state.dom.jobTitle?.value || "");
+  populateAssignedLineManagerOptions();
   updateEmployeeSaveButtonState();
 
   // DESCRIPTION ITEM 9 - STEP 2
@@ -2098,6 +2129,341 @@ function setPrimaryActionButtonReadyState(button, canSubmit) {
 
   button.classList.toggle("btn-primary", canSubmit);
   button.classList.toggle("btn-secondary", !canSubmit);
+}
+
+// ASSIGN LINE MANAGER - STEP 1
+// Build the display name used in the Assign Line Manager dropdown.
+function getEmployeeManagerDisplayName(employee = {}) {
+  return [
+    employee.first_name,
+    employee.middle_name,
+    employee.last_name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || employee.work_email || "Unnamed Employee";
+}
+
+// ASSIGN LINE MANAGER - STEP 1D
+// Build one legacy saved manager option for the employee currently being edited.
+// This avoids showing every old free-text manager globally in Create Employee.
+// Legacy values are only kept so existing employee records do not lose their
+// saved Line Manager / Approver Email during edit.
+function getSavedLineManagerOptionForEmployee(employee = {}) {
+  const managerName = String(employee.line_manager || "").trim();
+  const managerEmail = String(employee.approver_email || "").trim().toLowerCase();
+
+  if (!managerName || !managerEmail) {
+    return null;
+  }
+
+  return {
+    id: `saved:${managerEmail}`,
+    name: managerName,
+    email: managerEmail,
+  };
+}
+
+// ASSIGN LINE MANAGER - STEP 1
+// Populate Assign Line Manager from existing active employee records.
+// This uses state.employees already loaded from Supabase, so no new table is needed.
+function populateAssignedLineManagerOptions(preferredEmployeeId = "") {
+  const select = state.dom.assignedLineManagerEmployeeId;
+  if (!select) return;
+
+  const currentEditingEmployeeId = String(
+    state.currentEditingEmployee?.id || state.dom.editingEmployeeId?.value || "",
+  ).trim();
+
+  const currentValue = String(preferredEmployeeId || select.value || "").trim();
+
+  // ASSIGN LINE MANAGER - STEP 1A
+  // Do not show every employee as a possible line manager.
+  // Only active employees with manager-level system roles or manager-style job titles
+  // should appear in the Assign Line Manager dropdown.
+  const managerEligibleRoles = new Set([
+    "manager",
+    "supervisor",
+    "hr_manager",
+    "leadership",
+  ]);
+
+  const managerCandidates = (state.employees || [])
+    .filter((employee) => {
+      const isActive = normalizeText(employee.status) === "active";
+      const hasEmail = Boolean(String(employee.work_email || "").trim());
+      const isNotCurrentEmployee =
+        String(employee.id || "").trim() !== currentEditingEmployeeId;
+
+      const systemRole = normalizeText(employee.system_role || employee.role || "");
+      const jobTitle = normalizeText(employee.job_title || "");
+
+      const hasManagerRole = managerEligibleRoles.has(systemRole);
+
+      const hasManagerJobTitle =
+        jobTitle.includes("manager") ||
+        jobTitle.includes("supervisor") ||
+        jobTitle.includes("lead") ||
+        jobTitle.includes("head");
+
+      return (
+        isActive &&
+        hasEmail &&
+        isNotCurrentEmployee &&
+        (hasManagerRole || hasManagerJobTitle)
+      );
+    })
+    .sort((a, b) =>
+      getEmployeeManagerDisplayName(a).localeCompare(
+        getEmployeeManagerDisplayName(b),
+      ),
+    );
+
+  // ASSIGN LINE MANAGER - STEP 1D
+  // Only include a saved/free-text manager while editing the employee that
+  // already has that saved manager. Do not show all legacy managers globally.
+  const savedManagerOption = currentEditingEmployeeId
+    ? getSavedLineManagerOptionForEmployee(state.currentEditingEmployee || {})
+    : null;
+
+  select.innerHTML = "";
+
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent =
+    managerCandidates.length || savedManagerOption
+      ? "Select line manager"
+      : "No manager employee records available";
+  select.appendChild(placeholderOption);
+
+  managerCandidates.forEach((employee) => {
+    const option = document.createElement("option");
+    option.value = employee.id;
+    option.textContent = `${getEmployeeManagerDisplayName(employee)} — ${employee.work_email || "--"}`;
+    option.dataset.managerName = getEmployeeManagerDisplayName(employee);
+    option.dataset.managerEmail = String(employee.work_email || "").trim().toLowerCase();
+    select.appendChild(option);
+  });
+
+  // ASSIGN LINE MANAGER - STEP 1D
+  // Add only the current employee's saved legacy manager, if no real
+  // manager employee record already matches that email.
+  if (savedManagerOption) {
+    const alreadyExists = Array.from(select.options).some(
+      (option) =>
+        normalizeText(option.dataset.managerEmail || "") ===
+        normalizeText(savedManagerOption.email),
+    );
+
+    if (!alreadyExists) {
+      const option = document.createElement("option");
+      option.value = savedManagerOption.id;
+      option.textContent = `${savedManagerOption.name} — ${savedManagerOption.email} (saved manager)`;
+      option.dataset.managerName = savedManagerOption.name;
+      option.dataset.managerEmail = savedManagerOption.email;
+      select.appendChild(option);
+    }
+  }
+
+  if (currentValue) {
+    const matchingOption = Array.from(select.options).find(
+      (option) => String(option.value) === currentValue,
+    );
+
+    if (matchingOption) {
+      select.value = currentValue;
+    }
+  }
+}
+
+// ASSIGN LINE MANAGER - STEP 1
+// When HR selects a manager, auto-fill the existing Line Manager and
+// Approver Email fields. These existing fields are still what get saved.
+function applyAssignedLineManagerSelection() {
+  const selectedManagerId = String(
+    state.dom.assignedLineManagerEmployeeId?.value || "",
+  ).trim();
+
+  const selectedOption =
+    state.dom.assignedLineManagerEmployeeId?.selectedOptions?.[0] || null;
+
+  const selectedManager = (state.employees || []).find(
+    (employee) => String(employee.id || "").trim() === selectedManagerId,
+  );
+
+  // ASSIGN LINE MANAGER - STEP 1B
+  // Support both real employee manager records and saved manager values
+  // pulled from existing line_manager / approver_email data.
+  const managerName =
+    selectedManager
+      ? getEmployeeManagerDisplayName(selectedManager)
+      : String(selectedOption?.dataset?.managerName || "").trim();
+
+  const managerEmail =
+    selectedManager
+      ? String(selectedManager.work_email || "").trim().toLowerCase()
+      : String(selectedOption?.dataset?.managerEmail || "").trim().toLowerCase();
+
+  if (!managerName || !managerEmail) {
+    if (state.dom.lineManager) state.dom.lineManager.value = "";
+    if (state.dom.approverEmail) state.dom.approverEmail.value = "";
+    updateEmployeeSaveButtonState();
+    return;
+  }
+
+  if (state.dom.lineManager) {
+    state.dom.lineManager.value = managerName;
+  }
+
+  if (state.dom.approverEmail) {
+    state.dom.approverEmail.value = managerEmail;
+  }
+
+  state.dom.lineManager?.classList.remove("is-invalid");
+  state.dom.approverEmail?.classList.remove("is-invalid");
+
+  updateEmployeeSaveButtonState();
+}
+
+// ASSIGN LINE MANAGER - STEP 1
+// During edit mode, select the matching manager if the saved approver email
+// or saved manager name matches an active employee record.
+function syncAssignedLineManagerFromSavedValues(employee = {}) {
+  const select = state.dom.assignedLineManagerEmployeeId;
+  if (!select) return;
+
+  const savedApproverEmail = normalizeText(employee.approver_email || "");
+  const savedManagerName = normalizeText(employee.line_manager || "");
+
+  const matchedManager = (state.employees || []).find((candidate) => {
+    const candidateEmail = normalizeText(candidate.work_email || "");
+    const candidateName = normalizeText(getEmployeeManagerDisplayName(candidate));
+
+    return (
+      (savedApproverEmail && candidateEmail === savedApproverEmail) ||
+      (savedManagerName && candidateName === savedManagerName)
+    );
+  });
+
+  // ASSIGN LINE MANAGER - STEP 1D
+  // Build the saved manager key only for the employee currently being edited.
+  // This keeps old manager values available in edit mode without polluting
+  // Create Employee with all legacy manager names.
+  const savedManagerOption = getSavedLineManagerOptionForEmployee(employee);
+  const savedManagerKey = savedManagerOption?.id || "";
+
+  populateAssignedLineManagerOptions(matchedManager?.id || savedManagerKey);
+
+  if (matchedManager) {
+    select.value = matchedManager.id;
+    return;
+  }
+
+  if (savedManagerKey) {
+    const savedOption = Array.from(select.options).find(
+      (option) => option.value === savedManagerKey,
+    );
+
+    if (savedOption) {
+      select.value = savedManagerKey;
+    }
+  }
+}
+
+// ASSIGN LINE MANAGER - STEP 1E
+// Display labels for standard system roles.
+// Custom roles are displayed as typed by HR.
+const EMPLOYEE_SYSTEM_ROLE_LABELS = {
+  employee: "Employee",
+  manager: "Manager",
+  supervisor: "Supervisor",
+  hr: "HR",
+  hr_manager: "HR Manager",
+  payroll: "Payroll",
+  payroll_manager: "Payroll Manager",
+  leadership: "Leadership / Executive",
+  system_admin: "System Admin",
+  auditor: "Auditor",
+  qa_analyst: "QA Analyst",
+};
+
+// ASSIGN LINE MANAGER - STEP 1E
+// Convert a saved role value into a friendly display label.
+function formatEmployeeSystemRoleLabel(roleValue = "") {
+  const value = String(roleValue || "").trim();
+
+  if (!value) {
+    return "No role set";
+  }
+
+  return EMPLOYEE_SYSTEM_ROLE_LABELS[value] || value;
+}
+
+// ASSIGN LINE MANAGER - STEP 1E
+// Return standard role values already present in the System Role dropdown.
+function getStandardEmployeeSystemRoleValues() {
+  const select = state.dom.systemRole;
+  if (!select) return new Set();
+
+  return new Set(
+    Array.from(select.options)
+      .map((option) => String(option.value || "").trim())
+      .filter((value) => value && value !== "custom"),
+  );
+}
+
+// ASSIGN LINE MANAGER - STEP 1E
+// Read the role that should be saved.
+// If HR selects Other, use the custom role field.
+function getSelectedEmployeeSystemRoleValue() {
+  const selectedRole = String(state.dom.systemRole?.value || "").trim();
+
+  if (selectedRole === "custom") {
+    return String(state.dom.customSystemRole?.value || "").trim();
+  }
+
+  return selectedRole;
+}
+
+// ASSIGN LINE MANAGER - STEP 1E
+// Show the custom role input only when HR selects "Other / Add new role".
+function syncCustomSystemRoleVisibility() {
+  const isCustom = String(state.dom.systemRole?.value || "") === "custom";
+
+  state.dom.customSystemRole?.classList.toggle("d-none", !isCustom);
+
+  if (!isCustom && state.dom.customSystemRole) {
+    state.dom.customSystemRole.value = "";
+  }
+}
+
+// ASSIGN LINE MANAGER - STEP 1E
+// Load saved role values correctly in edit mode.
+// Standard roles select the dropdown option.
+// Unknown/custom saved roles show in the custom role input.
+function setEmployeeSystemRoleFieldValue(roleValue = "") {
+  const role = String(roleValue || "").trim();
+
+  if (!state.dom.systemRole) return;
+
+  if (!role) {
+    state.dom.systemRole.value = "";
+    if (state.dom.customSystemRole) state.dom.customSystemRole.value = "";
+    syncCustomSystemRoleVisibility();
+    return;
+  }
+
+  const standardRoles = getStandardEmployeeSystemRoleValues();
+
+  if (standardRoles.has(role)) {
+    state.dom.systemRole.value = role;
+    if (state.dom.customSystemRole) state.dom.customSystemRole.value = "";
+  } else {
+    state.dom.systemRole.value = "custom";
+    if (state.dom.customSystemRole) state.dom.customSystemRole.value = role;
+  }
+
+  syncCustomSystemRoleVisibility();
 }
 
 // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
@@ -6375,6 +6741,11 @@ async function refreshEmployeeWorkspace() {
   // Populate the Employee Bank Details employee dropdown from the same
   // HR employee records used by payroll.
   populateEmployeeBankEmployeeOptions();
+
+  // ASSIGN LINE MANAGER - STEP 1
+  // Keep the Create/Edit Employee Assign Line Manager dropdown in sync
+  // with the latest active employee records.
+  populateAssignedLineManagerOptions();
 }
 
 async function loadAllEmployeeDocuments() {
@@ -7172,11 +7543,17 @@ function renderEmployeeRecords(employees) {
       </td>
 
       <td class="align-middle py-3">
-        <!-- EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1C
-             Keep Role compact and salary-free because salary is confidential payroll data. -->
+        <!-- ASSIGN LINE MANAGER - STEP 1E
+             Keep salary out of the employee list, but show System Role clearly
+             so HR can tell Employee, Manager, HR, Payroll, etc. apart. -->
         <div>${escapeHtml(employee.department || "--")}</div>
         <div class="text-secondary small">
           ${escapeHtml(employee.job_title || "--")}
+        </div>
+        <div class="mt-1">
+          <span class="badge text-bg-light border text-dark">
+            ${escapeHtml(formatEmployeeSystemRoleLabel(employee.system_role))}
+          </span>
         </div>
       </td>
 
@@ -7264,6 +7641,9 @@ function resetEmployeeForm() {
     state.dom.department,
     state.dom.jobTitle,
 
+    // ASSIGN LINE MANAGER - STEP 1
+    // Clear manager selector and its auto-filled fields when the form resets.
+    state.dom.assignedLineManagerEmployeeId,
     state.dom.lineManager,
     state.dom.employmentDate,
     state.dom.approverEmail,
@@ -7280,11 +7660,21 @@ function resetEmployeeForm() {
 
   setSelectValueIfPresent(state.dom.employmentStatus, "active", ["Active"]);
 
-  if (state.dom.systemRole) state.dom.systemRole.value = "";
+// ASSIGN LINE MANAGER - STEP 1E RECOVERY
+// Reset/create mode has no employee object, so clear the System Role field.
+// The employee-specific value is only loaded inside enterEmployeeEditMode().
+setEmployeeSystemRoleFieldValue("");
 
   // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
   // After clearing the form, Job Title should wait for Department selection.
   populateJobTitleOptionsForDepartment("");
+
+  // ASSIGN LINE MANAGER - STEP 1
+  // Rebuild manager choices after reset and keep auto-filled fields blank.
+  populateAssignedLineManagerOptions();
+  if (state.dom.assignedLineManagerEmployeeId) {
+    state.dom.assignedLineManagerEmployeeId.value = "";
+  }
 
   if (state.dom.employeeDocumentsInput) state.dom.employeeDocumentsInput.value = "";
 
@@ -7365,6 +7755,12 @@ function enterEmployeeEditMode(employee) {
   if (state.dom.lineManager) state.dom.lineManager.value = employee.line_manager || "";
   if (state.dom.employmentDate) state.dom.employmentDate.value = employee.employment_date || "";
   if (state.dom.approverEmail) state.dom.approverEmail.value = employee.approver_email || "";
+
+  // ASSIGN LINE MANAGER - STEP 1
+  // In edit mode, select the matching manager in the new dropdown where possible.
+  // Existing saved Line Manager and Approver Email values are still preserved.
+  syncAssignedLineManagerFromSavedValues(employee);
+
   if (state.dom.employeeNumber) state.dom.employeeNumber.value = employee.employee_number || "";
 
   setSelectValueIfPresent(state.dom.employmentStatus, employee.status, [
@@ -7372,7 +7768,10 @@ function enterEmployeeEditMode(employee) {
     "Active",
   ]);
 
-  if (state.dom.systemRole) state.dom.systemRole.value = "";
+  // ASSIGN LINE MANAGER - STEP 1E RECOVERY
+  // Edit mode has an employee object, so load the saved System Role.
+  // Create/reset mode is handled separately inside resetEmployeeForm().
+  setEmployeeSystemRoleFieldValue(employee.system_role || "");
 
   setEmployeeAccountPanel(getEmployeeAccountLinkage(employee));
 
@@ -7571,6 +7970,11 @@ function buildEmployeePayload() {
     employee_number:
       String(state.dom.employeeNumber?.value || "").trim() || null,
     status: normalizeText(rawStatus) || "active",
+
+    // ASSIGN LINE MANAGER - STEP 1E
+    // Save System Role so the Full Employee List can show clear role labels
+    // and Assign Line Manager can identify real manager-level employees.
+    system_role: getSelectedEmployeeSystemRoleValue() || null,
   };
 }
 
@@ -10718,14 +11122,19 @@ function renderPayslipPreview(payrollRecord) {
     linkedPayslipEmployee?.employee_number ||
     "--";
 
+  // ASSIGN LINE MANAGER - STEP 1C
+  // Payslip Preview should show the latest HR employee department/job title
+  // when available. Payroll records may hold an older snapshot from when
+  // payroll was created, so the live employee record takes priority here.
+  // This is preview-only and does not rewrite saved payroll records.
   const payslipDepartment =
-    payrollRecord.department ||
     linkedPayslipEmployee?.department ||
+    payrollRecord.department ||
     "--";
 
   const payslipJobTitle =
-    payrollRecord.job_title ||
     linkedPayslipEmployee?.job_title ||
+    payrollRecord.job_title ||
     "--";
 
   // MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A
@@ -10853,6 +11262,11 @@ function renderPayslipPreview(payrollRecord) {
           <div class="text-secondary small text-break">
             ${escapeHtml(payrollRecord.work_email || "--")}
           </div>
+
+          <!-- ASSIGN LINE MANAGER - STEP 1C
+               Keep employee department/job title in a proper text row.
+               This fixes the broken payslip preview markup. -->
+          <div class="text-secondary small">
             ${escapeHtml(payslipDepartment)} • ${escapeHtml(payslipJobTitle)}
           </div>
         </div>
@@ -10973,13 +11387,21 @@ async function openPayslipPreview(payrollId) {
 
     renderPayslipPreview(payrollRecord);
   } catch (error) {
-    console.error("Error loading payslip preview:", error);
+    // ASSIGN LINE MANAGER - STEP 1C
+    // If the full payroll record fetch fails, do not leave the modal stuck on
+    // "Loading payslip preview." The Payroll Records table row already has
+    // enough data to render a safe preview, so fall back to selectedRow.
+    console.warn(
+      "Unable to load full payroll record for preview. Falling back to current payroll row.",
+      error,
+    );
 
-    closePayslipPreview();
+    renderPayslipPreview(payrollRecord);
 
-    showPageAlert(
-      "danger",
-      error.message || "Payslip preview could not be loaded.",
+    showDashboardToast(
+      "warning",
+      "Payslip Preview",
+      "Full payroll detail could not be reloaded, so the preview used the current payroll record row.",
     );
   }
 }
