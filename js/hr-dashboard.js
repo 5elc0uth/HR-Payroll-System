@@ -193,6 +193,10 @@ const state = {
   // Holds calculated payroll rows prepared from the Batch Payroll Review table.
   // This is in-memory only for now. No payroll records are saved in this step.
   batchPayrollPreparedRows: [],
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Holds valid employee rows prepared from the uploaded CSV.
+// This is in-memory only for now. No employees are saved in this step.
+batchEmployeePreparedRows: [],
 
   payrollRecords: [],
   filteredPayrollRecords: [],
@@ -473,6 +477,23 @@ function cacheDomElements() {
     attachedDocumentsList: document.getElementById("attachedDocumentsList"),
 
     employeeSearchInput: document.getElementById("employeeSearchInput"),
+    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1B
+// Cache the Batch Employee Import UI elements added to the Employees workspace.
+// This only connects the existing HTML elements to JavaScript.
+// Import parsing, template download, validation, and saving will be added later.
+batchEmployeeCsvImportPanel: document.getElementById("batchEmployeeCsvImportPanel"),
+batchEmployeeCsvFile: document.getElementById("batchEmployeeCsvFile"),
+importBatchEmployeesCsvBtn: document.getElementById("importBatchEmployeesCsvBtn"),
+clearBatchEmployeesCsvBtn: document.getElementById("clearBatchEmployeesCsvBtn"),
+downloadBatchEmployeesCsvTemplateBtn: document.getElementById(
+  "downloadBatchEmployeesCsvTemplateBtn",
+),
+batchEmployeeCsvImportSummary: document.getElementById("batchEmployeeCsvImportSummary"),
+batchEmployeeReviewPanel: document.getElementById("batchEmployeeReviewPanel"),
+batchEmployeeReviewCount: document.getElementById("batchEmployeeReviewCount"),
+batchEmployeeSkippedRows: document.getElementById("batchEmployeeSkippedRows"),
+batchEmployeeReviewTableBody: document.getElementById("batchEmployeeReviewTableBody"),
+submitBatchEmployeesBtn: document.getElementById("submitBatchEmployeesBtn"),
 
     // DESCRIPTION ITEM 9 - STEP 2
     // Master payroll selection checkbox for the visible employee list.
@@ -1562,6 +1583,36 @@ function bindEvents() {
   state.dom.employeeSearchInput?.addEventListener("input", () => {
     applyEmployeeSearch();
   });
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1C
+// Wire only the safe actions first:
+// - Download Employee Template
+// - Clear selected CSV/import UI
+// Import parsing and saving will be added in the next steps.
+state.dom.downloadBatchEmployeesCsvTemplateBtn?.addEventListener("click", () => {
+  downloadBatchEmployeeCsvImportTemplate();
+});
+
+state.dom.clearBatchEmployeesCsvBtn?.addEventListener("click", () => {
+  clearBatchEmployeeCsvImportUi();
+});
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
+// Enable Import CSV only after HR selects a CSV file.
+// This mirrors the existing payroll CSV import behaviour but does not parse yet.
+state.dom.batchEmployeeCsvFile?.addEventListener("change", () => {
+  updateBatchEmployeeCsvImportButtonState();
+});
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Parse the selected employee CSV into the Batch Employee Review table.
+// This does not create employee records yet.
+state.dom.importBatchEmployeesCsvBtn?.addEventListener("click", async () => {
+  await handleBatchEmployeeCsvImport();
+});
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F
+// Create employee profiles from the reviewed valid CSV rows.
+// This only runs after HR has imported and reviewed the CSV.
+state.dom.submitBatchEmployeesBtn?.addEventListener("click", async () => {
+  await handleBatchEmployeeSubmit();
+});
 
   // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
   // Keep Create/Update Employee disabled until the required employee form
@@ -2113,7 +2164,935 @@ function bindEvents() {
 
   bindPayrollAutoCalculationEvents();
 }
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1C
+// Escape CSV cell values so names, emails, departments, and job titles
+// containing commas or quotes still download correctly.
+function escapeBatchEmployeeCsvCell(value) {
+  const text = String(value ?? "");
 
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  return text;
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1C
+// Download a clean employee import template.
+// Employee Number is intentionally excluded because the system already
+// generates employee numbers safely when employee profiles are created.
+function downloadBatchEmployeeCsvImportTemplate() {
+  const headers = [
+    "First Name",
+    "Middle Name",
+    "Last Name",
+    "Work Email",
+    "Phone Number",
+    "Department",
+    "Job Title",
+    "Line Manager",
+    "Approver Email",
+    "Employment Date",
+    "Status",
+    "System Role",
+  ];
+
+  const csvContent = headers
+    .map(escapeBatchEmployeeCsvCell)
+    .join(",");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `employee_batch_import_template_${new Date()
+    .toISOString()
+    .slice(0, 10)}.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+
+  showPageAlert(
+    "success",
+    "Employee batch import template downloaded successfully.",
+  );
+}
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F
+// Shows spinner feedback while reviewed employee rows are being created.
+function setBatchEmployeeSubmitLoading(isLoading) {
+  const button = state.dom.submitBatchEmployeesBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Creating Employees...
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  // Keep the button disabled after successful creation because the
+  // prepared rows are cleared to prevent accidental duplicate inserts.
+  button.disabled = !state.batchEmployeePreparedRows.length;
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F
+// Final duplicate check before saving.
+// This protects the system if another HR user created the same email
+// after CSV import but before Create Employees was clicked.
+async function findExistingBatchEmployeeEmails(workEmails = []) {
+  const emails = Array.from(
+    new Set(
+      workEmails
+        .map((email) => String(email || "").trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  );
+
+  if (!emails.length) {
+    return [];
+  }
+
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("employees")
+    .select("work_email")
+    .in("work_email", emails);
+
+  if (error) throw error;
+
+  return Array.isArray(data)
+    ? data.map((employee) => String(employee.work_email || "").trim().toLowerCase())
+    : [];
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F
+// Convert one reviewed CSV row into the same shape used by the employee table.
+// Employee Number is passed in after being generated by the existing RPC helper.
+function buildBatchEmployeeInsertPayload(employee = {}, employeeNumber = "") {
+  return {
+    first_name: String(employee.first_name || "").trim(),
+    middle_name: String(employee.middle_name || "").trim() || null,
+    last_name: String(employee.last_name || "").trim(),
+    work_email: String(employee.work_email || "").trim().toLowerCase(),
+    phone_number: String(employee.phone_number || "").trim() || null,
+    department: String(employee.department || "").trim(),
+    job_title: String(employee.job_title || "").trim(),
+    line_manager: String(employee.line_manager || "").trim() || null,
+    employment_date: employee.employment_date || null,
+    approver_email: String(employee.approver_email || "").trim().toLowerCase() || null,
+    employee_number: String(employeeNumber || "").trim(),
+    status: normalizeText(employee.status || "active") || "active",
+    system_role: String(employee.system_role || "").trim() || null,
+  };
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F
+// Save valid reviewed CSV rows into Supabase as employee records.
+// This does not touch the manual Create Employee Profile form.
+async function handleBatchEmployeeSubmit() {
+  clearPageAlert();
+
+  const preparedRows = Array.isArray(state.batchEmployeePreparedRows)
+    ? [...state.batchEmployeePreparedRows]
+    : [];
+
+  if (!preparedRows.length) {
+    showPageAlert(
+      "warning",
+      "There are no valid employee rows ready to create. Please import a valid employee CSV first.",
+    );
+    return;
+  }
+
+  const startedAt = Date.now();
+
+  try {
+    setBatchEmployeeSubmitLoading(true);
+    await waitForNextPaint();
+
+    const duplicateEmails = await findExistingBatchEmployeeEmails(
+      preparedRows.map((employee) => employee.work_email),
+    );
+
+    if (duplicateEmails.length) {
+      showPageAlert(
+        "warning",
+        `Employee creation stopped because ${duplicateEmails.length} email(s) already exist: <strong>${escapeHtml(
+          duplicateEmails.slice(0, 5).join(", "),
+        )}</strong>. Please clear, correct the CSV, and import again.`,
+      );
+
+      showDashboardToast(
+        "warning",
+        "Batch employee creation stopped",
+        "One or more reviewed employees already exist. No new employee records were created.",
+      );
+
+      await refreshEmployeeWorkspace();
+      return;
+    }
+
+    const rowsToInsert = [];
+
+    for (const employee of preparedRows) {
+      const employeeNumber = await generateNextEmployeeCustomId();
+      rowsToInsert.push(buildBatchEmployeeInsertPayload(employee, employeeNumber));
+    }
+
+    const supabase = getSupabaseClient();
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-3
+// Insert the reviewed employees without chaining .select("*").
+// Some Supabase/RLS setups allow insert but reject the immediate select,
+// which makes the UI show "creation failed" even when the insert worked.
+const { error } = await supabase
+  .from("employees")
+  .insert(rowsToInsert);
+
+if (error) {
+  throw new Error(error.message || "Employee batch insert failed.");
+}
+
+const createdCount = rowsToInsert.length;
+
+    // Clear prepared rows after successful save so HR cannot accidentally
+    // click Create Employees again for the same CSV batch.
+    state.batchEmployeePreparedRows = [];
+
+    if (state.dom.batchEmployeeCsvFile) {
+      state.dom.batchEmployeeCsvFile.value = "";
+    }
+
+    if (state.dom.batchEmployeeReviewCount) {
+      state.dom.batchEmployeeReviewCount.textContent = `${createdCount} created`;
+    }
+
+    if (state.dom.batchEmployeeReviewTableBody) {
+      state.dom.batchEmployeeReviewTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-success py-4">
+            ${createdCount} employee profile(s) were created successfully. Check the Full Employee List below.
+          </td>
+        </tr>
+      `;
+    }
+
+    if (state.dom.batchEmployeeSkippedRows) {
+      state.dom.batchEmployeeSkippedRows.classList.add("d-none");
+      state.dom.batchEmployeeSkippedRows.innerHTML = "";
+    }
+
+    if (state.dom.batchEmployeeCsvImportSummary) {
+      state.dom.batchEmployeeCsvImportSummary.classList.remove("d-none");
+      state.dom.batchEmployeeCsvImportSummary.innerHTML = `
+        <div class="fw-semibold">Batch employee creation completed</div>
+        <div class="small">
+          ${createdCount} employee profile(s) were created successfully.
+        </div>
+      `;
+    }
+
+    updateBatchEmployeeCsvImportButtonState();
+
+    await refreshEmployeeWorkspace();
+
+    showPageAlert(
+      "success",
+      `${createdCount} employee profile(s) were created successfully from the CSV import.`,
+    );
+
+    showDashboardToast(
+      "success",
+      "Employees created",
+      `${createdCount} employee profile(s) were added to the HR employee list.`,
+    );
+
+    redirectToFullEmployeeListAfterEmployeeSave();
+} catch (error) {
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-3
+  // Surface Supabase errors clearly instead of hiding them behind [object Object].
+  const errorMessage = String(error?.message || "").trim();
+  const lowerMessage = errorMessage.toLowerCase();
+
+  console.error("Error creating batch employees:", error);
+
+  if (
+    lowerMessage.includes("duplicate key") ||
+    lowerMessage.includes("work_email") ||
+    lowerMessage.includes("employees_work_email")
+  ) {
+    showPageAlert(
+      "warning",
+      "One or more employees in this CSV already exist by Work Email. Please clear the import, remove existing employees from the CSV, and import again.",
+    );
+
+    showDashboardToast(
+      "warning",
+      "Duplicate employee found",
+      "Batch import is create-only, so existing employees are skipped instead of being created again.",
+    );
+
+    await refreshEmployeeWorkspace();
+    return;
+  }
+
+  showPageAlert(
+    "danger",
+    errorMessage || "Batch employee records could not be created.",
+  );
+
+  showDashboardToast(
+    "danger",
+    "Batch employee creation failed",
+    errorMessage || "The reviewed employee rows could not be saved. Please check the CSV and try again.",
+  );
+}
+  
+  finally {
+    // Keep spinner visible briefly so the user sees feedback.
+    await waitForMinimumLoadingFeedback(startedAt, 600);
+    setBatchEmployeeSubmitLoading(false);
+  }
+}
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Show spinner feedback while the employee CSV is being parsed.
+function setBatchEmployeeCsvImportLoading(isLoading) {
+  const button = state.dom.importBatchEmployeesCsvBtn;
+  if (!button) return;
+
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Importing CSV...
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  updateBatchEmployeeCsvImportButtonState();
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Normalise CSV headers so "Work Email", "work_email", and "work-email"
+// are treated safely as the same type of header.
+function normalizeBatchEmployeeCsvHeader(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Parse CSV safely, including quoted commas and quoted line breaks.
+// This is separate from the payroll parser so employee import remains isolated.
+function parseBatchEmployeeCsvText(csvText = "") {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let insideQuotes = false;
+
+  for (let index = 0; index < csvText.length; index += 1) {
+    const char = csvText[index];
+    const nextChar = csvText[index + 1];
+
+    if (char === '"' && insideQuotes && nextChar === '"') {
+      cell += '"';
+      index += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      insideQuotes = !insideQuotes;
+      continue;
+    }
+
+    if (char === "," && !insideQuotes) {
+      row.push(cell.trim());
+      cell = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (char === "\r" && nextChar === "\n") {
+        index += 1;
+      }
+
+      row.push(cell.trim());
+
+      if (row.some((value) => String(value || "").trim())) {
+        rows.push(row);
+      }
+
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += char;
+  }
+
+  row.push(cell.trim());
+
+  if (row.some((value) => String(value || "").trim())) {
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Build a simple header lookup map from the employee CSV header row.
+function buildBatchEmployeeHeaderMap(headerRow = []) {
+  const headerMap = new Map();
+
+  headerRow.forEach((header, index) => {
+    const key = normalizeBatchEmployeeCsvHeader(header);
+
+    if (key) {
+      headerMap.set(key, index);
+    }
+  });
+
+  return headerMap;
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Read a cell value by friendly header name.
+function getBatchEmployeeCsvCell(row = [], headerMap, headerName = "") {
+  const index = headerMap.get(normalizeBatchEmployeeCsvHeader(headerName));
+
+  if (index === undefined) {
+    return "";
+  }
+
+  return String(row[index] || "").trim();
+}
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-1
+// Convert common CSV date formats into database-safe YYYY-MM-DD.
+// The manual employee form already produces YYYY-MM-DD from input[type="date"].
+// Batch CSV imports need this conversion because spreadsheets often export
+// values like 1-Jan-20, 01/01/2020, or 1 Jan 2020.
+function normalizeBatchEmployeeCsvDate(value = "") {
+  const rawValue = String(value || "").trim();
+
+  if (!rawValue) {
+    return "";
+  }
+
+  // Already database-safe.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  const monthMap = {
+    jan: "01",
+    january: "01",
+    feb: "02",
+    february: "02",
+    mar: "03",
+    march: "03",
+    apr: "04",
+    april: "04",
+    may: "05",
+    jun: "06",
+    june: "06",
+    jul: "07",
+    july: "07",
+    aug: "08",
+    august: "08",
+    sep: "09",
+    sept: "09",
+    september: "09",
+    oct: "10",
+    october: "10",
+    nov: "11",
+    november: "11",
+    dec: "12",
+    december: "12",
+  };
+
+  // Handles formats like 1-Jan-20, 01-Jan-2020, or 1 Jan 2020.
+  const textDateMatch = rawValue.match(/^(\d{1,2})[\s-]([A-Za-z]{3,9})[\s-](\d{2}|\d{4})$/);
+
+  if (textDateMatch) {
+    const day = textDateMatch[1].padStart(2, "0");
+    const month = monthMap[textDateMatch[2].toLowerCase()];
+    let year = textDateMatch[3];
+
+    if (year.length === 2) {
+      year = Number(year) >= 50 ? `19${year}` : `20${year}`;
+    }
+
+    if (month) {
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  // Handles formats like 01/01/2020 or 1/1/20 as DD/MM/YYYY.
+  const slashDateMatch = rawValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+
+  if (slashDateMatch) {
+    const day = slashDateMatch[1].padStart(2, "0");
+    const month = slashDateMatch[2].padStart(2, "0");
+    let year = slashDateMatch[3];
+
+    if (year.length === 2) {
+      year = Number(year) >= 50 ? `19${year}` : `20${year}`;
+    }
+
+    return `${year}-${month}-${day}`;
+  }
+
+  return "";
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
+// Build a stable employee name key for duplicate checks.
+// HR standard for this create-only batch import:
+// if the same full name already exists, do not create another employee
+// just because a different work email was used.
+function buildBatchEmployeeNameDuplicateKey(employee = {}) {
+  return [
+    employee.first_name,
+    employee.middle_name,
+    employee.last_name,
+  ]
+    .map((value) => normalizeText(value || ""))
+    .filter(Boolean)
+    .join("|");
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
+// seenNames is used to stop duplicate employees inside the same CSV file.
+function buildBatchEmployeePreparedRowFromCsv(row = [], headerMap, rowNumber, seenEmails, seenNames) {
+  const firstName = getBatchEmployeeCsvCell(row, headerMap, "First Name");
+  const middleName = getBatchEmployeeCsvCell(row, headerMap, "Middle Name");
+  const lastName = getBatchEmployeeCsvCell(row, headerMap, "Last Name");
+  const workEmail = getBatchEmployeeCsvCell(row, headerMap, "Work Email").toLowerCase();
+  const phoneNumber = getBatchEmployeeCsvCell(row, headerMap, "Phone Number");
+  const department = getBatchEmployeeCsvCell(row, headerMap, "Department");
+  const jobTitle = getBatchEmployeeCsvCell(row, headerMap, "Job Title");
+  const lineManager = getBatchEmployeeCsvCell(row, headerMap, "Line Manager");
+  const approverEmail = getBatchEmployeeCsvCell(row, headerMap, "Approver Email").toLowerCase();
+ // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-1
+// Normalise spreadsheet-style dates before validation and save.
+const rawEmploymentDate = getBatchEmployeeCsvCell(row, headerMap, "Employment Date");
+const employmentDate = normalizeBatchEmployeeCsvDate(rawEmploymentDate);
+  const status = getBatchEmployeeCsvCell(row, headerMap, "Status") || "Active";
+  const systemRole = getBatchEmployeeCsvCell(row, headerMap, "System Role");
+
+  const missingFields = [];
+
+  if (!firstName) missingFields.push("First Name");
+  if (!lastName) missingFields.push("Last Name");
+  if (!workEmail) missingFields.push("Work Email");
+  if (!department) missingFields.push("Department");
+  if (!jobTitle) missingFields.push("Job Title");
+if (!employmentDate) missingFields.push("Valid Employment Date");
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (workEmail && !emailPattern.test(workEmail)) {
+    missingFields.push("Valid Work Email");
+  }
+
+  if (approverEmail && !emailPattern.test(approverEmail)) {
+    missingFields.push("Valid Approver Email");
+  }
+
+  const existingEmployeeEmail = (state.employees || []).some(
+    (employee) => normalizeText(employee.work_email) === normalizeText(workEmail),
+  );
+
+  if (workEmail && existingEmployeeEmail) {
+    missingFields.push("Work Email already exists");
+  }
+
+  if (workEmail && seenEmails.has(normalizeText(workEmail))) {
+    missingFields.push("Duplicate Work Email in CSV");
+  }
+
+  if (workEmail) {
+    seenEmails.add(normalizeText(workEmail));
+  }
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
+// Also block likely duplicate employees by exact full name.
+// This keeps the system HR-standard: one employee profile per person.
+// If an existing employee needs updating, that should be handled by a
+// separate Batch Update flow, not by creating another profile.
+const incomingNameKey = buildBatchEmployeeNameDuplicateKey({
+  first_name: firstName,
+  middle_name: middleName,
+  last_name: lastName,
+});
+
+const existingEmployeeName = (state.employees || []).some((employee) => {
+  return buildBatchEmployeeNameDuplicateKey(employee) === incomingNameKey;
+});
+
+if (incomingNameKey && existingEmployeeName) {
+  missingFields.push("Employee name already exists");
+}
+
+if (incomingNameKey && seenNames.has(incomingNameKey)) {
+  missingFields.push("Duplicate employee name in CSV");
+}
+
+if (incomingNameKey) {
+  seenNames.add(incomingNameKey);
+}
+  if (missingFields.length) {
+    return {
+      skipped: true,
+      rowNumber,
+      employeeName: `${firstName} ${lastName}`.trim() || "--",
+      workEmail: workEmail || "--",
+      reason: missingFields.join(", "),
+    };
+  }
+
+  return {
+    skipped: false,
+    rowNumber,
+    first_name: firstName,
+    middle_name: middleName || null,
+    last_name: lastName,
+    work_email: workEmail,
+    phone_number: phoneNumber || null,
+    department,
+    job_title: jobTitle,
+    line_manager: lineManager || null,
+    approver_email: approverEmail || null,
+    employment_date: employmentDate,
+    status,
+    system_role: systemRole || null,
+  };
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Render valid employee CSV rows into the review table.
+// Nothing is saved here.
+function renderImportedBatchEmployeeCsvRows(preparedRows = [], skippedRows = []) {
+  const tbody = state.dom.batchEmployeeReviewTableBody;
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (!preparedRows.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-secondary py-4">
+          No valid employee rows were found in the CSV.
+        </td>
+      </tr>
+    `;
+  }
+
+  preparedRows.forEach((employee) => {
+    const fullName = [
+      employee.first_name,
+      employee.middle_name,
+      employee.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const rowElement = document.createElement("tr");
+
+    rowElement.innerHTML = `
+      <td>
+        <div class="fw-semibold">${escapeHtml(fullName)}</div>
+        <div class="text-secondary small">CSV row ${escapeHtml(employee.rowNumber)}</div>
+      </td>
+
+      <td class="text-break">${escapeHtml(employee.work_email)}</td>
+
+      <td>${escapeHtml(employee.department || "--")}</td>
+
+      <td>${escapeHtml(employee.job_title || "--")}</td>
+
+<!-- HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-2
+     Show the same friendly date style used by the employee list.
+     The saved value remains database-safe YYYY-MM-DD underneath. -->
+<td class="text-nowrap">${formatDate(employee.employment_date)}</td>
+
+      <td>
+        <span class="badge ${getStatusBadgeClass(employee.status || "Active")}">
+          ${escapeHtml(formatStatusLabel(employee.status || "Active"))}
+        </span>
+      </td>
+
+      <td>
+        <span class="badge text-bg-success">Ready</span>
+        <div class="text-secondary small mt-1">Ready to create</div>
+      </td>
+    `;
+
+    tbody.appendChild(rowElement);
+  });
+
+  if (state.dom.batchEmployeeReviewCount) {
+    state.dom.batchEmployeeReviewCount.textContent =
+      `${preparedRows.length} ready`;
+  }
+
+  if (state.dom.submitBatchEmployeesBtn) {
+    state.dom.submitBatchEmployeesBtn.disabled = preparedRows.length === 0;
+  }
+
+  if (state.dom.batchEmployeeReviewPanel) {
+    state.dom.batchEmployeeReviewPanel.classList.remove("d-none");
+  }
+
+  if (state.dom.batchEmployeeSkippedRows) {
+    if (skippedRows.length) {
+      state.dom.batchEmployeeSkippedRows.classList.remove("d-none");
+      state.dom.batchEmployeeSkippedRows.innerHTML = `
+        <div class="fw-semibold mb-1">Some CSV rows were skipped</div>
+        <div class="small mb-2">
+          ${skippedRows.length} row(s) could not be prepared for employee creation.
+        </div>
+        <ul class="small mb-0">
+          ${skippedRows
+            .slice(0, 8)
+            .map(
+              (item) =>
+                `<li>Row ${escapeHtml(item.rowNumber)} — ${escapeHtml(item.workEmail)}: ${escapeHtml(item.reason)}</li>`,
+            )
+            .join("")}
+        </ul>
+      `;
+    } else {
+      state.dom.batchEmployeeSkippedRows.classList.add("d-none");
+      state.dom.batchEmployeeSkippedRows.innerHTML = "";
+    }
+  }
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+// Read the selected employee CSV and prepare rows for review only.
+// This does not insert anything into Supabase.
+async function handleBatchEmployeeCsvImport() {
+  clearPageAlert();
+
+  const file = state.dom.batchEmployeeCsvFile?.files?.[0] || null;
+
+  if (!file) {
+    showPageAlert("warning", "Please select an employee CSV file first.");
+    return;
+  }
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E-1
+// Track when the import started so the spinner remains visible briefly,
+// even when the CSV file parses very quickly.
+const startedAt = Date.now();
+
+try {
+  setBatchEmployeeCsvImportLoading(true);
+  await waitForNextPaint();
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-2
+// Refresh employee records before validating the CSV.
+// This ensures already-created employees are detected and skipped by Work Email.
+await refreshEmployeeWorkspace();
+
+const csvText = await file.text();
+    const rows = parseBatchEmployeeCsvText(csvText);
+
+    const requiredHeaders = [
+      "First Name",
+      "Last Name",
+      "Work Email",
+      "Department",
+      "Job Title",
+      "Employment Date",
+    ];
+
+    const headerRowIndex = rows.findIndex((row) => {
+      const normalisedRowHeaders = new Set(
+        row.map((cell) => normalizeBatchEmployeeCsvHeader(cell)),
+      );
+
+      return requiredHeaders.every((header) =>
+        normalisedRowHeaders.has(normalizeBatchEmployeeCsvHeader(header)),
+      );
+    });
+
+    if (headerRowIndex === -1) {
+      showPageAlert(
+        "warning",
+        "This does not look like the approved employee import CSV. Please download the Employee Template and upload the completed file.",
+      );
+
+      showDashboardToast(
+        "warning",
+        "CSV import stopped",
+        "The selected file does not contain the required employee import headers.",
+      );
+
+      return;
+    }
+
+    const headerMap = buildBatchEmployeeHeaderMap(rows[headerRowIndex]);
+
+    const dataRows = rows
+      .slice(headerRowIndex + 1)
+      .filter((row) => row.some((cell) => String(cell || "").trim()));
+
+const preparedRows = [];
+const skippedRows = [];
+const seenEmails = new Set();
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
+// Track names inside the uploaded CSV so the same person is not prepared twice.
+const seenNames = new Set();
+
+dataRows.forEach((row, index) => {
+  const preparedRow = buildBatchEmployeePreparedRowFromCsv(
+    row,
+    headerMap,
+    headerRowIndex + index + 2,
+    seenEmails,
+    seenNames,
+  );
+
+      if (preparedRow.skipped) {
+        skippedRows.push(preparedRow);
+        return;
+      }
+
+      preparedRows.push(preparedRow);
+    });
+
+    state.batchEmployeePreparedRows = preparedRows;
+
+    renderImportedBatchEmployeeCsvRows(preparedRows, skippedRows);
+
+    if (state.dom.batchEmployeeCsvImportSummary) {
+      state.dom.batchEmployeeCsvImportSummary.classList.remove("d-none");
+      state.dom.batchEmployeeCsvImportSummary.innerHTML = `
+        <div class="fw-semibold">Employee CSV import prepared</div>
+        <div class="small">
+          ${preparedRows.length} row(s) are ready for review.
+          ${skippedRows.length ? `${skippedRows.length} row(s) were skipped.` : "No rows were skipped."}
+        </div>
+      `;
+    }
+
+    showPageAlert(
+      preparedRows.length ? "success" : "warning",
+      preparedRows.length
+        ? `${preparedRows.length} employee row(s) were imported into Batch Employee Review. Review them before creating employee profiles.`
+        : "No employee rows were imported. Please check the CSV values and try again.",
+    );
+  } catch (error) {
+    console.error("Error importing employee CSV:", error);
+
+    showPageAlert(
+      "danger",
+      error.message || "Employee CSV could not be imported.",
+    );
+
+    showDashboardToast(
+      "danger",
+      "Employee CSV import failed",
+      "The employee CSV could not be imported. Please check the file and try again.",
+    );
+} finally {
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E-1
+  // Keep spinner feedback visible long enough for HR to notice it.
+  await waitForMinimumLoadingFeedback(startedAt, 600);
+  setBatchEmployeeCsvImportLoading(false);
+}
+}
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
+// Keep Import CSV grey/disabled until a CSV file has been selected.
+// Actual parsing and spinner feedback will be added in the next step.
+function updateBatchEmployeeCsvImportButtonState() {
+  const hasCsvFile = Boolean(state.dom.batchEmployeeCsvFile?.files?.[0]);
+
+  setPrimaryActionButtonReadyState(
+    state.dom.importBatchEmployeesCsvBtn,
+    hasCsvFile,
+  );
+}
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1C
+// Clear the selected CSV and reset the review area.
+// This does not touch saved employees or the existing manual employee form.
+function clearBatchEmployeeCsvImportUi() {
+    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+  // Clear prepared employee rows from memory when HR clears the import area.
+  state.batchEmployeePreparedRows = [];
+  if (state.dom.batchEmployeeCsvFile) {
+    state.dom.batchEmployeeCsvFile.value = "";
+  }
+
+  state.dom.batchEmployeeCsvImportSummary?.classList.add("d-none");
+  state.dom.batchEmployeeReviewPanel?.classList.add("d-none");
+  state.dom.batchEmployeeSkippedRows?.classList.add("d-none");
+
+  if (state.dom.batchEmployeeCsvImportSummary) {
+    state.dom.batchEmployeeCsvImportSummary.innerHTML = "";
+  }
+
+  if (state.dom.batchEmployeeSkippedRows) {
+    state.dom.batchEmployeeSkippedRows.innerHTML = "";
+  }
+
+  if (state.dom.batchEmployeeReviewCount) {
+    state.dom.batchEmployeeReviewCount.textContent = "0 ready";
+  }
+
+  if (state.dom.batchEmployeeReviewTableBody) {
+    state.dom.batchEmployeeReviewTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-secondary py-4">
+          No employee CSV rows imported yet.
+        </td>
+      </tr>
+    `;
+  }
+
+  if (state.dom.submitBatchEmployeesBtn) {
+    state.dom.submitBatchEmployeesBtn.disabled = true;
+  }
+
+// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
+// Re-check the Import CSV button after clearing the selected file.
+// Since the file input is empty, the button returns to grey/disabled.
+updateBatchEmployeeCsvImportButtonState();
+
+showPageAlert("info", "Employee CSV import area was cleared.");
+}
 function setWorkspaceRefreshLoading(button, isLoading, loadingText = "Refreshing...") {
   if (!button) return;
 
@@ -4551,7 +5530,33 @@ function continueRunPayrollToPayrollWorkspace() {
     });
   });
 }
+// BATCH PAYROLL CSV IMPORT - SPINNER POLISH
+// Shows visible feedback on the existing payroll CSV Import button.
+// This is separate from Submit Batch Payroll, which already has its own spinner.
+function setBatchPayrollCsvImportLoading(isLoading) {
+  const button = state.dom.importBatchPayrollCsvBtn;
+  if (!button) return;
 
+  if (isLoading) {
+    if (!button.dataset.originalHtml) {
+      button.dataset.originalHtml = button.innerHTML;
+    }
+
+    button.disabled = true;
+    button.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+      Importing CSV...
+    `;
+    return;
+  }
+
+  if (button.dataset.originalHtml) {
+    button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+  }
+
+  updateBatchPayrollCsvImportButtonState();
+}
 // BATCH PAYROLL CSV IMPORT - STEP 1
 // Keep the Import CSV button grey/disabled until HR selects a CSV file.
 // This only controls the UI shell. Actual parsing comes in the next step.
@@ -5321,7 +6326,15 @@ async function handleBatchPayrollCsvImport() {
     return;
   }
 
-  const csvText = await file.text();
+  // BATCH PAYROLL CSV IMPORT - SPINNER POLISH
+  // Keep the import spinner visible briefly, even when the CSV parses quickly.
+  const startedAt = Date.now();
+
+  try {
+    setBatchPayrollCsvImportLoading(true);
+    await waitForNextPaint();
+
+    const csvText = await file.text();
   const rows = parseBatchPayrollCsvText(csvText);
 
   const requiredHeaders = [
@@ -5441,12 +6454,31 @@ async function handleBatchPayrollCsvImport() {
     `;
   }
 
-  showPageAlert(
-    preparedRows.length ? "success" : "warning",
-    preparedRows.length
-      ? `${preparedRows.length} payroll row(s) were imported into Batch Payroll Review. Review them before submitting.`
-      : "No payroll rows were imported. Check Employee Custom ID values against Employee Numbers in HR.",
-  );
+    showPageAlert(
+      preparedRows.length ? "success" : "warning",
+      preparedRows.length
+        ? `${preparedRows.length} payroll row(s) were imported into Batch Payroll Review. Review them before submitting.`
+        : "No payroll rows were imported. Check Employee Custom ID values against Employee Numbers in HR.",
+    );
+  } catch (error) {
+    console.error("Error importing payroll CSV:", error);
+
+    showPageAlert(
+      "danger",
+      error.message || "Payroll CSV could not be imported.",
+    );
+
+    showDashboardToast(
+      "danger",
+      "Payroll CSV import failed",
+      "The payroll CSV could not be imported. Please check the file and try again.",
+    );
+  } finally {
+    // BATCH PAYROLL CSV IMPORT - SPINNER POLISH
+    // Keep spinner feedback visible long enough for HR to notice it.
+    await waitForMinimumLoadingFeedback(startedAt, 600);
+    setBatchPayrollCsvImportLoading(false);
+  }
 }
 
 // BATCH PAYROLL DEFAULT - STEP 3B

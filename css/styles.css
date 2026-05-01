@@ -1014,3 +1014,58 @@ html {
     transform: none;
   }
 }
+
+/* =========================================================
+   LANDING PAGE UI POLISH - STEP 1C
+   Mobile workflow strip refinement.
+
+   Purpose:
+   - Keep the animated workflow strip readable on phones
+   - Stack workflow steps vertically on small screens
+   - Turn horizontal connectors into short vertical connectors
+   - Keep desktop/tablet behaviour unchanged
+   ========================================================= */
+
+@media (max-width: 575.98px) {
+  .landing-workflow-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .landing-workflow-step {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0.45rem 0.55rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .landing-workflow-connector {
+    width: 2px;
+    height: 18px;
+    align-self: center;
+  }
+
+  .landing-workflow-connector::after {
+    transform: translateY(-100%);
+    animation: landingConnectorMoveMobile 5s ease-in-out infinite;
+  }
+}
+
+/* Mobile-only connector movement for the stacked workflow layout */
+@keyframes landingConnectorMoveMobile {
+  0% {
+    transform: translateY(-100%);
+  }
+
+  18%,
+  45% {
+    transform: translateY(0);
+  }
+
+  70%,
+  100% {
+    transform: translateY(100%);
+  }
+}
