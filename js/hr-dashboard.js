@@ -734,9 +734,24 @@ organizationDepartmentForm: document.getElementById("organizationDepartmentForm"
     // BATCH PAYROLL DEFAULT - STEP 2
     // Cache the batch payroll review panel shown after HR selects
     // employees from the Run Payroll table.
-    batchPayrollReviewPanel: document.getElementById("batchPayrollReviewPanel"),
-    batchPayrollReviewCount: document.getElementById("batchPayrollReviewCount"),
-    batchPayrollReviewTableBody: document.getElementById("batchPayrollReviewTableBody"),
+// BATCH PAYROLL CSV IMPORT - STEP 1
+// UI controls for importing Alpatech-format CSV files into the batch payroll flow.
+batchPayrollCsvImportPanel: document.getElementById("batchPayrollCsvImportPanel"),
+batchPayrollCsvFile: document.getElementById("batchPayrollCsvFile"),
+importBatchPayrollCsvBtn: document.getElementById("importBatchPayrollCsvBtn"),
+clearBatchPayrollCsvBtn: document.getElementById("clearBatchPayrollCsvBtn"),
+
+// BATCH PAYROLL CSV IMPORT - STEP 4
+// Downloads an Alpatech-style CSV template for batch payroll import.
+downloadBatchPayrollCsvTemplateBtn: document.getElementById(
+  "downloadBatchPayrollCsvTemplateBtn",
+),
+
+batchPayrollCsvImportSummary: document.getElementById("batchPayrollCsvImportSummary"),
+
+batchPayrollReviewPanel: document.getElementById("batchPayrollReviewPanel"),
+batchPayrollReviewCount: document.getElementById("batchPayrollReviewCount"),
+batchPayrollReviewTableBody: document.getElementById("batchPayrollReviewTableBody"),
     // BATCH PAYROLL DEFAULT - STEP 7
     // Saves prepared batch payroll rows into Payroll Records.
     submitBatchPayrollBtn: document.getElementById("submitBatchPayrollBtn"),
@@ -2048,6 +2063,34 @@ function bindEvents() {
     updatePayDateFromPayCycle();
   });
 
+// BATCH PAYROLL CSV IMPORT - STEP 1
+// Enable Import CSV only after a CSV file has been selected.
+state.dom.batchPayrollCsvFile?.addEventListener("change", () => {
+  updateBatchPayrollCsvImportButtonState();
+});
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Parse the selected Alpatech CSV into the existing Batch Payroll Review table.
+// Nothing is saved until HR clicks Submit Batch Payroll.
+state.dom.importBatchPayrollCsvBtn?.addEventListener("click", async () => {
+  await handleBatchPayrollCsvImport();
+});
+
+// BATCH PAYROLL CSV IMPORT - STEP 1
+// Clear selected CSV file without affecting existing payroll records.
+state.dom.clearBatchPayrollCsvBtn?.addEventListener("click", () => {
+  clearBatchPayrollCsvImportUi();
+});
+
+// BATCH PAYROLL CSV IMPORT - STEP 4
+// Download a clean Alpatech-format import template.
+// This is separate from the bank payment Export CSV under Payroll Records.
+state.dom.downloadBatchPayrollCsvTemplateBtn?.addEventListener("click", () => {
+  downloadBatchPayrollCsvImportTemplate();
+});
+
+updateBatchPayrollCsvImportButtonState();
+
   // BATCH PAYROLL DEFAULT - STEP 7
   // Submit prepared batch payroll records from the review table.
   state.dom.submitBatchPayrollBtn?.addEventListener("click", async () => {
@@ -2129,6 +2172,100 @@ function setPrimaryActionButtonReadyState(button, canSubmit) {
 
   button.classList.toggle("btn-primary", canSubmit);
   button.classList.toggle("btn-secondary", !canSubmit);
+}
+
+// PAYROLL RECORD LOCKING - STEP 5D
+// Finalised payroll records are monthly payroll snapshots.
+// Once finalised, salary/calculation fields should not be edited from
+// Edit Payroll Record. Any salary or allowance change should be made in
+// Payroll Master / Allowance Components before a new payroll run is created.
+function setFinalisedPayrollRecordReadOnlyMode(isReadOnly = false) {
+  const fieldsToLock = [
+    state.dom.payrollEmployeeId,
+    state.dom.payrollPayCycle,
+    state.dom.payrollPayDate,
+    state.dom.payrollEmployeeGroup,
+    state.dom.payrollModel,
+    state.dom.regularIncrementPercent,
+    state.dom.regularIncrementAmount,
+    state.dom.regularMeritIncrement,
+    state.dom.regularNewBaseSalary,
+    state.dom.regularBasicPercent,
+    state.dom.regularHousingPercent,
+    state.dom.regularTransportPercent,
+    state.dom.regularUtilityPercent,
+    state.dom.regularOtherAllowancePercent,
+    state.dom.regularBht,
+    state.dom.regularNetSalary,
+    state.dom.regularMonthlySalaryPlusLogistics,
+    state.dom.payrollStatus,
+    state.dom.payrollReference,
+    state.dom.payrollBaseSalary,
+    state.dom.payrollBasicPay,
+    state.dom.payrollHousingAllowance,
+    state.dom.payrollTransportAllowance,
+    state.dom.payrollUtilityAllowance,
+    state.dom.payrollMedicalAllowance,
+    state.dom.payrollOtherAllowance,
+    state.dom.payrollBonus,
+    state.dom.payrollOvertime,
+    state.dom.payrollLogisticsAllowance,
+    state.dom.payrollDataAirtimeAllowance,
+    state.dom.payrollGrossPay,
+    state.dom.payrollPayeTax,
+    state.dom.payrollWhtTax,
+    state.dom.payrollEmployeePension,
+    state.dom.payrollEmployerPension,
+    state.dom.payrollOtherDeductions,
+    state.dom.payrollTotalDeductions,
+    state.dom.payrollNetPay,
+    state.dom.payrollCurrency,
+    state.dom.payrollIsFinalised,
+  ];
+
+  fieldsToLock.forEach((field) => {
+    if (!field) return;
+
+    if (field.type === "checkbox") {
+      field.disabled = isReadOnly;
+      return;
+    }
+
+    if (field.tagName === "SELECT") {
+      field.disabled = isReadOnly;
+      return;
+    }
+
+    field.readOnly = isReadOnly;
+    field.classList.toggle("bg-light", isReadOnly);
+  });
+
+  // Notes remain readable/editable later only if we deliberately decide that.
+  // For this lock step, keep the whole finalised record as a true snapshot.
+  if (state.dom.payrollNotes) {
+    state.dom.payrollNotes.readOnly = isReadOnly;
+    state.dom.payrollNotes.classList.toggle("bg-light", isReadOnly);
+  }
+
+  if (state.dom.savePayrollBtn) {
+    state.dom.savePayrollBtn.disabled = isReadOnly;
+    state.dom.savePayrollBtn.classList.toggle("d-none", isReadOnly);
+  }
+
+  if (state.dom.topSubmitPayrollBtn) {
+    state.dom.topSubmitPayrollBtn.disabled = isReadOnly;
+    state.dom.topSubmitPayrollBtn.classList.toggle("d-none", isReadOnly);
+  }
+}
+
+// PAYROLL RECORD LOCKING - STEP 5D
+// Simple check for records that should behave as locked payroll snapshots.
+function isFinalisedPayrollRecord(record = {}) {
+  return (
+    Boolean(record.is_finalised) ||
+    normalizeText(record.status) === "authorised" ||
+    normalizeText(record.status) === "finalised"
+  );
 }
 
 // ASSIGN LINE MANAGER - STEP 1
@@ -4135,6 +4272,19 @@ function handlePayrollExportCsv() {
 
     return matchedBankDetail || null;
   }
+
+  // BANK CSV POLISH - STEP 5G
+// Protect bank text fields when opened in WPS/Excel.
+// Spreadsheet apps can display account numbers as scientific notation.
+// This keeps Account Number and Bank Code readable without changing payroll values.
+function formatBankCsvTextCell(value = "") {
+  const cleanValue = String(value || "").trim();
+
+  if (!cleanValue) return "";
+
+  return `="${cleanValue.replaceAll('"', '""')}"`;
+}
+
   const selectedPayCycle = String(
     state.dom.exportPayrollPayCycle?.value || "",
   ).trim();
@@ -4235,17 +4385,22 @@ function handlePayrollExportCsv() {
 
     const bankDetails = getExportBankDetailsForPayrollRecord(record);
 
-    return [
-      bankDetails?.account_name || employeeName,
-      bankDetails?.account_number || "",
-      bankDetails?.bank_code || "",
-      bankDetails?.bank_name || "",
-      Number(record.net_pay || 0).toFixed(2),
-      record.currency || "NGN",
-      `${record.pay_cycle || "Payroll"} - ${employeeName}`,
-      record.work_email || "",
-      record.pay_cycle || "",
-    ];
+return [
+  bankDetails?.account_name || employeeName,
+
+  // BANK CSV POLISH - STEP 5G
+  // Keep account numbers and bank codes readable when the CSV is opened
+  // in WPS/Excel for review.
+  formatBankCsvTextCell(bankDetails?.account_number || ""),
+  formatBankCsvTextCell(bankDetails?.bank_code || ""),
+
+  bankDetails?.bank_name || "",
+  Number(record.net_pay || 0).toFixed(2),
+  record.currency || "NGN",
+  `${record.pay_cycle || "Payroll"} - ${employeeName}`,
+  record.work_email || "",
+  record.pay_cycle || "",
+];
   });
 
   const csvContent = [headers, ...rows]
@@ -4395,6 +4550,903 @@ function continueRunPayrollToPayrollWorkspace() {
       );
     });
   });
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 1
+// Keep the Import CSV button grey/disabled until HR selects a CSV file.
+// This only controls the UI shell. Actual parsing comes in the next step.
+function updateBatchPayrollCsvImportButtonState() {
+  const hasCsvFile = Boolean(state.dom.batchPayrollCsvFile?.files?.[0]);
+
+  setPrimaryActionButtonReadyState(
+    state.dom.importBatchPayrollCsvBtn,
+    hasCsvFile,
+  );
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 5
+// Clear the selected CSV file, imported batch rows, and helper message.
+// This does not delete saved payroll records. It only resets the working
+// CSV import area and returns the card to manual single payroll mode.
+function clearBatchPayrollCsvImportUi() {
+  if (state.dom.batchPayrollCsvFile) {
+    state.dom.batchPayrollCsvFile.value = "";
+  }
+
+  if (state.dom.batchPayrollCsvImportSummary) {
+    state.dom.batchPayrollCsvImportSummary.classList.add("d-none");
+    state.dom.batchPayrollCsvImportSummary.innerHTML = "";
+  }
+
+  state.batchPayrollPreparedRows = [];
+  state.selectedEmployeesForPayroll.clear();
+  state.isRunPayrollSelectionMode = false;
+
+  if (state.dom.batchPayrollReviewCount) {
+    state.dom.batchPayrollReviewCount.textContent = "0 selected";
+  }
+
+  if (state.dom.batchPayrollReviewTableBody) {
+    state.dom.batchPayrollReviewTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-secondary py-4">
+          No employees selected for batch payroll.
+        </td>
+      </tr>
+    `;
+  }
+
+  if (state.dom.batchPayrollSetupWarning) {
+    state.dom.batchPayrollSetupWarning.classList.add("d-none");
+    state.dom.batchPayrollSetupWarning.innerHTML = "";
+  }
+
+  if (state.dom.payrollCreateForm) {
+    state.dom.payrollCreateForm.classList.remove("d-none");
+  }
+
+  setPayrollRecordToolbarForManualMode();
+
+  if (state.dom.payrollFormTitle) {
+    state.dom.payrollFormTitle.textContent = "Create Payroll Record";
+  }
+
+  if (state.dom.payrollFormSubtext) {
+    state.dom.payrollFormSubtext.textContent =
+      "Enter payroll details for an employee. Core monetary fields use NGN.";
+  }
+
+  updateBatchPayrollCsvImportButtonState();
+  updateSubmitBatchPayrollButtonState();
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 5A
+// Format numeric payroll values for the downloaded Alpatech import template.
+// This keeps actual numbers readable in CSV while leaving missing values blank.
+// A zero value is allowed and displayed as 0.00, so the 5% Increment column
+// can clearly show 0.00 instead of forcing a hidden 5%.
+function formatBatchPayrollTemplateNumber(value) {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return "";
+  }
+
+  return numberValue.toFixed(2);
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// Read active extra earnings saved under Payroll Allowance Components.
+// These are pulled into batch payroll preparation before records are finalised.
+// Fixed Alpatech split fields such as Basic/Housing/Transport/Utility/Other
+// are not overridden here, to avoid double-counting the structured salary split.
+function getActiveBatchPayrollExtraComponentsForMaster(payrollMasterRecordId = "") {
+  const masterId = String(payrollMasterRecordId || "").trim();
+
+  const extras = {
+    bonus: 0,
+    overtime: 0,
+    logisticsAllowance: 0,
+    dataAirtimeAllowance: 0,
+    medicalAllowance: 0,
+  };
+
+  if (!masterId) {
+    return extras;
+  }
+
+  (state.payrollAllowanceComponents || []).forEach((component) => {
+    const componentMasterId = String(
+      component.payroll_master_record_id || "",
+    ).trim();
+
+    const isSameMaster = componentMasterId === masterId;
+    const isActive = normalizeText(component.allowance_status) === "active";
+    const amount = Number(component.allowance_amount || 0);
+
+    if (!isSameMaster || !isActive || !Number.isFinite(amount) || amount <= 0) {
+      return;
+    }
+
+    const type = normalizeText(component.allowance_type || "");
+
+    if (type === "bonus") {
+      extras.bonus += amount;
+      return;
+    }
+
+    if (type === "overtime") {
+      extras.overtime += amount;
+      return;
+    }
+
+    if (type === "logistics allowance" || type === "logistics") {
+      extras.logisticsAllowance += amount;
+      return;
+    }
+
+    if (
+      type === "data & airtime" ||
+      type === "data and airtime" ||
+      type === "airtime" ||
+      type === "data"
+    ) {
+      extras.dataAirtimeAllowance += amount;
+      return;
+    }
+
+    if (type === "medical") {
+      extras.medicalAllowance += amount;
+    }
+  });
+
+  return extras;
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 4
+// Escape CSV cells so names, commas, and special characters do not break the file.
+function escapeBatchPayrollCsvCell(value = "") {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// Build one Alpatech-style CSV template row from an active HR employee.
+// This now pulls the latest active extra earnings from Allowance Components
+// before the template is exported for HR review.
+function buildBatchPayrollTemplateRow(employee = {}) {
+  const fullName =
+    `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
+    employee.work_email ||
+    "";
+
+  const activePayrollMaster =
+    typeof getLatestActivePayrollMasterProfileForEmployee === "function"
+      ? getLatestActivePayrollMasterProfileForEmployee(employee.id)
+      : null;
+
+  const monthlyGrossSalary = Number(activePayrollMaster?.basic_salary || 0);
+
+  if (!Number.isFinite(monthlyGrossSalary) || monthlyGrossSalary <= 0) {
+    return [
+      employee.employee_number || "",
+      fullName,
+      "REGULAR",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+    ];
+  }
+
+  const extras = getActiveBatchPayrollExtraComponentsForMaster(
+    activePayrollMaster?.id,
+  );
+
+  // BATCH PAYROLL CSV IMPORT - STEP 5C
+  // No default increment. Base Salary and New Base Salary remain the same
+  // unless HR edits the CSV for an approved salary review.
+  const baseSalary = monthlyGrossSalary;
+  const incrementAmount = 0;
+  const meritIncrement = "";
+  const newBaseSalary = monthlyGrossSalary;
+
+  const basicPay = newBaseSalary * 0.5;
+  const housingAllowance = newBaseSalary * 0.1;
+  const transportAllowance = newBaseSalary * 0.1;
+  const utilityAllowance = newBaseSalary * 0.1;
+  const otherAllowance = newBaseSalary * 0.2;
+
+  const bonus = extras.bonus;
+  const overtime = extras.overtime;
+  const logisticsAllowance = extras.logisticsAllowance;
+  const dataAirtimeAllowance = extras.dataAirtimeAllowance;
+  const medicalAllowance = extras.medicalAllowance;
+
+  const bht = basicPay + housingAllowance + transportAllowance;
+  const employeePension = bht * 0.08;
+  const employerPension = bht * 0.1;
+
+  const payeTax =
+    typeof calculateNta2025MonthlyPayeTaxFromComponents === "function"
+      ? calculateNta2025MonthlyPayeTaxFromComponents({
+          basicPay,
+          housingAllowance,
+          transportAllowance,
+          utilityAllowance,
+          otherAllowance,
+          medicalAllowance,
+          bonus,
+          overtime,
+          logisticsAllowance,
+          dataAirtimeAllowance,
+        })
+      : 0;
+
+  const netSalaryBeforeLogisticsAndData =
+    newBaseSalary +
+    medicalAllowance +
+    bonus +
+    overtime -
+    employeePension -
+    payeTax;
+
+  const monthlySalaryPlusLogistics =
+    netSalaryBeforeLogisticsAndData + logisticsAllowance;
+
+  return [
+    employee.employee_number || "",
+    fullName,
+    "REGULAR",
+    formatBatchPayrollTemplateNumber(baseSalary),
+    formatBatchPayrollTemplateNumber(incrementAmount),
+    meritIncrement,
+    formatBatchPayrollTemplateNumber(newBaseSalary),
+    formatBatchPayrollTemplateNumber(basicPay),
+    formatBatchPayrollTemplateNumber(housingAllowance),
+    formatBatchPayrollTemplateNumber(transportAllowance),
+    formatBatchPayrollTemplateNumber(utilityAllowance),
+    formatBatchPayrollTemplateNumber(otherAllowance),
+    formatBatchPayrollTemplateNumber(bht),
+    formatBatchPayrollTemplateNumber(payeTax),
+    formatBatchPayrollTemplateNumber(employeePension),
+    formatBatchPayrollTemplateNumber(employerPension),
+    formatBatchPayrollTemplateNumber(netSalaryBeforeLogisticsAndData),
+    formatBatchPayrollTemplateNumber(bonus),
+    formatBatchPayrollTemplateNumber(overtime),
+    formatBatchPayrollTemplateNumber(logisticsAllowance),
+    formatBatchPayrollTemplateNumber(monthlySalaryPlusLogistics),
+    formatBatchPayrollTemplateNumber(dataAirtimeAllowance),
+  ];
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 4
+// Download an Alpatech-style CSV template for batch payroll import.
+// This is not the bank payment export. It is the input file HR can edit
+// and re-upload through Batch Payroll CSV Import.
+function downloadBatchPayrollCsvImportTemplate() {
+  const headers = [
+    "Employee Custom ID",
+    "Employee Name",
+    "Group",
+    "Base Salary",
+    "5% Increment",
+    "Merit Increament",
+    "New Base Salary",
+    "Basic 50%",
+    "Housing 10%",
+    "Transport 10%",
+    "Utility 10%",
+    "Other Allowance 20%",
+    "BHT",
+    "PAYE (Tax)",
+    "Employee Pension Contribution",
+    "Employer Pension Contribution",
+"NET SALARY",
+
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// These are optional extra earnings pulled from active Allowance Components.
+"Bonus",
+"Overtime",
+
+"Logistics Allowance",
+"Monthly Salary + Logistics",
+"Data & Airtime",
+  ];
+
+  const activeEmployees = (state.employees || []).filter(
+    (employee) => normalizeText(employee.status) === "active",
+  );
+
+if (!activeEmployees.length) {
+  // BATCH PAYROLL CSV IMPORT - STEP 5B
+  // Show both page warning and popup warning because HR may be lower down the page.
+  showPageAlert(
+    "warning",
+    "No active employees were found to include in the batch payroll import template.",
+  );
+
+  showDashboardToast(
+    "warning",
+    "No Employees Exported",
+    "No active employees were found for the batch payroll import template.",
+  );
+
+  return;
+}
+
+  const rows = activeEmployees.map((employee) =>
+    buildBatchPayrollTemplateRow(employee),
+  );
+
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map(escapeBatchPayrollCsvCell).join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `alpatech_batch_payroll_import_template_${new Date()
+    .toISOString()
+    .slice(0, 10)}.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+
+  showPageAlert(
+    "success",
+    `${activeEmployees.length} active employee(s) exported into the Alpatech batch payroll import template.`,
+  );
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Parse a CSV file safely, including quoted commas and quoted line breaks.
+// This is used only for Alpatech-format CSV imports.
+function parseBatchPayrollCsvText(csvText = "") {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let insideQuotes = false;
+
+  for (let index = 0; index < csvText.length; index += 1) {
+    const char = csvText[index];
+    const nextChar = csvText[index + 1];
+
+    if (char === '"' && insideQuotes && nextChar === '"') {
+      cell += '"';
+      index += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      insideQuotes = !insideQuotes;
+      continue;
+    }
+
+    if (char === "," && !insideQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (char === "\r" && nextChar === "\n") {
+        index += 1;
+      }
+
+      row.push(cell);
+
+      if (row.some((value) => String(value || "").trim())) {
+        rows.push(row);
+      }
+
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += char;
+  }
+
+  row.push(cell);
+
+  if (row.some((value) => String(value || "").trim())) {
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Normalise CSV headers so small spacing/case differences do not break import.
+function normalizeBatchPayrollCsvHeader(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Read one cell from a parsed CSV row using allowed header names.
+function getBatchPayrollCsvValue(row = [], headerMap = new Map(), headerNames = []) {
+  for (const headerName of headerNames) {
+    const key = normalizeBatchPayrollCsvHeader(headerName);
+    const index = headerMap.get(key);
+
+    if (typeof index === "number") {
+      return String(row[index] || "").trim();
+    }
+  }
+
+  return "";
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Convert CSV salary values into numbers.
+// Handles commas, currency symbols, empty cells, and normal numeric values.
+function parseBatchPayrollCsvAmount(value = "") {
+  const cleaned = String(value || "")
+    .replace(/[₦,\s]/g, "")
+    .trim();
+
+  if (!cleaned) return 0;
+
+  const numberValue = Number(cleaned);
+
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Find an active employee by Employee Custom ID from the Alpatech CSV.
+// In this system, that should match the employee_number shown in HR.
+function findEmployeeForBatchPayrollCsvRow(employeeCustomId = "") {
+  const cleanCustomId = normalizeText(employeeCustomId);
+
+  if (!cleanCustomId) return null;
+
+  return (state.employees || []).find(
+    (employee) =>
+      normalizeText(employee.employee_number || "") === cleanCustomId &&
+      normalizeText(employee.status) === "active",
+  ) || null;
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Convert one Alpatech CSV row into the same prepared-row structure
+// already used by Submit Batch Payroll.
+function buildBatchPayrollPreparedRowFromCsv(row = [], headerMap = new Map()) {
+  const employeeCustomId = getBatchPayrollCsvValue(row, headerMap, [
+    "Employee Custom ID",
+  ]);
+
+  const employeeNameFromCsv = getBatchPayrollCsvValue(row, headerMap, [
+    "Employee Name",
+  ]);
+
+  const employee = findEmployeeForBatchPayrollCsvRow(employeeCustomId);
+
+  if (!employee) {
+    return {
+      skipped: true,
+      reason: `No active employee found for Employee Custom ID ${employeeCustomId || "--"}.`,
+      employee_custom_id: employeeCustomId,
+      employee_name: employeeNameFromCsv,
+    };
+  }
+
+  const activePayrollMaster =
+    getLatestActivePayrollMasterProfileForEmployee(employee.id);
+
+  const baseSalary = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Base Salary"]),
+  );
+
+  const incrementAmount = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["5% Increment"]),
+  );
+
+  const meritIncrement = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, [
+      "Merit Increament",
+      "Merit Increment",
+    ]),
+  );
+
+  const newBaseSalary = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["New Base Salary"]),
+  );
+
+  const basicPay = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Basic 50%"]),
+  );
+
+  const housingAllowance = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Housing 10%"]),
+  );
+
+  const transportAllowance = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Transport 10%"]),
+  );
+
+  const utilityAllowance = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Utility 10%"]),
+  );
+
+  const otherAllowance = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Other Allowance 20%"]),
+  );
+
+  // BATCH PAYROLL CSV IMPORT - STEP 5C
+// Preserve optional extra earnings from the imported CSV.
+const bonus = parseBatchPayrollCsvAmount(
+  getBatchPayrollCsvValue(row, headerMap, ["Bonus"]),
+);
+
+const overtime = parseBatchPayrollCsvAmount(
+  getBatchPayrollCsvValue(row, headerMap, ["Overtime"]),
+);
+
+  const bht = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["BHT"]),
+  ) || basicPay + housingAllowance + transportAllowance;
+
+  const payeTax = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["PAYE (Tax)", "PAYE Tax"]),
+  );
+
+  const employeePension = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, [
+      "Employee Pension Contribution",
+    ]),
+  );
+
+  const employerPension = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, [
+      "Employer Pension Contribution",
+    ]),
+  );
+
+  const netSalaryBeforeLogistics = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["NET SALARY", "Net Salary"]),
+  );
+
+  const logisticsAllowance = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Logistics Allowance"]),
+  );
+
+  const monthlySalaryPlusLogistics = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, [
+      "Monthly Salary + Logistics",
+    ]),
+  ) || netSalaryBeforeLogistics + logisticsAllowance;
+
+  const dataAirtimeAllowance = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Data & Airtime"]),
+  );
+
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// Final gross/net for CSV batch payroll should preserve optional extra earnings.
+const grossPay =
+  newBaseSalary +
+  bonus +
+  overtime +
+  logisticsAllowance +
+  dataAirtimeAllowance;
+
+const totalDeductions = payeTax + employeePension;
+const netPay = monthlySalaryPlusLogistics + dataAirtimeAllowance;
+
+  return {
+    employee_id: employee.id,
+    payroll_master_record_id: activePayrollMaster?.id || null,
+    pay_cycle: String(state.dom.batchPayrollPayCycle?.value || "").trim(),
+    payroll_group: "REGULAR",
+    payroll_model: "REGULAR",
+    source: "csv",
+
+    base_salary: baseSalary,
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// No salary increment means 0. Do not silently fall back to 5%.
+regular_increment_percent: baseSalary > 0 ? incrementAmount / baseSalary : 0,
+    regular_increment_amount: incrementAmount,
+    merit_increment: meritIncrement || null,
+    regular_new_base_salary: newBaseSalary,
+
+    basic_pay: basicPay,
+    housing_allowance: housingAllowance,
+    transport_allowance: transportAllowance,
+    utility_allowance: utilityAllowance,
+other_allowance: otherAllowance,
+
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// Carry optional CSV extra earnings through to Submit Batch Payroll.
+bonus,
+overtime,
+
+    logistics_allowance: logisticsAllowance || null,
+    data_airtime_allowance: dataAirtimeAllowance || null,
+    monthly_salary_plus_logistics: monthlySalaryPlusLogistics || null,
+
+    employee_pension: employeePension,
+    employer_pension: employerPension,
+    paye_tax: payeTax,
+    wht_tax: 0,
+    other_deductions: 0,
+
+    bht,
+    gross_pay: grossPay,
+    total_deductions: totalDeductions,
+    net_pay: netPay,
+    currency: "NGN",
+
+    employee_custom_id: employeeCustomId,
+    employee_name: employeeNameFromCsv,
+  };
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Render imported CSV rows into the existing Batch Payroll Review table.
+// This does not save anything yet. Submit Batch Payroll remains the save action.
+function renderImportedBatchPayrollCsvRows(preparedRows = [], skippedRows = []) {
+  const tbody = state.dom.batchPayrollReviewTableBody;
+  const countBadge = state.dom.batchPayrollReviewCount;
+
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (countBadge) {
+    countBadge.textContent =
+      preparedRows.length === 1
+        ? "1 imported"
+        : `${preparedRows.length} imported`;
+  }
+
+  if (!preparedRows.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-secondary py-4">
+          No matching active employees were found from the imported CSV.
+        </td>
+      </tr>
+    `;
+  }
+
+  preparedRows.forEach((preparedRow) => {
+    const employee = (state.employees || []).find(
+      (item) => String(item.id) === String(preparedRow.employee_id),
+    );
+
+    const fullName =
+      `${employee?.first_name || ""} ${employee?.last_name || ""}`.trim() ||
+      preparedRow.employee_name ||
+      "Unknown Employee";
+
+    const rowElement = document.createElement("tr");
+
+    rowElement.innerHTML = `
+      <td>
+        <div class="fw-semibold">${escapeHtml(fullName)}</div>
+        <div class="text-secondary small text-break">
+          ${escapeHtml(employee?.work_email || "--")}
+        </div>
+        <div class="text-secondary small">
+          Staff No: ${escapeHtml(employee?.employee_number || preparedRow.employee_custom_id || "--")}
+        </div>
+      </td>
+
+      <td>${escapeHtml(employee?.department || "--")}</td>
+
+      <td>${escapeHtml(employee?.job_title || "--")}</td>
+
+      <td>
+        <span class="badge ${getStatusBadgeClass(employee?.status || "Active")}">
+          ${escapeHtml(formatStatusLabel(employee?.status || "Active"))}
+        </span>
+      </td>
+
+      <td class="text-nowrap">
+        <div class="fw-semibold">
+          ${formatCurrency(preparedRow.regular_new_base_salary, "NGN")}
+        </div>
+        <div class="text-secondary small">
+          CSV Base: ${formatCurrency(preparedRow.base_salary, "NGN")}
+        </div>
+        <div class="text-secondary small">
+          CSV Net Pay: ${formatCurrency(preparedRow.net_pay, "NGN")}
+        </div>
+      </td>
+
+      <td>
+        <span class="badge text-bg-success">Imported</span>
+        <div class="text-secondary small mt-1">
+          Alpatech CSV row
+        </div>
+      </td>
+    `;
+
+    tbody.appendChild(rowElement);
+  });
+
+  state.dom.batchPayrollReviewPanel?.classList.remove("d-none");
+
+  if (state.dom.batchPayrollSetupWarning) {
+    if (skippedRows.length) {
+      state.dom.batchPayrollSetupWarning.classList.remove("d-none");
+      state.dom.batchPayrollSetupWarning.innerHTML = `
+        <div class="fw-semibold mb-1">Some CSV rows were skipped</div>
+        <div class="small">
+          ${skippedRows.length} row(s) could not be matched to an active employee record.
+          Make sure Employee Custom ID in the CSV matches Employee Number in HR.
+        </div>
+      `;
+    } else {
+      state.dom.batchPayrollSetupWarning.classList.add("d-none");
+      state.dom.batchPayrollSetupWarning.innerHTML = "";
+    }
+  }
+}
+
+// BATCH PAYROLL CSV IMPORT - STEP 2
+// Read the selected Alpatech CSV and prepare rows for the existing batch submit flow.
+async function handleBatchPayrollCsvImport() {
+  clearPageAlert();
+
+  const file = state.dom.batchPayrollCsvFile?.files?.[0] || null;
+
+  if (!file) {
+    showPageAlert("warning", "Please select an Alpatech CSV file first.");
+    return;
+  }
+
+  const csvText = await file.text();
+  const rows = parseBatchPayrollCsvText(csvText);
+
+  const requiredHeaders = [
+    "Employee Custom ID",
+    "Employee Name",
+    "New Base Salary",
+    "NET SALARY",
+  ];
+
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalisedRowHeaders = new Set(
+      row.map((cell) => normalizeBatchPayrollCsvHeader(cell)),
+    );
+
+    return requiredHeaders.every((header) =>
+      normalisedRowHeaders.has(normalizeBatchPayrollCsvHeader(header)),
+    );
+  });
+
+  if (headerRowIndex === -1) {
+    showPageAlert(
+      "warning",
+      "This does not look like the Alpatech Rev 2 payroll CSV. Please save the Alpatech salary schedule as CSV and upload that file.",
+    );
+
+    showDashboardToast(
+      "warning",
+      "CSV import stopped",
+      "The selected file does not contain the required Alpatech payroll headers.",
+    );
+
+    return;
+  }
+
+  const headerRow = rows[headerRowIndex];
+  const headerMap = new Map();
+
+  headerRow.forEach((header, index) => {
+    const key = normalizeBatchPayrollCsvHeader(header);
+
+    if (key) {
+      headerMap.set(key, index);
+    }
+  });
+
+  const dataRows = rows
+    .slice(headerRowIndex + 1)
+    .filter((row) => row.some((cell) => String(cell || "").trim()));
+
+  const preparedRows = [];
+  const skippedRows = [];
+
+  dataRows.forEach((row) => {
+    const preparedRow = buildBatchPayrollPreparedRowFromCsv(row, headerMap);
+
+    if (preparedRow.skipped) {
+      skippedRows.push(preparedRow);
+      return;
+    }
+
+    preparedRows.push(preparedRow);
+  });
+
+  state.batchPayrollPreparedRows = preparedRows;
+
+  state.selectedEmployeesForPayroll = new Set(
+    preparedRows
+      .map((row) => String(row.employee_id || "").trim())
+      .filter(Boolean),
+  );
+
+renderImportedBatchPayrollCsvRows(preparedRows, skippedRows);
+// BATCH PAYROLL CSV IMPORT - STEP 5F
+// CSV import opens the Batch Payroll Review panel directly.
+// Rebuild the batch Pay Period dropdown here so HR can select the payroll month
+// without needing to use the Run Payroll flow first.
+populateBatchPayrollPayCycleOptions();
+updateBatchPayDateFromPayCycle();
+
+// BATCH PAYROLL CSV IMPORT - STEP 5
+// CSV import is a batch flow, so hide the manual single payroll form
+// after rows are imported. This prevents HR from thinking the manual
+// Employee dropdown belongs to the CSV import process.
+state.isRunPayrollSelectionMode = true;
+
+if (state.dom.payrollEmployeeId) {
+  state.dom.payrollEmployeeId.value = "";
+}
+
+renderPayrollSelectedEmployeeReference("");
+
+if (state.dom.payrollCreateForm) {
+  state.dom.payrollCreateForm.classList.add("d-none");
+}
+
+setPayrollRecordToolbarForBatchMode();
+
+if (state.dom.payrollFormTitle) {
+  state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
+}
+
+if (state.dom.payrollFormSubtext) {
+  state.dom.payrollFormSubtext.textContent =
+    "Import or review payroll rows in batch before submitting them into Payroll Records.";
+}
+
+updateSubmitBatchPayrollButtonState();
+
+  if (state.dom.batchPayrollCsvImportSummary) {
+    state.dom.batchPayrollCsvImportSummary.classList.remove("d-none");
+    state.dom.batchPayrollCsvImportSummary.innerHTML = `
+      <div class="fw-semibold">CSV import prepared</div>
+      <div class="small">
+        ${preparedRows.length} row(s) matched active employees.
+        ${skippedRows.length ? `${skippedRows.length} row(s) were skipped.` : "No rows were skipped."}
+      </div>
+    `;
+  }
+
+  showPageAlert(
+    preparedRows.length ? "success" : "warning",
+    preparedRows.length
+      ? `${preparedRows.length} payroll row(s) were imported into Batch Payroll Review. Review them before submitting.`
+      : "No payroll rows were imported. Check Employee Custom ID values against Employee Numbers in HR.",
+  );
 }
 
 // BATCH PAYROLL DEFAULT - STEP 3B
@@ -7182,30 +8234,44 @@ function updateSubmitBatchPayrollButtonState() {
 
   button.disabled = !(hasPreparedRows && hasPayCycle && hasPayDate);
 }
-// BATCH PAYROLL DEFAULT - STEP 5
-// Build one calculated payroll preview row for one selected employee.
-// This mirrors the existing Regular payroll structure without relying on
-// the hidden individual payroll form fields.
-//
-// This step only prepares values in memory. It does not save payroll records.
+
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// Prepare one batch payroll row directly from the latest HR/payroll setup.
+// This route is used by Run Payroll selected employees, so it must also
+// pull active Allowance Components before final payroll records are created.
 function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
   const baseSalary = Number(activePayrollMaster?.basic_salary || 0);
 
-  if (!employee?.id || !activePayrollMaster?.id || !Number.isFinite(baseSalary) || baseSalary <= 0) {
+  if (
+    !employee?.id ||
+    !activePayrollMaster?.id ||
+    !Number.isFinite(baseSalary) ||
+    baseSalary <= 0
+  ) {
     return null;
   }
 
-  // BATCH PAYROLL DEFAULT - STEP 5
-  // Regular structure defaults copied from the existing payroll calculation behaviour:
-  // 5% increment, then 50/10/10/10/20 salary split.
-  const incrementAmount = baseSalary * 0.05;
-  const newBaseSalary = baseSalary + incrementAmount;
+  const extras = getActiveBatchPayrollExtraComponentsForMaster(
+    activePayrollMaster.id,
+  );
+
+  // BATCH PAYROLL CSV IMPORT - STEP 5C
+  // No automatic salary increment. HR should only apply increments through
+  // an approved CSV/manual salary review.
+  const incrementAmount = 0;
+  const newBaseSalary = baseSalary;
 
   const basicPay = newBaseSalary * 0.5;
   const housingAllowance = newBaseSalary * 0.1;
   const transportAllowance = newBaseSalary * 0.1;
   const utilityAllowance = newBaseSalary * 0.1;
   const otherAllowance = newBaseSalary * 0.2;
+
+  const bonus = extras.bonus;
+  const overtime = extras.overtime;
+  const logisticsAllowance = extras.logisticsAllowance;
+  const dataAirtimeAllowance = extras.dataAirtimeAllowance;
+  const medicalAllowance = extras.medicalAllowance;
 
   const bht = basicPay + housingAllowance + transportAllowance;
   const employeePension = bht * 0.08;
@@ -7216,23 +8282,24 @@ function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
     housingAllowance +
     transportAllowance +
     utilityAllowance +
-    otherAllowance;
+    otherAllowance +
+    medicalAllowance +
+    bonus +
+    overtime +
+    logisticsAllowance +
+    dataAirtimeAllowance;
 
-  // PAYROLL TAX DEDUCTION CALCULATION - STEP 6
-  // Batch Payroll must use the same NTA 2025 PAYE calculation as the
-  // individual payroll form. WHT and Other Deductions remain 0 in batch
-  // because batch mode does not collect manual deduction inputs.
   const payeTax = calculateNta2025MonthlyPayeTaxFromComponents({
     basicPay,
     housingAllowance,
     transportAllowance,
     utilityAllowance,
     otherAllowance,
-    medicalAllowance: 0,
-    bonus: 0,
-    overtime: 0,
-    logisticsAllowance: 0,
-    dataAirtimeAllowance: 0,
+    medicalAllowance,
+    bonus,
+    overtime,
+    logisticsAllowance,
+    dataAirtimeAllowance,
   });
 
   const whtTax = 0;
@@ -7249,8 +8316,9 @@ function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
     payroll_model: "REGULAR",
 
     base_salary: baseSalary,
-    regular_increment_percent: 5,
+    regular_increment_percent: 0,
     regular_increment_amount: incrementAmount,
+    merit_increment: null,
     regular_new_base_salary: newBaseSalary,
 
     basic_pay: basicPay,
@@ -7259,12 +8327,18 @@ function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
     utility_allowance: utilityAllowance,
     other_allowance: otherAllowance,
 
+    medical_allowance: medicalAllowance || null,
+    bonus: bonus || null,
+    overtime: overtime || null,
+    logistics_allowance: logisticsAllowance || null,
+    data_airtime_allowance: dataAirtimeAllowance || null,
+    monthly_salary_plus_logistics:
+      logisticsAllowance > 0 ? netPay - dataAirtimeAllowance : null,
+
+    bht,
     employee_pension: employeePension,
     employer_pension: employerPension,
 
-    // PAYROLL TAX DEDUCTION CALCULATION - STEP 6
-    // Keep batch PAYE/WHT/Other Deductions explicit so the saved
-    // payroll_records row matches the batch preview calculation.
     paye_tax: payeTax,
     wht_tax: whtTax,
     other_deductions: otherDeductions,
@@ -7276,12 +8350,21 @@ function buildBatchPayrollPreparedRow(employee, activePayrollMaster) {
     currency: "NGN",
   };
 }
+
 // BATCH PAYROLL DEFAULT - STEP 7
 // Converts one prepared batch preview row into a payroll_records payload.
 // This deliberately does not use the hidden individual payroll form fields.
 function buildBatchPayrollRecordPayload(preparedRow) {
   const payCycle = String(state.dom.batchPayrollPayCycle?.value || "").trim();
   const payDate = String(state.dom.batchPayrollPayDate?.value || "").trim();
+
+  // BATCH PAYROLL CSV IMPORT - STEP 5
+  // Normalise increment percentage before saving.
+  // CSV rows should save the actual increment supplied by the CSV.
+  // If no increment exists, this saves 0 instead of forcing 5%.
+  const rawIncrementPercent = Number(preparedRow.regular_increment_percent ?? 0);
+  const normalizedIncrementPercent =
+    rawIncrementPercent > 1 ? rawIncrementPercent / 100 : rawIncrementPercent;
 
   return {
     employee_id: preparedRow.employee_id,
@@ -7294,9 +8377,12 @@ function buildBatchPayrollRecordPayload(preparedRow) {
     structure_variant: "ALPATECH_REGULAR_REV2",
     payslip_layout: "ALPATECH_REGULAR_REV2",
 
-    increment_percent: 0.05,
-    increment_amount: preparedRow.regular_increment_amount,
-    merit_increment: null,
+    // BATCH PAYROLL CSV IMPORT - STEP 5
+    // Save the actual increment from the prepared row.
+    // No CSV/template increment means this stores 0 instead of forcing 5%.
+    increment_percent: normalizedIncrementPercent,
+    increment_amount: preparedRow.regular_increment_amount || 0,
+    merit_increment: preparedRow.merit_increment ?? null,
     new_base_salary: preparedRow.regular_new_base_salary,
 
     basic_percent: 0.5,
@@ -7310,36 +8396,35 @@ function buildBatchPayrollRecordPayload(preparedRow) {
     housing_allowance: preparedRow.housing_allowance,
     transport_allowance: preparedRow.transport_allowance,
     utility_allowance: preparedRow.utility_allowance,
-    medical_allowance: null,
-    other_allowance: preparedRow.other_allowance,
-    bonus: null,
-    overtime: null,
-    logistics_allowance: null,
-    data_airtime_allowance: null,
+// BATCH PAYROLL CSV IMPORT - STEP 5C
+// Save extra earnings that were pulled into the batch template or imported CSV.
+medical_allowance: preparedRow.medical_allowance ?? null,
+other_allowance: preparedRow.other_allowance,
+bonus: preparedRow.bonus ?? null,
+overtime: preparedRow.overtime ?? null,
+logistics_allowance: preparedRow.logistics_allowance ?? null,
+data_airtime_allowance: preparedRow.data_airtime_allowance ?? null,
 
     bht:
-      preparedRow.basic_pay +
-      preparedRow.housing_allowance +
-      preparedRow.transport_allowance,
+      preparedRow.bht ??
+      Number(preparedRow.basic_pay || 0) +
+        Number(preparedRow.housing_allowance || 0) +
+        Number(preparedRow.transport_allowance || 0),
 
-    monthly_salary_plus_logistics: null,
+    // BATCH PAYROLL CSV IMPORT - STEP 5
+    // Preserve the Alpatech "Monthly Salary + Logistics" value where available.
+    monthly_salary_plus_logistics:
+      preparedRow.monthly_salary_plus_logistics ?? null,
+
     employer_wht: null,
-
     gross_pay: preparedRow.gross_pay,
 
-    // PAYROLL TAX DEDUCTION CALCULATION - STEP 6
-    // Save the PAYE calculated during batch preparation.
-    // WHT remains 0 for Regular batch payroll because it is not normally
-    // applied to standard employee salary.
     paye_tax: preparedRow.paye_tax,
-    wht_tax: preparedRow.wht_tax,
+    wht_tax: preparedRow.wht_tax ?? 0,
     employee_pension: preparedRow.employee_pension,
     employer_pension: preparedRow.employer_pension,
 
-    // BATCH PAYROLL DEFAULT - STEP 7A
-    // payroll_records.other_deductions is not nullable in Supabase.
-    // Batch payroll has no extra manual deductions yet, so save this as 0.
-    other_deductions: preparedRow.other_deductions,
+    other_deductions: preparedRow.other_deductions ?? 0,
     total_deductions: preparedRow.total_deductions,
     net_pay: preparedRow.net_pay,
 
@@ -7347,7 +8432,11 @@ function buildBatchPayrollRecordPayload(preparedRow) {
     status: "Authorised",
     is_finalised: true,
 
-    notes: "Created from batch payroll run.",
+    notes:
+      preparedRow.source === "csv"
+        ? "Created from Alpatech CSV batch payroll import."
+        : "Created from batch payroll run.",
+
     processed_by: state.currentUser?.id || null,
     approved_by: state.currentUser?.id || null,
     approved_at: new Date().toISOString(),
@@ -10900,6 +11989,9 @@ function updatePayDateFromPayCycle() {
 }
 
 function resetPayrollForm() {
+  // PAYROLL RECORD LOCKING - STEP 5D
+  // Reset/create mode must always return the form to editable mode.
+  setFinalisedPayrollRecordReadOnlyMode(false);
   if (!state.dom.payrollCreateForm) return;
 
   state.dom.payrollCreateForm.reset();
@@ -11581,6 +12673,34 @@ async function startPayrollEdit(payrollId) {
   if (state.dom.payrollIsFinalised) state.dom.payrollIsFinalised.checked = Boolean(payrollRecord.is_finalised);
   if (state.dom.payrollNotes) state.dom.payrollNotes.value = payrollRecord.notes || "";
 
+  // PAYROLL RECORD LOCKING - STEP 5D
+// If this payroll record is already finalised/authorised, show it as a
+// read-only snapshot. Changes to salary or allowances must be made before
+// a new payroll run is prepared.
+const shouldLockFinalisedRecord = isFinalisedPayrollRecord(payrollRecord);
+setFinalisedPayrollRecordReadOnlyMode(shouldLockFinalisedRecord);
+
+if (shouldLockFinalisedRecord) {
+  showPageAlert(
+    "info",
+    "This payroll record is finalised and is shown as read-only. Update Payroll Master or Allowance Components before preparing a new payroll run if salary or allowance figures need to change.",
+  );
+
+  showDashboardToast(
+    "info",
+    "Payroll Record Locked",
+    "Finalised payroll records are snapshots and cannot be edited directly.",
+  );
+
+  if (state.dom.payrollFormSubtext) {
+    state.dom.payrollFormSubtext.textContent =
+      "This finalised payroll record is read-only. Use Payroll Master or Allowance Components before the next payroll run for new changes.";
+  }
+} else if (state.dom.payrollFormSubtext) {
+  state.dom.payrollFormSubtext.textContent =
+    "Edit this draft payroll record. Finalised payroll records are locked after submission.";
+}
+
   if (state.dom.payrollFormTitle) {
     state.dom.payrollFormTitle.textContent = "Edit Payroll Record";
   }
@@ -11895,17 +13015,41 @@ function getSelectedPayrollModel() {
   return "GENERIC";
 }
 
-// PAYROLL CALCULATION REPAIR - STEP 12A.2
-// These fields are calculated by the Regular payroll model.
-// HR should not manually edit them because they are derived from Base Salary
-// and the Regular payroll percentages.
+// PAYROLL RECORD CONTROL - STEP 5E
+// These fields belong to the structured Regular payroll calculation.
+// In Regular payroll, HR should not manually edit them inside Payroll Records.
+// Source salary changes should be made in Payroll Master.
+// Extra earning changes should be made in Allowance Components before running payroll.
 function getRegularCalculatedPayrollFields() {
   return [
+    // Source salary for Regular payroll.
+    // This is pulled from Payroll Master and should not be manually changed here.
+    state.dom.payrollBaseSalary,
+
+    // Regular structure percentage controls.
+    // These are part of the configured Regular payroll model.
+    state.dom.regularBasicPercent,
+    state.dom.regularHousingPercent,
+    state.dom.regularTransportPercent,
+    state.dom.regularUtilityPercent,
+    state.dom.regularOtherAllowancePercent,
+
+    // Regular structured earnings calculated from Monthly Gross Salary.
     state.dom.payrollBasicPay,
     state.dom.payrollHousingAllowance,
     state.dom.payrollTransportAllowance,
     state.dom.payrollUtilityAllowance,
     state.dom.payrollOtherAllowance,
+
+    // Extra earnings for Regular payroll should come from Allowance Components
+    // or CSV import before payroll is submitted, not direct manual typing here.
+    state.dom.payrollMedicalAllowance,
+    state.dom.payrollBonus,
+    state.dom.payrollOvertime,
+    state.dom.payrollLogisticsAllowance,
+    state.dom.payrollDataAirtimeAllowance,
+
+    // Regular payroll deductions calculated by the system.
     state.dom.payrollEmployeePension,
     state.dom.payrollEmployerPension,
 
@@ -11927,7 +13071,8 @@ function syncPayrollCalculatedFieldLockState() {
     field.classList.toggle("bg-light", isRegular);
 
     if (isRegular) {
-      field.title = "Calculated automatically from Monthly Gross Salary and the Regular payroll structure.";
+field.title =
+  "Locked for Regular payroll. Update Payroll Master or Allowance Components before preparing payroll.";
     } else {
       field.removeAttribute("title");
     }
@@ -12923,6 +14068,24 @@ async function handlePayrollSave() {
 
   const editingId = String(state.dom.editingPayrollId?.value || "").trim();
   const isEditMode = Boolean(editingId);
+
+  // PAYROLL RECORD LOCKING - STEP 5D
+// Safety guard: even if a disabled button is triggered by shortcut or browser
+// behaviour, do not update a finalised payroll snapshot.
+if (isEditMode && isFinalisedPayrollRecord(state.currentEditingPayroll || {})) {
+  showPageAlert(
+    "warning",
+    "This payroll record is finalised and cannot be edited directly. Make salary or allowance changes before preparing a new payroll run.",
+  );
+
+  showDashboardToast(
+    "warning",
+    "Payroll Record Locked",
+    "Finalised payroll records are read-only snapshots.",
+  );
+
+  return;
+}
 
   // PAYROLL BANK READINESS - STEP 11D
   // Work out which employee records are included in this payroll save.

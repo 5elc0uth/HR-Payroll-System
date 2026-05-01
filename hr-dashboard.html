@@ -922,42 +922,37 @@
                   </select>
                 </div>
 
-<!-- ASSIGN LINE MANAGER - STEP 1E
+                <!-- ASSIGN LINE MANAGER - STEP 1E
      System Role is now saved with the employee record.
      Manager-level roles are used by Assign Line Manager. -->
-<div class="col-md-6 col-xl-4">
-  <label for="systemRole" class="form-label fw-semibold">
-    System Role
-  </label>
+                <div class="col-md-6 col-xl-4">
+                  <label for="systemRole" class="form-label fw-semibold">
+                    System Role
+                  </label>
 
-  <select id="systemRole" class="form-select">
-    <option value="">Select role (optional)</option>
-    <option value="employee">Employee</option>
-    <option value="manager">Manager</option>
-    <option value="supervisor">Supervisor</option>
-    <option value="hr">HR</option>
-    <option value="hr_manager">HR Manager</option>
-    <option value="payroll">Payroll</option>
-    <option value="payroll_manager">Payroll Manager</option>
-    <option value="leadership">Leadership / Executive</option>
-    <option value="system_admin">System Admin</option>
-    <option value="auditor">Auditor</option>
-    <option value="qa_analyst">QA Analyst</option>
-    <option value="custom">Other / Add new role</option>
-  </select>
+                  <select id="systemRole" class="form-select">
+                    <option value="">Select role (optional)</option>
+                    <option value="employee">Employee</option>
+                    <option value="manager">Manager</option>
+                    <option value="supervisor">Supervisor</option>
+                    <option value="hr">HR</option>
+                    <option value="hr_manager">HR Manager</option>
+                    <option value="payroll">Payroll</option>
+                    <option value="payroll_manager">Payroll Manager</option>
+                    <option value="leadership">Leadership / Executive</option>
+                    <option value="system_admin">System Admin</option>
+                    <option value="auditor">Auditor</option>
+                    <option value="qa_analyst">QA Analyst</option>
+                    <option value="custom">Other / Add new role</option>
+                  </select>
 
-  <input
-    type="text"
-    id="customSystemRole"
-    class="form-control mt-2 d-none"
-    placeholder="Enter new system role"
-    autocomplete="off"
-  />
+                  <input type="text" id="customSystemRole" class="form-control mt-2 d-none"
+                    placeholder="Enter new system role" autocomplete="off" />
 
-  <div class="form-text">
-    Manager, Supervisor, HR Manager, and Leadership can be used as line managers.
-  </div>
-</div>
+                  <div class="form-text">
+                    Manager, Supervisor, HR Manager, and Leadership can be used as line managers.
+                  </div>
+                </div>
 
                 <div class="col-12">
                   <h3 class="h6 fw-bold mb-3 mt-2">Supporting Documents</h3>
@@ -1839,6 +1834,15 @@
                     <option value="Hazard">Hazard</option>
                     <option value="Utility">Utility</option>
                     <option value="Medical">Medical</option>
+
+                    <!-- BATCH PAYROLL CSV IMPORT - STEP 5C
+     These extra earning types can be pulled into batch payroll preparation
+     before payroll is finalised. -->
+                    <option value="Bonus">Bonus</option>
+                    <option value="Overtime">Overtime</option>
+                    <option value="Logistics Allowance">Logistics Allowance</option>
+                    <option value="Data & Airtime">Data &amp; Airtime</option>
+
                     <option value="Other">Other</option>
                   </select>
                 </div>
@@ -2010,6 +2014,61 @@
               </button>
             </div>
 
+            <!-- BATCH PAYROLL CSV IMPORT - STEP 1
+     Upload area for Alpatech-format CSV files.
+     This step adds the UI only. Parsing and payroll record creation
+     will be wired in the next step so we do not disturb existing batch payroll. -->
+            <div id="batchPayrollCsvImportPanel" class="border rounded-4 p-3 p-lg-4 bg-light-subtle mb-4">
+              <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
+                <div>
+                  <div class="fw-bold">Batch Payroll CSV Import</div>
+                  <div class="small text-secondary">
+                    Import payroll rows using the Alpatech Rev 2 CSV format.
+                  </div>
+                </div>
+
+                <span class="badge rounded-pill text-bg-light border px-3 py-2">
+                  Alpatech format
+                </span>
+              </div>
+
+              <div class="row g-3 align-items-end">
+                <div class="col-12 col-lg-6">
+                  <label for="batchPayrollCsvFile" class="form-label fw-semibold">
+                    Payroll CSV File <span class="text-danger">*</span>
+                  </label>
+                  <input type="file" id="batchPayrollCsvFile" class="form-control" accept=".csv,text/csv" />
+                  <div class="form-text">
+                    Save the Alpatech Rev 2 sheet as CSV, then upload it here.
+                  </div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                  <div class="d-flex flex-wrap gap-2">
+                    <button type="button" id="importBatchPayrollCsvBtn" class="btn btn-secondary dashboard-action-btn"
+                      disabled>
+                      <i class="bi bi-upload me-2"></i>Import CSV
+                    </button>
+
+                    <button type="button" id="clearBatchPayrollCsvBtn"
+                      class="btn btn-outline-secondary dashboard-action-btn">
+                      <i class="bi bi-x-circle me-2"></i>Clear
+                    </button>
+
+                    <!-- BATCH PAYROLL CSV IMPORT - STEP 4
+     Download an Alpatech-style import template for batch payroll.
+     This is separate from Payroll Records Export CSV, which is for bank payment. -->
+                    <button type="button" id="downloadBatchPayrollCsvTemplateBtn"
+                      class="btn btn-outline-primary dashboard-action-btn">
+                      <i class="bi bi-download me-2"></i>Download Import Template
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="batchPayrollCsvImportSummary" class="alert alert-light border d-none mt-3 mb-0"></div>
+            </div>
+
             <!-- BATCH PAYROLL DEFAULT - STEP 2
      This panel becomes the default Run Payroll review area.
      It shows selected active employees in a table before any payroll
@@ -2131,6 +2190,17 @@
             </div>
 
             <form id="payrollCreateForm" novalidate>
+              <!-- BATCH PAYROLL CSV IMPORT - STEP 5
+       This heading separates manual single payroll from CSV/batch payroll.
+       It avoids HR thinking the manual employee dropdown belongs to the CSV import flow. -->
+              <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle mb-4">
+                <div class="fw-bold">Manual Single Payroll Entry</div>
+                <div class="small text-secondary">
+                  Use this section only when creating or editing one payroll record manually.
+                  For CSV batch payroll, use the Batch Payroll CSV Import and Batch Payroll Review sections above.
+                </div>
+              </div>
+
               <input type="hidden" id="editingPayrollId" />
 
               <div class="row g-4">
