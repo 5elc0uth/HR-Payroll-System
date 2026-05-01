@@ -170,7 +170,7 @@ const state = {
   // Keeps the latest saved/updated Department at the top after refresh.
   lastSavedOrganizationDepartmentKey: null,
 
-    // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+  // ORGANIZATION HR SETUP VALUES - STEP 4B-2
   // Tracks the Job Title currently being edited inside Manage Organization.
   // Save/edit logic will be added in the next step.
   currentEditingOrganizationJobTitle: null,
@@ -366,20 +366,20 @@ function cacheDomElements() {
     organizationNotes: document.getElementById("organizationNotes"),
     saveOrganizationSettingsBtn: document.getElementById("saveOrganizationSettingsBtn"),
     organizationSettingsSubmitLabel: document.getElementById("organizationSettingsSubmitLabel"),
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4A
-// Section anchors used for clean post-save redirects.
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
-// Section anchors used for clean post-save redirects.
-organizationDepartmentsSection: document.getElementById("organizationDepartmentsSection"),
-organizationJobTitlesSection: document.getElementById("organizationJobTitlesSection"),
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+    // Section anchors used for clean post-save redirects.
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+    // Section anchors used for clean post-save redirects.
+    organizationDepartmentsSection: document.getElementById("organizationDepartmentsSection"),
+    organizationJobTitlesSection: document.getElementById("organizationJobTitlesSection"),
 
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
-// Records anchors used after create/update so HR lands on the saved records,
-// not back at the input form.
-organizationDepartmentRecordsHeader: document.getElementById("organizationDepartmentRecordsHeader"),
-organizationJobTitleRecordsHeader: document.getElementById("organizationJobTitleRecordsHeader"),
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+    // Records anchors used after create/update so HR lands on the saved records,
+    // not back at the input form.
+    organizationDepartmentRecordsHeader: document.getElementById("organizationDepartmentRecordsHeader"),
+    organizationJobTitleRecordsHeader: document.getElementById("organizationJobTitleRecordsHeader"),
 
-organizationDepartmentForm: document.getElementById("organizationDepartmentForm"),
+    organizationDepartmentForm: document.getElementById("organizationDepartmentForm"),
     editingOrganizationDepartmentId: document.getElementById("editingOrganizationDepartmentId"),
     organizationDepartmentName: document.getElementById("organizationDepartmentName"),
     organizationDepartmentStatus: document.getElementById("organizationDepartmentStatus"),
@@ -391,7 +391,7 @@ organizationDepartmentForm: document.getElementById("organizationDepartmentForm"
     organizationDepartmentsTableWrapper: document.getElementById("organizationDepartmentsTableWrapper"),
     organizationDepartmentsTableBody: document.getElementById("organizationDepartmentsTableBody"),
 
-        // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-2
     // Cache Job Title management fields inside the Manage Organization card.
     organizationJobTitleForm: document.getElementById("organizationJobTitleForm"),
     editingOrganizationJobTitleId: document.getElementById("editingOrganizationJobTitleId"),
@@ -734,24 +734,24 @@ organizationDepartmentForm: document.getElementById("organizationDepartmentForm"
     // BATCH PAYROLL DEFAULT - STEP 2
     // Cache the batch payroll review panel shown after HR selects
     // employees from the Run Payroll table.
-// BATCH PAYROLL CSV IMPORT - STEP 1
-// UI controls for importing Alpatech-format CSV files into the batch payroll flow.
-batchPayrollCsvImportPanel: document.getElementById("batchPayrollCsvImportPanel"),
-batchPayrollCsvFile: document.getElementById("batchPayrollCsvFile"),
-importBatchPayrollCsvBtn: document.getElementById("importBatchPayrollCsvBtn"),
-clearBatchPayrollCsvBtn: document.getElementById("clearBatchPayrollCsvBtn"),
+    // BATCH PAYROLL CSV IMPORT - STEP 1
+    // UI controls for importing Alpatech-format CSV files into the batch payroll flow.
+    batchPayrollCsvImportPanel: document.getElementById("batchPayrollCsvImportPanel"),
+    batchPayrollCsvFile: document.getElementById("batchPayrollCsvFile"),
+    importBatchPayrollCsvBtn: document.getElementById("importBatchPayrollCsvBtn"),
+    clearBatchPayrollCsvBtn: document.getElementById("clearBatchPayrollCsvBtn"),
 
-// BATCH PAYROLL CSV IMPORT - STEP 4
-// Downloads an Alpatech-style CSV template for batch payroll import.
-downloadBatchPayrollCsvTemplateBtn: document.getElementById(
-  "downloadBatchPayrollCsvTemplateBtn",
-),
+    // BATCH PAYROLL CSV IMPORT - STEP 4
+    // Downloads an Alpatech-style CSV template for batch payroll import.
+    downloadBatchPayrollCsvTemplateBtn: document.getElementById(
+      "downloadBatchPayrollCsvTemplateBtn",
+    ),
 
-batchPayrollCsvImportSummary: document.getElementById("batchPayrollCsvImportSummary"),
+    batchPayrollCsvImportSummary: document.getElementById("batchPayrollCsvImportSummary"),
 
-batchPayrollReviewPanel: document.getElementById("batchPayrollReviewPanel"),
-batchPayrollReviewCount: document.getElementById("batchPayrollReviewCount"),
-batchPayrollReviewTableBody: document.getElementById("batchPayrollReviewTableBody"),
+    batchPayrollReviewPanel: document.getElementById("batchPayrollReviewPanel"),
+    batchPayrollReviewCount: document.getElementById("batchPayrollReviewCount"),
+    batchPayrollReviewTableBody: document.getElementById("batchPayrollReviewTableBody"),
     // BATCH PAYROLL DEFAULT - STEP 7
     // Saves prepared batch payroll rows into Payroll Records.
     submitBatchPayrollBtn: document.getElementById("submitBatchPayrollBtn"),
@@ -2063,33 +2063,33 @@ function bindEvents() {
     updatePayDateFromPayCycle();
   });
 
-// BATCH PAYROLL CSV IMPORT - STEP 1
-// Enable Import CSV only after a CSV file has been selected.
-state.dom.batchPayrollCsvFile?.addEventListener("change", () => {
+  // BATCH PAYROLL CSV IMPORT - STEP 1
+  // Enable Import CSV only after a CSV file has been selected.
+  state.dom.batchPayrollCsvFile?.addEventListener("change", () => {
+    updateBatchPayrollCsvImportButtonState();
+  });
+
+  // BATCH PAYROLL CSV IMPORT - STEP 2
+  // Parse the selected Alpatech CSV into the existing Batch Payroll Review table.
+  // Nothing is saved until HR clicks Submit Batch Payroll.
+  state.dom.importBatchPayrollCsvBtn?.addEventListener("click", async () => {
+    await handleBatchPayrollCsvImport();
+  });
+
+  // BATCH PAYROLL CSV IMPORT - STEP 1
+  // Clear selected CSV file without affecting existing payroll records.
+  state.dom.clearBatchPayrollCsvBtn?.addEventListener("click", () => {
+    clearBatchPayrollCsvImportUi();
+  });
+
+  // BATCH PAYROLL CSV IMPORT - STEP 4
+  // Download a clean Alpatech-format import template.
+  // This is separate from the bank payment Export CSV under Payroll Records.
+  state.dom.downloadBatchPayrollCsvTemplateBtn?.addEventListener("click", () => {
+    downloadBatchPayrollCsvImportTemplate();
+  });
+
   updateBatchPayrollCsvImportButtonState();
-});
-
-// BATCH PAYROLL CSV IMPORT - STEP 2
-// Parse the selected Alpatech CSV into the existing Batch Payroll Review table.
-// Nothing is saved until HR clicks Submit Batch Payroll.
-state.dom.importBatchPayrollCsvBtn?.addEventListener("click", async () => {
-  await handleBatchPayrollCsvImport();
-});
-
-// BATCH PAYROLL CSV IMPORT - STEP 1
-// Clear selected CSV file without affecting existing payroll records.
-state.dom.clearBatchPayrollCsvBtn?.addEventListener("click", () => {
-  clearBatchPayrollCsvImportUi();
-});
-
-// BATCH PAYROLL CSV IMPORT - STEP 4
-// Download a clean Alpatech-format import template.
-// This is separate from the bank payment Export CSV under Payroll Records.
-state.dom.downloadBatchPayrollCsvTemplateBtn?.addEventListener("click", () => {
-  downloadBatchPayrollCsvImportTemplate();
-});
-
-updateBatchPayrollCsvImportButtonState();
 
   // BATCH PAYROLL DEFAULT - STEP 7
   // Submit prepared batch payroll records from the review table.
@@ -4274,16 +4274,16 @@ function handlePayrollExportCsv() {
   }
 
   // BANK CSV POLISH - STEP 5G
-// Protect bank text fields when opened in WPS/Excel.
-// Spreadsheet apps can display account numbers as scientific notation.
-// This keeps Account Number and Bank Code readable without changing payroll values.
-function formatBankCsvTextCell(value = "") {
-  const cleanValue = String(value || "").trim();
+  // Protect bank text fields when opened in WPS/Excel.
+  // Spreadsheet apps can display account numbers as scientific notation.
+  // This keeps Account Number and Bank Code readable without changing payroll values.
+  function formatBankCsvTextCell(value = "") {
+    const cleanValue = String(value || "").trim();
 
-  if (!cleanValue) return "";
+    if (!cleanValue) return "";
 
-  return `="${cleanValue.replaceAll('"', '""')}"`;
-}
+    return `="${cleanValue.replaceAll('"', '""')}"`;
+  }
 
   const selectedPayCycle = String(
     state.dom.exportPayrollPayCycle?.value || "",
@@ -4385,22 +4385,22 @@ function formatBankCsvTextCell(value = "") {
 
     const bankDetails = getExportBankDetailsForPayrollRecord(record);
 
-return [
-  bankDetails?.account_name || employeeName,
+    return [
+      bankDetails?.account_name || employeeName,
 
-  // BANK CSV POLISH - STEP 5G
-  // Keep account numbers and bank codes readable when the CSV is opened
-  // in WPS/Excel for review.
-  formatBankCsvTextCell(bankDetails?.account_number || ""),
-  formatBankCsvTextCell(bankDetails?.bank_code || ""),
+      // BANK CSV POLISH - STEP 5G
+      // Keep account numbers and bank codes readable when the CSV is opened
+      // in WPS/Excel for review.
+      formatBankCsvTextCell(bankDetails?.account_number || ""),
+      formatBankCsvTextCell(bankDetails?.bank_code || ""),
 
-  bankDetails?.bank_name || "",
-  Number(record.net_pay || 0).toFixed(2),
-  record.currency || "NGN",
-  `${record.pay_cycle || "Payroll"} - ${employeeName}`,
-  record.work_email || "",
-  record.pay_cycle || "",
-];
+      bankDetails?.bank_name || "",
+      Number(record.net_pay || 0).toFixed(2),
+      record.currency || "NGN",
+      `${record.pay_cycle || "Payroll"} - ${employeeName}`,
+      record.work_email || "",
+      record.pay_cycle || "",
+    ];
   });
 
   const csvContent = [headers, ...rows]
@@ -4784,17 +4784,17 @@ function buildBatchPayrollTemplateRow(employee = {}) {
   const payeTax =
     typeof calculateNta2025MonthlyPayeTaxFromComponents === "function"
       ? calculateNta2025MonthlyPayeTaxFromComponents({
-          basicPay,
-          housingAllowance,
-          transportAllowance,
-          utilityAllowance,
-          otherAllowance,
-          medicalAllowance,
-          bonus,
-          overtime,
-          logisticsAllowance,
-          dataAirtimeAllowance,
-        })
+        basicPay,
+        housingAllowance,
+        transportAllowance,
+        utilityAllowance,
+        otherAllowance,
+        medicalAllowance,
+        bonus,
+        overtime,
+        logisticsAllowance,
+        dataAirtimeAllowance,
+      })
       : 0;
 
   const netSalaryBeforeLogisticsAndData =
@@ -4856,38 +4856,38 @@ function downloadBatchPayrollCsvImportTemplate() {
     "PAYE (Tax)",
     "Employee Pension Contribution",
     "Employer Pension Contribution",
-"NET SALARY",
+    "NET SALARY",
 
-// BATCH PAYROLL CSV IMPORT - STEP 5C
-// These are optional extra earnings pulled from active Allowance Components.
-"Bonus",
-"Overtime",
+    // BATCH PAYROLL CSV IMPORT - STEP 5C
+    // These are optional extra earnings pulled from active Allowance Components.
+    "Bonus",
+    "Overtime",
 
-"Logistics Allowance",
-"Monthly Salary + Logistics",
-"Data & Airtime",
+    "Logistics Allowance",
+    "Monthly Salary + Logistics",
+    "Data & Airtime",
   ];
 
   const activeEmployees = (state.employees || []).filter(
     (employee) => normalizeText(employee.status) === "active",
   );
 
-if (!activeEmployees.length) {
-  // BATCH PAYROLL CSV IMPORT - STEP 5B
-  // Show both page warning and popup warning because HR may be lower down the page.
-  showPageAlert(
-    "warning",
-    "No active employees were found to include in the batch payroll import template.",
-  );
+  if (!activeEmployees.length) {
+    // BATCH PAYROLL CSV IMPORT - STEP 5B
+    // Show both page warning and popup warning because HR may be lower down the page.
+    showPageAlert(
+      "warning",
+      "No active employees were found to include in the batch payroll import template.",
+    );
 
-  showDashboardToast(
-    "warning",
-    "No Employees Exported",
-    "No active employees were found for the batch payroll import template.",
-  );
+    showDashboardToast(
+      "warning",
+      "No Employees Exported",
+      "No active employees were found for the batch payroll import template.",
+    );
 
-  return;
-}
+    return;
+  }
 
   const rows = activeEmployees.map((employee) =>
     buildBatchPayrollTemplateRow(employee),
@@ -5099,14 +5099,14 @@ function buildBatchPayrollPreparedRowFromCsv(row = [], headerMap = new Map()) {
   );
 
   // BATCH PAYROLL CSV IMPORT - STEP 5C
-// Preserve optional extra earnings from the imported CSV.
-const bonus = parseBatchPayrollCsvAmount(
-  getBatchPayrollCsvValue(row, headerMap, ["Bonus"]),
-);
+  // Preserve optional extra earnings from the imported CSV.
+  const bonus = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Bonus"]),
+  );
 
-const overtime = parseBatchPayrollCsvAmount(
-  getBatchPayrollCsvValue(row, headerMap, ["Overtime"]),
-);
+  const overtime = parseBatchPayrollCsvAmount(
+    getBatchPayrollCsvValue(row, headerMap, ["Overtime"]),
+  );
 
   const bht = parseBatchPayrollCsvAmount(
     getBatchPayrollCsvValue(row, headerMap, ["BHT"]),
@@ -5146,17 +5146,17 @@ const overtime = parseBatchPayrollCsvAmount(
     getBatchPayrollCsvValue(row, headerMap, ["Data & Airtime"]),
   );
 
-// BATCH PAYROLL CSV IMPORT - STEP 5C
-// Final gross/net for CSV batch payroll should preserve optional extra earnings.
-const grossPay =
-  newBaseSalary +
-  bonus +
-  overtime +
-  logisticsAllowance +
-  dataAirtimeAllowance;
+  // BATCH PAYROLL CSV IMPORT - STEP 5C
+  // Final gross/net for CSV batch payroll should preserve optional extra earnings.
+  const grossPay =
+    newBaseSalary +
+    bonus +
+    overtime +
+    logisticsAllowance +
+    dataAirtimeAllowance;
 
-const totalDeductions = payeTax + employeePension;
-const netPay = monthlySalaryPlusLogistics + dataAirtimeAllowance;
+  const totalDeductions = payeTax + employeePension;
+  const netPay = monthlySalaryPlusLogistics + dataAirtimeAllowance;
 
   return {
     employee_id: employee.id,
@@ -5167,9 +5167,9 @@ const netPay = monthlySalaryPlusLogistics + dataAirtimeAllowance;
     source: "csv",
 
     base_salary: baseSalary,
-// BATCH PAYROLL CSV IMPORT - STEP 5C
-// No salary increment means 0. Do not silently fall back to 5%.
-regular_increment_percent: baseSalary > 0 ? incrementAmount / baseSalary : 0,
+    // BATCH PAYROLL CSV IMPORT - STEP 5C
+    // No salary increment means 0. Do not silently fall back to 5%.
+    regular_increment_percent: baseSalary > 0 ? incrementAmount / baseSalary : 0,
     regular_increment_amount: incrementAmount,
     merit_increment: meritIncrement || null,
     regular_new_base_salary: newBaseSalary,
@@ -5178,12 +5178,12 @@ regular_increment_percent: baseSalary > 0 ? incrementAmount / baseSalary : 0,
     housing_allowance: housingAllowance,
     transport_allowance: transportAllowance,
     utility_allowance: utilityAllowance,
-other_allowance: otherAllowance,
+    other_allowance: otherAllowance,
 
-// BATCH PAYROLL CSV IMPORT - STEP 5C
-// Carry optional CSV extra earnings through to Submit Batch Payroll.
-bonus,
-overtime,
+    // BATCH PAYROLL CSV IMPORT - STEP 5C
+    // Carry optional CSV extra earnings through to Submit Batch Payroll.
+    bonus,
+    overtime,
 
     logistics_allowance: logisticsAllowance || null,
     data_airtime_allowance: dataAirtimeAllowance || null,
@@ -5393,42 +5393,42 @@ async function handleBatchPayrollCsvImport() {
       .filter(Boolean),
   );
 
-renderImportedBatchPayrollCsvRows(preparedRows, skippedRows);
-// BATCH PAYROLL CSV IMPORT - STEP 5F
-// CSV import opens the Batch Payroll Review panel directly.
-// Rebuild the batch Pay Period dropdown here so HR can select the payroll month
-// without needing to use the Run Payroll flow first.
-populateBatchPayrollPayCycleOptions();
-updateBatchPayDateFromPayCycle();
+  renderImportedBatchPayrollCsvRows(preparedRows, skippedRows);
+  // BATCH PAYROLL CSV IMPORT - STEP 5F
+  // CSV import opens the Batch Payroll Review panel directly.
+  // Rebuild the batch Pay Period dropdown here so HR can select the payroll month
+  // without needing to use the Run Payroll flow first.
+  populateBatchPayrollPayCycleOptions();
+  updateBatchPayDateFromPayCycle();
 
-// BATCH PAYROLL CSV IMPORT - STEP 5
-// CSV import is a batch flow, so hide the manual single payroll form
-// after rows are imported. This prevents HR from thinking the manual
-// Employee dropdown belongs to the CSV import process.
-state.isRunPayrollSelectionMode = true;
+  // BATCH PAYROLL CSV IMPORT - STEP 5
+  // CSV import is a batch flow, so hide the manual single payroll form
+  // after rows are imported. This prevents HR from thinking the manual
+  // Employee dropdown belongs to the CSV import process.
+  state.isRunPayrollSelectionMode = true;
 
-if (state.dom.payrollEmployeeId) {
-  state.dom.payrollEmployeeId.value = "";
-}
+  if (state.dom.payrollEmployeeId) {
+    state.dom.payrollEmployeeId.value = "";
+  }
 
-renderPayrollSelectedEmployeeReference("");
+  renderPayrollSelectedEmployeeReference("");
 
-if (state.dom.payrollCreateForm) {
-  state.dom.payrollCreateForm.classList.add("d-none");
-}
+  if (state.dom.payrollCreateForm) {
+    state.dom.payrollCreateForm.classList.add("d-none");
+  }
 
-setPayrollRecordToolbarForBatchMode();
+  setPayrollRecordToolbarForBatchMode();
 
-if (state.dom.payrollFormTitle) {
-  state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
-}
+  if (state.dom.payrollFormTitle) {
+    state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
+  }
 
-if (state.dom.payrollFormSubtext) {
-  state.dom.payrollFormSubtext.textContent =
-    "Import or review payroll rows in batch before submitting them into Payroll Records.";
-}
+  if (state.dom.payrollFormSubtext) {
+    state.dom.payrollFormSubtext.textContent =
+      "Import or review payroll rows in batch before submitting them into Payroll Records.";
+  }
 
-updateSubmitBatchPayrollButtonState();
+  updateSubmitBatchPayrollButtonState();
 
   if (state.dom.batchPayrollCsvImportSummary) {
     state.dom.batchPayrollCsvImportSummary.classList.remove("d-none");
@@ -6550,27 +6550,27 @@ async function refreshOrganizationHrSetupValues() {
     renderOrganizationDepartmentsTable();
     updateOrganizationDepartmentSaveButtonState();
 
-// ORGANIZATION HR SETUP VALUES - STEP 4B-2
-// Populate the Job Title Department dropdown from saved active Departments.
-// This still does not change the Create/Edit Employee form yet.
-populateOrganizationJobTitleDepartmentOptions();
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-2
+    // Populate the Job Title Department dropdown from saved active Departments.
+    // This still does not change the Create/Edit Employee form yet.
+    populateOrganizationJobTitleDepartmentOptions();
 
-// ORGANIZATION HR SETUP VALUES - STEP 4B-3
-// Display the seeded Job Titles in the Job Title Records table.
-// This is read-only for now; save/edit comes after this is confirmed stable.
-renderOrganizationJobTitlesTable();
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-3
+    // Display the seeded Job Titles in the Job Title Records table.
+    // This is read-only for now; save/edit comes after this is confirmed stable.
+    renderOrganizationJobTitlesTable();
 
-// ORGANIZATION HR SETUP VALUES - STEP 5A
-// Keep the Create/Edit Employee Department and Job Title dropdowns aligned
-// with the latest Manage Organization setup records.
-populateEmployeeDepartmentOptionsFromOrganizationSetup(
-  state.dom.department?.value || "",
-);
-populateJobTitleOptionsForDepartment(
-  state.dom.jobTitle?.value || "",
-);
+    // ORGANIZATION HR SETUP VALUES - STEP 5A
+    // Keep the Create/Edit Employee Department and Job Title dropdowns aligned
+    // with the latest Manage Organization setup records.
+    populateEmployeeDepartmentOptionsFromOrganizationSetup(
+      state.dom.department?.value || "",
+    );
+    populateJobTitleOptionsForDepartment(
+      state.dom.jobTitle?.value || "",
+    );
 
-updateOrganizationJobTitleSaveButtonState();
+    updateOrganizationJobTitleSaveButtonState();
   } catch (error) {
     console.error("Error loading organization HR setup values:", error);
 
@@ -6599,9 +6599,9 @@ function redirectToOrganizationDepartmentRecordsAfterSave() {
   // after create/update/duplicate feedback.
   scrollToDashboardTarget(
     state.dom.organizationDepartmentRecordsHeader ||
-      state.dom.organizationDepartmentsTableWrapper ||
-      state.dom.organizationDepartmentsSection ||
-      state.dom.organizationSettingsCardCollapse,
+    state.dom.organizationDepartmentsTableWrapper ||
+    state.dom.organizationDepartmentsSection ||
+    state.dom.organizationSettingsCardCollapse,
     96,
   );
 }
@@ -6621,9 +6621,9 @@ function redirectToOrganizationJobTitleRecordsAfterSave() {
   // after create/update/duplicate feedback.
   scrollToDashboardTarget(
     state.dom.organizationJobTitleRecordsHeader ||
-      state.dom.organizationJobTitlesTableWrapper ||
-      state.dom.organizationJobTitlesSection ||
-      state.dom.organizationSettingsCardCollapse,
+    state.dom.organizationJobTitlesTableWrapper ||
+    state.dom.organizationJobTitlesSection ||
+    state.dom.organizationSettingsCardCollapse,
     96,
   );
 }
@@ -6810,16 +6810,16 @@ async function handleOrganizationDepartmentSave() {
     return isSameName && isDifferentRecord;
   });
 
-if (duplicateDepartment) {
-  // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
-  // Duplicate Department should show both the page alert and popup.
-  const message = `Department <strong>${escapeHtml(payload.department_name)}</strong> already exists.`;
+  if (duplicateDepartment) {
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+    // Duplicate Department should show both the page alert and popup.
+    const message = `Department <strong>${escapeHtml(payload.department_name)}</strong> already exists.`;
 
-  showPageAlert("warning", message);
-  showDashboardToast("warning", "Duplicate Department", message);
-  redirectToOrganizationDepartmentRecordsAfterSave();
-  return;
-}
+    showPageAlert("warning", message);
+    showDashboardToast("warning", "Duplicate Department", message);
+    redirectToOrganizationDepartmentRecordsAfterSave();
+    return;
+  }
 
   try {
     setOrganizationDepartmentSaveLoading(true, isEditMode);
@@ -6848,33 +6848,33 @@ if (duplicateDepartment) {
       },
     );
 
-resetOrganizationDepartmentForm();
-await refreshOrganizationHrSetupValues();
+    resetOrganizationDepartmentForm();
+    await refreshOrganizationHrSetupValues();
 
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
-// After Department save/update, land on Department Records.
-redirectToOrganizationDepartmentRecordsAfterSave();
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+    // After Department save/update, land on Department Records.
+    redirectToOrganizationDepartmentRecordsAfterSave();
 
-const successMessage = isEditMode
-  ? `Department <strong>${escapeHtml(payload.department_name)}</strong> was updated successfully.`
-  : `Department <strong>${escapeHtml(payload.department_name)}</strong> was created successfully.`;
+    const successMessage = isEditMode
+      ? `Department <strong>${escapeHtml(payload.department_name)}</strong> was updated successfully.`
+      : `Department <strong>${escapeHtml(payload.department_name)}</strong> was created successfully.`;
 
-showPageAlert("success", successMessage);
-showDashboardToast("success", "Department Saved", successMessage);
+    showPageAlert("success", successMessage);
+    showDashboardToast("success", "Department Saved", successMessage);
   } catch (error) {
     console.error("Error saving organization department:", error);
 
     if (
       String(error.message || "").toLowerCase().includes("duplicate key value")
     ) {
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4A
-// Duplicate caught from database constraint.
-const message = `Department <strong>${escapeHtml(payload.department_name)}</strong> already exists.`;
+      // ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+      // Duplicate caught from database constraint.
+      const message = `Department <strong>${escapeHtml(payload.department_name)}</strong> already exists.`;
 
-showPageAlert("warning", message);
-showDashboardToast("warning", "Duplicate Department", message);
-redirectToOrganizationDepartmentRecordsAfterSave();
-return;
+      showPageAlert("warning", message);
+      showDashboardToast("warning", "Duplicate Department", message);
+      redirectToOrganizationDepartmentRecordsAfterSave();
+      return;
     }
 
     showPageAlert(
@@ -7344,16 +7344,16 @@ async function handleOrganizationJobTitleSave() {
 
     const response = isEditMode
       ? await supabase
-          .from("organization_job_titles")
-          .update(payload)
-          .eq("id", editingId)
-          .select("*")
-          .maybeSingle()
+        .from("organization_job_titles")
+        .update(payload)
+        .eq("id", editingId)
+        .select("*")
+        .maybeSingle()
       : await supabase
-          .from("organization_job_titles")
-          .insert([payload])
-          .select("*")
-          .maybeSingle();
+        .from("organization_job_titles")
+        .insert([payload])
+        .select("*")
+        .maybeSingle();
 
     if (response.error) throw response.error;
 
@@ -7365,35 +7365,35 @@ async function handleOrganizationJobTitleSave() {
       },
     );
 
-resetOrganizationJobTitleForm();
-await refreshOrganizationHrSetupValues();
+    resetOrganizationJobTitleForm();
+    await refreshOrganizationHrSetupValues();
 
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
-// Keep HR around the Job Title Records area and show popup feedback.
-redirectToOrganizationJobTitleRecordsAfterSave();
+    // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+    // Keep HR around the Job Title Records area and show popup feedback.
+    redirectToOrganizationJobTitleRecordsAfterSave();
 
-const successMessage = isEditMode
-  ? `Job Title <strong>${escapeHtml(payload.job_title)}</strong> was updated successfully.`
-  : `Job Title <strong>${escapeHtml(payload.job_title)}</strong> was created successfully.`;
+    const successMessage = isEditMode
+      ? `Job Title <strong>${escapeHtml(payload.job_title)}</strong> was updated successfully.`
+      : `Job Title <strong>${escapeHtml(payload.job_title)}</strong> was created successfully.`;
 
-showPageAlert("success", successMessage);
-showDashboardToast("success", "Job Title Saved", successMessage);
+    showPageAlert("success", successMessage);
+    showDashboardToast("success", "Job Title Saved", successMessage);
   } catch (error) {
     console.error("Error saving organization job title:", error);
 
     if (
       String(error.message || "").toLowerCase().includes("duplicate key value")
     ) {
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4A
-// Duplicate caught from database constraint.
-const message = `Job Title <strong>${escapeHtml(payload.job_title)}</strong> already exists under the selected department.`;
+      // ORGANIZATION HR SETUP VALUES - STEP 4B-4A
+      // Duplicate caught from database constraint.
+      const message = `Job Title <strong>${escapeHtml(payload.job_title)}</strong> already exists under the selected department.`;
 
-showPageAlert("warning", message);
-showDashboardToast("warning", "Duplicate Job Title", message);
-// ORGANIZATION HR SETUP VALUES - STEP 4B-4B
-// After Job Title save/update, land on Job Title Records.
-redirectToOrganizationJobTitleRecordsAfterSave();
-return;
+      showPageAlert("warning", message);
+      showDashboardToast("warning", "Duplicate Job Title", message);
+      // ORGANIZATION HR SETUP VALUES - STEP 4B-4B
+      // After Job Title save/update, land on Job Title Records.
+      redirectToOrganizationJobTitleRecordsAfterSave();
+      return;
     }
 
     showPageAlert(
@@ -7695,7 +7695,7 @@ function setOrganizationSettingsSaveLoading(isLoading, isEditMode = false) {
     delete button.dataset.originalHtml;
   }
 
-   // MANAGE ORGANIZATION CARD - STEP 4A FIX
+  // MANAGE ORGANIZATION CARD - STEP 4A FIX
   // After spinner finishes, return to the shared grey/blue readiness behaviour.
   updateOrganizationSettingsSaveButtonState();
 }
@@ -8396,20 +8396,20 @@ function buildBatchPayrollRecordPayload(preparedRow) {
     housing_allowance: preparedRow.housing_allowance,
     transport_allowance: preparedRow.transport_allowance,
     utility_allowance: preparedRow.utility_allowance,
-// BATCH PAYROLL CSV IMPORT - STEP 5C
-// Save extra earnings that were pulled into the batch template or imported CSV.
-medical_allowance: preparedRow.medical_allowance ?? null,
-other_allowance: preparedRow.other_allowance,
-bonus: preparedRow.bonus ?? null,
-overtime: preparedRow.overtime ?? null,
-logistics_allowance: preparedRow.logistics_allowance ?? null,
-data_airtime_allowance: preparedRow.data_airtime_allowance ?? null,
+    // BATCH PAYROLL CSV IMPORT - STEP 5C
+    // Save extra earnings that were pulled into the batch template or imported CSV.
+    medical_allowance: preparedRow.medical_allowance ?? null,
+    other_allowance: preparedRow.other_allowance,
+    bonus: preparedRow.bonus ?? null,
+    overtime: preparedRow.overtime ?? null,
+    logistics_allowance: preparedRow.logistics_allowance ?? null,
+    data_airtime_allowance: preparedRow.data_airtime_allowance ?? null,
 
     bht:
       preparedRow.bht ??
       Number(preparedRow.basic_pay || 0) +
-        Number(preparedRow.housing_allowance || 0) +
-        Number(preparedRow.transport_allowance || 0),
+      Number(preparedRow.housing_allowance || 0) +
+      Number(preparedRow.transport_allowance || 0),
 
     // BATCH PAYROLL CSV IMPORT - STEP 5
     // Preserve the Alpatech "Monthly Salary + Logistics" value where available.
@@ -8749,10 +8749,10 @@ function resetEmployeeForm() {
 
   setSelectValueIfPresent(state.dom.employmentStatus, "active", ["Active"]);
 
-// ASSIGN LINE MANAGER - STEP 1E RECOVERY
-// Reset/create mode has no employee object, so clear the System Role field.
-// The employee-specific value is only loaded inside enterEmployeeEditMode().
-setEmployeeSystemRoleFieldValue("");
+  // ASSIGN LINE MANAGER - STEP 1E RECOVERY
+  // Reset/create mode has no employee object, so clear the System Role field.
+  // The employee-specific value is only loaded inside enterEmployeeEditMode().
+  setEmployeeSystemRoleFieldValue("");
 
   // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1F
   // After clearing the form, Job Title should wait for Department selection.
@@ -11724,11 +11724,10 @@ function renderPayrollRecords(records) {
           </span>
         </div>
         <div>
-          <span class="badge ${
-            record.is_finalised
-              ? "text-bg-success"
-              : "text-bg-light border text-dark"
-          }">
+          <span class="badge ${record.is_finalised
+        ? "text-bg-success"
+        : "text-bg-light border text-dark"
+      }">
             ${record.is_finalised ? "Finalised" : "Not Finalised"}
           </span>
         </div>
@@ -12311,29 +12310,26 @@ function renderPayslipPreview(payrollRecord) {
           <div class="text-secondary small">Organization</div>
           <div class="h4 mb-1">${escapeHtml(organizationName)}</div>
 
-          ${
-            organizationContactLines.length
-              ? `<div class="text-secondary small text-break">
+          ${organizationContactLines.length
+      ? `<div class="text-secondary small text-break">
                   ${organizationContactLines.map((line) => escapeHtml(line)).join("<br>")}
                 </div>`
-              : ""
-          }
+      : ""
+    }
 
-          ${
-            organizationAddress
-              ? `<div class="text-secondary small mt-2 text-break">
+          ${organizationAddress
+      ? `<div class="text-secondary small mt-2 text-break">
                   ${escapeHtml(organizationAddress)}
                 </div>`
-              : ""
-          }
+      : ""
+    }
 
-          ${
-            organizationRegistrationLines.length
-              ? `<div class="text-secondary small mt-2 text-break">
+          ${organizationRegistrationLines.length
+      ? `<div class="text-secondary small mt-2 text-break">
                   ${organizationRegistrationLines.map((line) => escapeHtml(line)).join("<br>")}
                 </div>`
-              : ""
-          }
+      : ""
+    }
         </div>
 
         <div class="text-lg-end">
@@ -12674,32 +12670,32 @@ async function startPayrollEdit(payrollId) {
   if (state.dom.payrollNotes) state.dom.payrollNotes.value = payrollRecord.notes || "";
 
   // PAYROLL RECORD LOCKING - STEP 5D
-// If this payroll record is already finalised/authorised, show it as a
-// read-only snapshot. Changes to salary or allowances must be made before
-// a new payroll run is prepared.
-const shouldLockFinalisedRecord = isFinalisedPayrollRecord(payrollRecord);
-setFinalisedPayrollRecordReadOnlyMode(shouldLockFinalisedRecord);
+  // If this payroll record is already finalised/authorised, show it as a
+  // read-only snapshot. Changes to salary or allowances must be made before
+  // a new payroll run is prepared.
+  const shouldLockFinalisedRecord = isFinalisedPayrollRecord(payrollRecord);
+  setFinalisedPayrollRecordReadOnlyMode(shouldLockFinalisedRecord);
 
-if (shouldLockFinalisedRecord) {
-  showPageAlert(
-    "info",
-    "This payroll record is finalised and is shown as read-only. Update Payroll Master or Allowance Components before preparing a new payroll run if salary or allowance figures need to change.",
-  );
+  if (shouldLockFinalisedRecord) {
+    showPageAlert(
+      "info",
+      "This payroll record is finalised and is shown as read-only. Update Payroll Master or Allowance Components before preparing a new payroll run if salary or allowance figures need to change.",
+    );
 
-  showDashboardToast(
-    "info",
-    "Payroll Record Locked",
-    "Finalised payroll records are snapshots and cannot be edited directly.",
-  );
+    showDashboardToast(
+      "info",
+      "Payroll Record Locked",
+      "Finalised payroll records are snapshots and cannot be edited directly.",
+    );
 
-  if (state.dom.payrollFormSubtext) {
+    if (state.dom.payrollFormSubtext) {
+      state.dom.payrollFormSubtext.textContent =
+        "This finalised payroll record is read-only. Use Payroll Master or Allowance Components before the next payroll run for new changes.";
+    }
+  } else if (state.dom.payrollFormSubtext) {
     state.dom.payrollFormSubtext.textContent =
-      "This finalised payroll record is read-only. Use Payroll Master or Allowance Components before the next payroll run for new changes.";
+      "Edit this draft payroll record. Finalised payroll records are locked after submission.";
   }
-} else if (state.dom.payrollFormSubtext) {
-  state.dom.payrollFormSubtext.textContent =
-    "Edit this draft payroll record. Finalised payroll records are locked after submission.";
-}
 
   if (state.dom.payrollFormTitle) {
     state.dom.payrollFormTitle.textContent = "Edit Payroll Record";
@@ -13071,8 +13067,8 @@ function syncPayrollCalculatedFieldLockState() {
     field.classList.toggle("bg-light", isRegular);
 
     if (isRegular) {
-field.title =
-  "Locked for Regular payroll. Update Payroll Master or Allowance Components before preparing payroll.";
+      field.title =
+        "Locked for Regular payroll. Update Payroll Master or Allowance Components before preparing payroll.";
     } else {
       field.removeAttribute("title");
     }
@@ -14070,22 +14066,22 @@ async function handlePayrollSave() {
   const isEditMode = Boolean(editingId);
 
   // PAYROLL RECORD LOCKING - STEP 5D
-// Safety guard: even if a disabled button is triggered by shortcut or browser
-// behaviour, do not update a finalised payroll snapshot.
-if (isEditMode && isFinalisedPayrollRecord(state.currentEditingPayroll || {})) {
-  showPageAlert(
-    "warning",
-    "This payroll record is finalised and cannot be edited directly. Make salary or allowance changes before preparing a new payroll run.",
-  );
+  // Safety guard: even if a disabled button is triggered by shortcut or browser
+  // behaviour, do not update a finalised payroll snapshot.
+  if (isEditMode && isFinalisedPayrollRecord(state.currentEditingPayroll || {})) {
+    showPageAlert(
+      "warning",
+      "This payroll record is finalised and cannot be edited directly. Make salary or allowance changes before preparing a new payroll run.",
+    );
 
-  showDashboardToast(
-    "warning",
-    "Payroll Record Locked",
-    "Finalised payroll records are read-only snapshots.",
-  );
+    showDashboardToast(
+      "warning",
+      "Payroll Record Locked",
+      "Finalised payroll records are read-only snapshots.",
+    );
 
-  return;
-}
+    return;
+  }
 
   // PAYROLL BANK READINESS - STEP 11D
   // Work out which employee records are included in this payroll save.

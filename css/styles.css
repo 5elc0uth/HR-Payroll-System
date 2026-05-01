@@ -758,3 +758,259 @@ html {
   object-fit: cover;
   display: inline-block;
 }
+
+/* =========================================================
+   LANDING PAGE ANIMATION - STEP 1
+   Subtle HR workflow animation for the public landing page.
+   ========================================================= */
+
+.landing-animated-page {
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-animated-page::before,
+.landing-animated-page::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.landing-animated-page::before {
+  width: 280px;
+  height: 280px;
+  top: -120px;
+  right: -80px;
+  background: rgba(166, 93, 0, 0.12);
+  animation: landingGlowFloat 9s ease-in-out infinite;
+}
+
+.landing-animated-page::after {
+  width: 220px;
+  height: 220px;
+  left: -90px;
+  bottom: -90px;
+  background: rgba(13, 110, 253, 0.08);
+  animation: landingGlowFloat 11s ease-in-out infinite reverse;
+}
+
+.landing-animated-page>.container {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-animate-in {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: landingFadeRise 0.75s ease forwards;
+}
+
+.landing-animate-delay-1 {
+  animation-delay: 0.12s;
+}
+
+.landing-animate-delay-2 {
+  animation-delay: 0.24s;
+}
+
+.landing-animate-delay-3 {
+  animation-delay: 0.36s;
+}
+
+.landing-animate-delay-4 {
+  animation-delay: 0.48s;
+}
+
+.landing-hero-card {
+  animation:
+    landingFadeRise 0.75s ease forwards,
+    landingCardFloat 6s ease-in-out infinite 0.9s;
+  transform-origin: center;
+}
+
+.hr-btn-primary,
+.hr-btn-secondary,
+.hr-mini-card,
+.hr-panel-box,
+.hr-feature-card,
+.hr-role-card,
+.hr-access-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.hr-btn-primary:hover,
+.hr-btn-secondary:hover,
+.hr-mini-card:hover,
+.hr-panel-box:hover,
+.hr-feature-card:hover,
+.hr-role-card:hover {
+  transform: translateY(-2px);
+}
+
+.landing-workflow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.landing-workflow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  opacity: 0.68;
+  animation: landingWorkflowPulse 5s ease-in-out infinite;
+}
+
+.landing-workflow-step:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.landing-workflow-step:nth-child(3) {
+  animation-delay: 0.8s;
+}
+
+.landing-workflow-step:nth-child(5) {
+  animation-delay: 1.6s;
+}
+
+.landing-workflow-step:nth-child(7) {
+  animation-delay: 2.4s;
+}
+
+.landing-workflow-step:nth-child(9) {
+  animation-delay: 3.2s;
+}
+
+.landing-workflow-icon {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.landing-workflow-connector {
+  width: 22px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+  position: relative;
+}
+
+.landing-workflow-connector::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: rgba(255, 255, 255, 0.85);
+  animation: landingConnectorMove 5s ease-in-out infinite;
+}
+
+@keyframes landingFadeRise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landingCardFloat {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes landingGlowFloat {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-18px, 18px, 0) scale(1.05);
+  }
+}
+
+@keyframes landingWorkflowPulse {
+
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translateY(0);
+  }
+
+  12%,
+  24% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes landingConnectorMove {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  18%,
+  45% {
+    transform: translateX(0);
+  }
+
+  70%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .landing-animated-page::before,
+  .landing-animated-page::after,
+  .landing-animate-in,
+  .landing-hero-card,
+  .landing-workflow-step,
+  .landing-workflow-connector::after {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .hr-btn-primary:hover,
+  .hr-btn-secondary:hover,
+  .hr-mini-card:hover,
+  .hr-panel-box:hover,
+  .hr-feature-card:hover,
+  .hr-role-card:hover {
+    transform: none;
+  }
+}
