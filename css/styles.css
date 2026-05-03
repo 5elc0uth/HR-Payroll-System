@@ -1069,3 +1069,121 @@ html {
     transform: translateY(100%);
   }
 }
+
+/* =========================================================
+   WORKSPACE UI POLISH - HR/PAYROLL STANDARD STEP 2F
+   Make the HR Workspace switcher feel like a compact navigation bar.
+
+   The orange hero already carries the main dashboard identity.
+   This white card should therefore stay lighter, tighter, and operational:
+   - less empty white space
+   - clearer active tab area
+   - Run Payroll remains the separate green action
+========================================================= */
+
+.dashboard-section-card:has(#hrTabProfileBtn) {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.dashboard-section-card:has(#hrTabProfileBtn) .card-body {
+  padding: 1rem 1.25rem !important;
+}
+
+.dashboard-section-card:has(#hrTabProfileBtn) .section-heading {
+  font-size: 1.05rem;
+  margin-bottom: 0.15rem !important;
+}
+
+.dashboard-section-card:has(#hrTabProfileBtn) .section-subtext {
+  font-size: 0.82rem;
+}
+
+.dashboard-section-card:has(#hrTabProfileBtn) .dashboard-action-btn {
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
+.dashboard-section-card:has(#hrTabProfileBtn) #runPayrollActionBtn {
+  box-shadow: 0 8px 18px rgba(25, 135, 84, 0.18);
+}
+
+@media (max-width: 767.98px) {
+
+  /* WORKSPACE UI POLISH - HR/PAYROLL STANDARD STEP 2F
+     On smaller screens, keep the tab strip compact but allow buttons to wrap neatly. */
+  .dashboard-section-card:has(#hrTabProfileBtn) .card-body {
+    padding: 0.9rem 1rem !important;
+  }
+
+  .dashboard-section-card:has(#hrTabProfileBtn) .dashboard-action-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* =========================================================
+   WORKSPACE UI POLISH - HR/PAYROLL STANDARD STEP 2F-1
+   Stronger visible polish for the HR Workspace switcher.
+
+   HR/payroll behaviour:
+   - this area is quick navigation
+   - it should be compact
+   - it should not compete visually with the orange dashboard hero
+   - Run Payroll remains the main green action
+========================================================= */
+
+.workspace-switcher-card {
+  border: 1px solid rgba(180, 83, 9, 0.16) !important;
+  background: linear-gradient(135deg, #ffffff 0%, #fffaf3 100%) !important;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07) !important;
+}
+
+.workspace-switcher-card .card-body {
+  padding: 0.85rem 1rem !important;
+}
+
+.workspace-switcher-card .section-heading {
+  font-size: 1rem !important;
+  margin-bottom: 0.1rem !important;
+}
+
+.workspace-switcher-card .section-subtext {
+  font-size: 0.8rem !important;
+  color: #64748b !important;
+}
+
+.workspace-switcher-card .dashboard-action-btn {
+  min-height: 34px;
+  padding: 0.38rem 0.75rem !important;
+  border-radius: 999px !important;
+  font-size: 0.8rem !important;
+  font-weight: 600;
+}
+
+.workspace-switcher-card .btn-primary {
+  box-shadow: 0 8px 18px rgba(13, 110, 253, 0.18);
+}
+
+.workspace-switcher-card #runPayrollActionBtn {
+  padding-inline: 0.9rem !important;
+  box-shadow: 0 8px 18px rgba(25, 135, 84, 0.2);
+}
+
+@media (min-width: 992px) {
+  .workspace-switcher-card .card-body > .d-flex {
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .workspace-switcher-card .card-body {
+    padding: 0.85rem !important;
+  }
+
+  .workspace-switcher-card .dashboard-action-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

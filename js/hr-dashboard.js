@@ -3,6 +3,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     cacheDomElements();
     bindEvents();
 
+    // PAYROLL WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2A
+    // Keep the Payroll workspace in the correct operational order:
+    // Payroll Overview first, then Create Payroll Record / Create Payroll Batch.
+    // This avoids manually cutting a large HTML card and keeps existing IDs/events intact.
+    alignPayrollWorkspaceCardOrder();
+
+    // EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2C
+    // Keep the Employees workspace in the correct operational order:
+    // Summary first, Full Employee List next, then create/import actions,
+    // with organization setup moved lower as an admin/setup area.
+    alignEmployeeWorkspaceCardOrder();
+
     const access = await window.SessionManager.protectPage([
       "hr",
       "hr_manager",
@@ -156,6 +168,11 @@ const state = {
   // Holds the single company/organization settings record loaded from Supabase.
   organizationSettings: null,
 
+  // MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+  // Stores the editable organization values as last loaded/saved.
+  // The Update button should only turn blue when HR changes an editable field.
+  organizationSettingsBaseline: null,
+
   // ORGANIZATION HR SETUP VALUES - STEP 3
   // Holds HR-managed Departments and Job Titles loaded from Supabase.
   // These will later replace the hardcoded employee Department/Job Title lists.
@@ -194,9 +211,9 @@ const state = {
   // This is in-memory only for now. No payroll records are saved in this step.
   batchPayrollPreparedRows: [],
   // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
-// Holds valid employee rows prepared from the uploaded CSV.
-// This is in-memory only for now. No employees are saved in this step.
-batchEmployeePreparedRows: [],
+  // Holds valid employee rows prepared from the uploaded CSV.
+  // This is in-memory only for now. No employees are saved in this step.
+  batchEmployeePreparedRows: [],
 
   payrollRecords: [],
   filteredPayrollRecords: [],
@@ -478,22 +495,22 @@ function cacheDomElements() {
 
     employeeSearchInput: document.getElementById("employeeSearchInput"),
     // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1B
-// Cache the Batch Employee Import UI elements added to the Employees workspace.
-// This only connects the existing HTML elements to JavaScript.
-// Import parsing, template download, validation, and saving will be added later.
-batchEmployeeCsvImportPanel: document.getElementById("batchEmployeeCsvImportPanel"),
-batchEmployeeCsvFile: document.getElementById("batchEmployeeCsvFile"),
-importBatchEmployeesCsvBtn: document.getElementById("importBatchEmployeesCsvBtn"),
-clearBatchEmployeesCsvBtn: document.getElementById("clearBatchEmployeesCsvBtn"),
-downloadBatchEmployeesCsvTemplateBtn: document.getElementById(
-  "downloadBatchEmployeesCsvTemplateBtn",
-),
-batchEmployeeCsvImportSummary: document.getElementById("batchEmployeeCsvImportSummary"),
-batchEmployeeReviewPanel: document.getElementById("batchEmployeeReviewPanel"),
-batchEmployeeReviewCount: document.getElementById("batchEmployeeReviewCount"),
-batchEmployeeSkippedRows: document.getElementById("batchEmployeeSkippedRows"),
-batchEmployeeReviewTableBody: document.getElementById("batchEmployeeReviewTableBody"),
-submitBatchEmployeesBtn: document.getElementById("submitBatchEmployeesBtn"),
+    // Cache the Batch Employee Import UI elements added to the Employees workspace.
+    // This only connects the existing HTML elements to JavaScript.
+    // Import parsing, template download, validation, and saving will be added later.
+    batchEmployeeCsvImportPanel: document.getElementById("batchEmployeeCsvImportPanel"),
+    batchEmployeeCsvFile: document.getElementById("batchEmployeeCsvFile"),
+    importBatchEmployeesCsvBtn: document.getElementById("importBatchEmployeesCsvBtn"),
+    clearBatchEmployeesCsvBtn: document.getElementById("clearBatchEmployeesCsvBtn"),
+    downloadBatchEmployeesCsvTemplateBtn: document.getElementById(
+      "downloadBatchEmployeesCsvTemplateBtn",
+    ),
+    batchEmployeeCsvImportSummary: document.getElementById("batchEmployeeCsvImportSummary"),
+    batchEmployeeReviewPanel: document.getElementById("batchEmployeeReviewPanel"),
+    batchEmployeeReviewCount: document.getElementById("batchEmployeeReviewCount"),
+    batchEmployeeSkippedRows: document.getElementById("batchEmployeeSkippedRows"),
+    batchEmployeeReviewTableBody: document.getElementById("batchEmployeeReviewTableBody"),
+    submitBatchEmployeesBtn: document.getElementById("submitBatchEmployeesBtn"),
 
     // DESCRIPTION ITEM 9 - STEP 2
     // Master payroll selection checkbox for the visible employee list.
@@ -1482,7 +1499,100 @@ function sortPayrollRecordsByLatestActivity(records = []) {
     return bPayDate - aPayDate;
   });
 }
+// PAYROLL WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2A
+// Reposition the existing Create Payroll Record card directly after Payroll Overview.
+// This is safer than manually moving the large payroll form HTML block.
+// Existing cached DOM references and event listeners continue working because
+// the same card is moved; it is not duplicated or recreated.
+function alignPayrollWorkspaceCardOrder() {
+  const payrollSection = state.dom.hrPayrollSection;
 
+  const payrollOverviewCard =
+    state.dom.payrollRecordCountValue?.closest(".dashboard-section-card");
+
+  const payrollRecordCard =
+    state.dom.payrollRecordCardCollapse?.closest(".dashboard-section-card");
+
+  if (!payrollSection || !payrollOverviewCard || !payrollRecordCard) {
+    return;
+  }
+
+  // If the card is already directly after Payroll Overview, do nothing.
+  if (payrollOverviewCard.nextElementSibling === payrollRecordCard) {
+    return;
+  }
+
+  // Move Create Payroll Record / Create Payroll Batch directly below Payroll Overview.
+  payrollOverviewCard.insertAdjacentElement("afterend", payrollRecordCard);
+}
+// EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2C
+// Reposition existing Employee workspace cards into a standard HR workflow order.
+//
+// Correct order:
+// 1. Employee Management Summary - quick overview
+// 2. Full Employee List - HR source of truth; check existing records first
+// 3. Create Employee Profile - create one employee manually
+// 4. Batch Employee Import - create multiple new employees from CSV
+// 5. Manage Organization - setup/admin values, not daily employee operations
+//
+// This moves existing cards only. It does not recreate or duplicate cards,
+// so existing IDs, event listeners, collapse buttons, search, import,
+// create, and edit behaviours remain intact.
+function alignEmployeeWorkspaceCardOrder() {
+  const employeesSection = state.dom.hrEmployeesSection;
+
+  const employeeSummaryCard =
+    state.dom.totalEmployeesValue?.closest(".dashboard-section-card");
+
+  const employeeListCard =
+    state.dom.employeeListCardCollapse?.closest(".dashboard-section-card");
+
+  const employeeFormCard =
+    state.dom.employeeFormCardCollapse?.closest(".dashboard-section-card");
+
+  const batchEmployeeImportCard =
+    state.dom.batchEmployeeCsvImportPanel?.closest(".dashboard-section-card");
+
+  const organizationSettingsCard =
+    state.dom.organizationSettingsCardCollapse?.closest(".dashboard-section-card");
+
+  if (
+    !employeesSection ||
+    !employeeSummaryCard ||
+    !employeeListCard ||
+    !employeeFormCard ||
+    !batchEmployeeImportCard ||
+    !organizationSettingsCard
+  ) {
+    return;
+  }
+
+  // EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2E
+  // The Full Employee List card used to be the last card, so it did not always
+  // need bottom margin. After moving it into the middle of the workspace,
+  // give all reordered cards consistent spacing.
+  [
+    employeeSummaryCard,
+    employeeListCard,
+    employeeFormCard,
+    batchEmployeeImportCard,
+    organizationSettingsCard,
+  ].forEach((card) => {
+    card.classList.add("mb-4");
+  });
+
+  // If Full Employee List is already directly after the summary card,
+  // assume the order has already been applied.
+  if (employeeSummaryCard.nextElementSibling === employeeListCard) {
+    return;
+  }
+
+  // Move cards from bottom to top in the desired sequence.
+  employeeSummaryCard.insertAdjacentElement("afterend", organizationSettingsCard);
+  employeeSummaryCard.insertAdjacentElement("afterend", batchEmployeeImportCard);
+  employeeSummaryCard.insertAdjacentElement("afterend", employeeFormCard);
+  employeeSummaryCard.insertAdjacentElement("afterend", employeeListCard);
+}
 function bindEvents() {
   state.dom.logoutBtn?.addEventListener("click", async () => {
     await window.SessionManager.logoutUser("logout");
@@ -1584,35 +1694,35 @@ function bindEvents() {
     applyEmployeeSearch();
   });
   // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1C
-// Wire only the safe actions first:
-// - Download Employee Template
-// - Clear selected CSV/import UI
-// Import parsing and saving will be added in the next steps.
-state.dom.downloadBatchEmployeesCsvTemplateBtn?.addEventListener("click", () => {
-  downloadBatchEmployeeCsvImportTemplate();
-});
+  // Wire only the safe actions first:
+  // - Download Employee Template
+  // - Clear selected CSV/import UI
+  // Import parsing and saving will be added in the next steps.
+  state.dom.downloadBatchEmployeesCsvTemplateBtn?.addEventListener("click", () => {
+    downloadBatchEmployeeCsvImportTemplate();
+  });
 
-state.dom.clearBatchEmployeesCsvBtn?.addEventListener("click", () => {
-  clearBatchEmployeeCsvImportUi();
-});
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
-// Enable Import CSV only after HR selects a CSV file.
-// This mirrors the existing payroll CSV import behaviour but does not parse yet.
-state.dom.batchEmployeeCsvFile?.addEventListener("change", () => {
-  updateBatchEmployeeCsvImportButtonState();
-});
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
-// Parse the selected employee CSV into the Batch Employee Review table.
-// This does not create employee records yet.
-state.dom.importBatchEmployeesCsvBtn?.addEventListener("click", async () => {
-  await handleBatchEmployeeCsvImport();
-});
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F
-// Create employee profiles from the reviewed valid CSV rows.
-// This only runs after HR has imported and reviewed the CSV.
-state.dom.submitBatchEmployeesBtn?.addEventListener("click", async () => {
-  await handleBatchEmployeeSubmit();
-});
+  state.dom.clearBatchEmployeesCsvBtn?.addEventListener("click", () => {
+    clearBatchEmployeeCsvImportUi();
+  });
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
+  // Enable Import CSV only after HR selects a CSV file.
+  // This mirrors the existing payroll CSV import behaviour but does not parse yet.
+  state.dom.batchEmployeeCsvFile?.addEventListener("change", () => {
+    updateBatchEmployeeCsvImportButtonState();
+  });
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+  // Parse the selected employee CSV into the Batch Employee Review table.
+  // This does not create employee records yet.
+  state.dom.importBatchEmployeesCsvBtn?.addEventListener("click", async () => {
+    await handleBatchEmployeeCsvImport();
+  });
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F
+  // Create employee profiles from the reviewed valid CSV rows.
+  // This only runs after HR has imported and reviewed the CSV.
+  state.dom.submitBatchEmployeesBtn?.addEventListener("click", async () => {
+    await handleBatchEmployeeSubmit();
+  });
 
   // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
   // Keep Create/Update Employee disabled until the required employee form
@@ -1696,14 +1806,20 @@ state.dom.submitBatchEmployeesBtn?.addEventListener("click", async () => {
     event.preventDefault();
     await handleOrganizationSettingsSave();
   });
-  // MANAGE ORGANIZATION CARD - STEP 4A FIX
-  // Keep Save Organization Details grey/disabled until the required
-  // organization fields are complete.
+  // MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+  // Only editable organization fields should trigger the Update button.
+  // Locked system fields such as Organization Name, Country, Currency,
+  // Pay Cycle, and Status are controlled defaults and should not make the
+  // form look ready for update on page load.
   [
-    state.dom.organizationName,
-    state.dom.organizationDefaultCurrency,
-    state.dom.organizationDefaultPayCycle,
-    state.dom.organizationStatus,
+    state.dom.organizationEmail,
+    state.dom.organizationPhoneNumber,
+    state.dom.organizationPayrollContactEmail,
+    state.dom.organizationAddressLine,
+    state.dom.organizationCity,
+    state.dom.organizationTin,
+    state.dom.organizationRegistrationNumber,
+    state.dom.organizationNotes,
   ].forEach((field) => {
     field?.addEventListener("input", updateOrganizationSettingsSaveButtonState);
     field?.addEventListener("change", updateOrganizationSettingsSaveButtonState);
@@ -2360,19 +2476,19 @@ async function handleBatchEmployeeSubmit() {
 
     const supabase = getSupabaseClient();
 
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-3
-// Insert the reviewed employees without chaining .select("*").
-// Some Supabase/RLS setups allow insert but reject the immediate select,
-// which makes the UI show "creation failed" even when the insert worked.
-const { error } = await supabase
-  .from("employees")
-  .insert(rowsToInsert);
+    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-3
+    // Insert the reviewed employees without chaining .select("*").
+    // Some Supabase/RLS setups allow insert but reject the immediate select,
+    // which makes the UI show "creation failed" even when the insert worked.
+    const { error } = await supabase
+      .from("employees")
+      .insert(rowsToInsert);
 
-if (error) {
-  throw new Error(error.message || "Employee batch insert failed.");
-}
+    if (error) {
+      throw new Error(error.message || "Employee batch insert failed.");
+    }
 
-const createdCount = rowsToInsert.length;
+    const createdCount = rowsToInsert.length;
 
     // Clear prepared rows after successful save so HR cannot accidentally
     // click Create Employees again for the same CSV batch.
@@ -2427,46 +2543,46 @@ const createdCount = rowsToInsert.length;
     );
 
     redirectToFullEmployeeListAfterEmployeeSave();
-} catch (error) {
-  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-3
-  // Surface Supabase errors clearly instead of hiding them behind [object Object].
-  const errorMessage = String(error?.message || "").trim();
-  const lowerMessage = errorMessage.toLowerCase();
+  } catch (error) {
+    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-3
+    // Surface Supabase errors clearly instead of hiding them behind [object Object].
+    const errorMessage = String(error?.message || "").trim();
+    const lowerMessage = errorMessage.toLowerCase();
 
-  console.error("Error creating batch employees:", error);
+    console.error("Error creating batch employees:", error);
 
-  if (
-    lowerMessage.includes("duplicate key") ||
-    lowerMessage.includes("work_email") ||
-    lowerMessage.includes("employees_work_email")
-  ) {
+    if (
+      lowerMessage.includes("duplicate key") ||
+      lowerMessage.includes("work_email") ||
+      lowerMessage.includes("employees_work_email")
+    ) {
+      showPageAlert(
+        "warning",
+        "One or more employees in this CSV already exist by Work Email. Please clear the import, remove existing employees from the CSV, and import again.",
+      );
+
+      showDashboardToast(
+        "warning",
+        "Duplicate employee found",
+        "Batch import is create-only, so existing employees are skipped instead of being created again.",
+      );
+
+      await refreshEmployeeWorkspace();
+      return;
+    }
+
     showPageAlert(
-      "warning",
-      "One or more employees in this CSV already exist by Work Email. Please clear the import, remove existing employees from the CSV, and import again.",
+      "danger",
+      errorMessage || "Batch employee records could not be created.",
     );
 
     showDashboardToast(
-      "warning",
-      "Duplicate employee found",
-      "Batch import is create-only, so existing employees are skipped instead of being created again.",
+      "danger",
+      "Batch employee creation failed",
+      errorMessage || "The reviewed employee rows could not be saved. Please check the CSV and try again.",
     );
-
-    await refreshEmployeeWorkspace();
-    return;
   }
 
-  showPageAlert(
-    "danger",
-    errorMessage || "Batch employee records could not be created.",
-  );
-
-  showDashboardToast(
-    "danger",
-    "Batch employee creation failed",
-    errorMessage || "The reviewed employee rows could not be saved. Please check the CSV and try again.",
-  );
-}
-  
   finally {
     // Keep spinner visible briefly so the user sees feedback.
     await waitForMinimumLoadingFeedback(startedAt, 600);
@@ -2702,10 +2818,10 @@ function buildBatchEmployeePreparedRowFromCsv(row = [], headerMap, rowNumber, se
   const jobTitle = getBatchEmployeeCsvCell(row, headerMap, "Job Title");
   const lineManager = getBatchEmployeeCsvCell(row, headerMap, "Line Manager");
   const approverEmail = getBatchEmployeeCsvCell(row, headerMap, "Approver Email").toLowerCase();
- // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-1
-// Normalise spreadsheet-style dates before validation and save.
-const rawEmploymentDate = getBatchEmployeeCsvCell(row, headerMap, "Employment Date");
-const employmentDate = normalizeBatchEmployeeCsvDate(rawEmploymentDate);
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-1
+  // Normalise spreadsheet-style dates before validation and save.
+  const rawEmploymentDate = getBatchEmployeeCsvCell(row, headerMap, "Employment Date");
+  const employmentDate = normalizeBatchEmployeeCsvDate(rawEmploymentDate);
   const status = getBatchEmployeeCsvCell(row, headerMap, "Status") || "Active";
   const systemRole = getBatchEmployeeCsvCell(row, headerMap, "System Role");
 
@@ -2716,7 +2832,7 @@ const employmentDate = normalizeBatchEmployeeCsvDate(rawEmploymentDate);
   if (!workEmail) missingFields.push("Work Email");
   if (!department) missingFields.push("Department");
   if (!jobTitle) missingFields.push("Job Title");
-if (!employmentDate) missingFields.push("Valid Employment Date");
+  if (!employmentDate) missingFields.push("Valid Employment Date");
 
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -2743,32 +2859,32 @@ if (!employmentDate) missingFields.push("Valid Employment Date");
   if (workEmail) {
     seenEmails.add(normalizeText(workEmail));
   }
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
-// Also block likely duplicate employees by exact full name.
-// This keeps the system HR-standard: one employee profile per person.
-// If an existing employee needs updating, that should be handled by a
-// separate Batch Update flow, not by creating another profile.
-const incomingNameKey = buildBatchEmployeeNameDuplicateKey({
-  first_name: firstName,
-  middle_name: middleName,
-  last_name: lastName,
-});
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
+  // Also block likely duplicate employees by exact full name.
+  // This keeps the system HR-standard: one employee profile per person.
+  // If an existing employee needs updating, that should be handled by a
+  // separate Batch Update flow, not by creating another profile.
+  const incomingNameKey = buildBatchEmployeeNameDuplicateKey({
+    first_name: firstName,
+    middle_name: middleName,
+    last_name: lastName,
+  });
 
-const existingEmployeeName = (state.employees || []).some((employee) => {
-  return buildBatchEmployeeNameDuplicateKey(employee) === incomingNameKey;
-});
+  const existingEmployeeName = (state.employees || []).some((employee) => {
+    return buildBatchEmployeeNameDuplicateKey(employee) === incomingNameKey;
+  });
 
-if (incomingNameKey && existingEmployeeName) {
-  missingFields.push("Employee name already exists");
-}
+  if (incomingNameKey && existingEmployeeName) {
+    missingFields.push("Employee name already exists");
+  }
 
-if (incomingNameKey && seenNames.has(incomingNameKey)) {
-  missingFields.push("Duplicate employee name in CSV");
-}
+  if (incomingNameKey && seenNames.has(incomingNameKey)) {
+    missingFields.push("Duplicate employee name in CSV");
+  }
 
-if (incomingNameKey) {
-  seenNames.add(incomingNameKey);
-}
+  if (incomingNameKey) {
+    seenNames.add(incomingNameKey);
+  }
   if (missingFields.length) {
     return {
       skipped: true,
@@ -2882,12 +2998,12 @@ function renderImportedBatchEmployeeCsvRows(preparedRows = [], skippedRows = [])
         </div>
         <ul class="small mb-0">
           ${skippedRows
-            .slice(0, 8)
-            .map(
-              (item) =>
-                `<li>Row ${escapeHtml(item.rowNumber)} — ${escapeHtml(item.workEmail)}: ${escapeHtml(item.reason)}</li>`,
-            )
-            .join("")}
+          .slice(0, 8)
+          .map(
+            (item) =>
+              `<li>Row ${escapeHtml(item.rowNumber)} — ${escapeHtml(item.workEmail)}: ${escapeHtml(item.reason)}</li>`,
+          )
+          .join("")}
         </ul>
       `;
     } else {
@@ -2910,21 +3026,21 @@ async function handleBatchEmployeeCsvImport() {
     return;
   }
 
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E-1
-// Track when the import started so the spinner remains visible briefly,
-// even when the CSV file parses very quickly.
-const startedAt = Date.now();
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E-1
+  // Track when the import started so the spinner remains visible briefly,
+  // even when the CSV file parses very quickly.
+  const startedAt = Date.now();
 
-try {
-  setBatchEmployeeCsvImportLoading(true);
-  await waitForNextPaint();
+  try {
+    setBatchEmployeeCsvImportLoading(true);
+    await waitForNextPaint();
 
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-2
-// Refresh employee records before validating the CSV.
-// This ensures already-created employees are detected and skipped by Work Email.
-await refreshEmployeeWorkspace();
+    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-2
+    // Refresh employee records before validating the CSV.
+    // This ensures already-created employees are detected and skipped by Work Email.
+    await refreshEmployeeWorkspace();
 
-const csvText = await file.text();
+    const csvText = await file.text();
     const rows = parseBatchEmployeeCsvText(csvText);
 
     const requiredHeaders = [
@@ -2967,22 +3083,22 @@ const csvText = await file.text();
       .slice(headerRowIndex + 1)
       .filter((row) => row.some((cell) => String(cell || "").trim()));
 
-const preparedRows = [];
-const skippedRows = [];
-const seenEmails = new Set();
+    const preparedRows = [];
+    const skippedRows = [];
+    const seenEmails = new Set();
 
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
-// Track names inside the uploaded CSV so the same person is not prepared twice.
-const seenNames = new Set();
+    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1F-4
+    // Track names inside the uploaded CSV so the same person is not prepared twice.
+    const seenNames = new Set();
 
-dataRows.forEach((row, index) => {
-  const preparedRow = buildBatchEmployeePreparedRowFromCsv(
-    row,
-    headerMap,
-    headerRowIndex + index + 2,
-    seenEmails,
-    seenNames,
-  );
+    dataRows.forEach((row, index) => {
+      const preparedRow = buildBatchEmployeePreparedRowFromCsv(
+        row,
+        headerMap,
+        headerRowIndex + index + 2,
+        seenEmails,
+        seenNames,
+      );
 
       if (preparedRow.skipped) {
         skippedRows.push(preparedRow);
@@ -3026,12 +3142,12 @@ dataRows.forEach((row, index) => {
       "Employee CSV import failed",
       "The employee CSV could not be imported. Please check the file and try again.",
     );
-} finally {
-  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E-1
-  // Keep spinner feedback visible long enough for HR to notice it.
-  await waitForMinimumLoadingFeedback(startedAt, 600);
-  setBatchEmployeeCsvImportLoading(false);
-}
+  } finally {
+    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E-1
+    // Keep spinner feedback visible long enough for HR to notice it.
+    await waitForMinimumLoadingFeedback(startedAt, 600);
+    setBatchEmployeeCsvImportLoading(false);
+  }
 }
 // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
 // Keep Import CSV grey/disabled until a CSV file has been selected.
@@ -3049,7 +3165,7 @@ function updateBatchEmployeeCsvImportButtonState() {
 // Clear the selected CSV and reset the review area.
 // This does not touch saved employees or the existing manual employee form.
 function clearBatchEmployeeCsvImportUi() {
-    // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1E
   // Clear prepared employee rows from memory when HR clears the import area.
   state.batchEmployeePreparedRows = [];
   if (state.dom.batchEmployeeCsvFile) {
@@ -3086,12 +3202,12 @@ function clearBatchEmployeeCsvImportUi() {
     state.dom.submitBatchEmployeesBtn.disabled = true;
   }
 
-// HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
-// Re-check the Import CSV button after clearing the selected file.
-// Since the file input is empty, the button returns to grey/disabled.
-updateBatchEmployeeCsvImportButtonState();
+  // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1D
+  // Re-check the Import CSV button after clearing the selected file.
+  // Since the file input is empty, the button returns to grey/disabled.
+  updateBatchEmployeeCsvImportButtonState();
 
-showPageAlert("info", "Employee CSV import area was cleared.");
+  showPageAlert("info", "Employee CSV import area was cleared.");
 }
 function setWorkspaceRefreshLoading(button, isLoading, loadingText = "Refreshing...") {
   if (!button) return;
@@ -6335,124 +6451,124 @@ async function handleBatchPayrollCsvImport() {
     await waitForNextPaint();
 
     const csvText = await file.text();
-  const rows = parseBatchPayrollCsvText(csvText);
+    const rows = parseBatchPayrollCsvText(csvText);
 
-  const requiredHeaders = [
-    "Employee Custom ID",
-    "Employee Name",
-    "New Base Salary",
-    "NET SALARY",
-  ];
+    const requiredHeaders = [
+      "Employee Custom ID",
+      "Employee Name",
+      "New Base Salary",
+      "NET SALARY",
+    ];
 
-  const headerRowIndex = rows.findIndex((row) => {
-    const normalisedRowHeaders = new Set(
-      row.map((cell) => normalizeBatchPayrollCsvHeader(cell)),
-    );
+    const headerRowIndex = rows.findIndex((row) => {
+      const normalisedRowHeaders = new Set(
+        row.map((cell) => normalizeBatchPayrollCsvHeader(cell)),
+      );
 
-    return requiredHeaders.every((header) =>
-      normalisedRowHeaders.has(normalizeBatchPayrollCsvHeader(header)),
-    );
-  });
+      return requiredHeaders.every((header) =>
+        normalisedRowHeaders.has(normalizeBatchPayrollCsvHeader(header)),
+      );
+    });
 
-  if (headerRowIndex === -1) {
-    showPageAlert(
-      "warning",
-      "This does not look like the Alpatech Rev 2 payroll CSV. Please save the Alpatech salary schedule as CSV and upload that file.",
-    );
+    if (headerRowIndex === -1) {
+      showPageAlert(
+        "warning",
+        "This does not look like the Alpatech Rev 2 payroll CSV. Please save the Alpatech salary schedule as CSV and upload that file.",
+      );
 
-    showDashboardToast(
-      "warning",
-      "CSV import stopped",
-      "The selected file does not contain the required Alpatech payroll headers.",
-    );
+      showDashboardToast(
+        "warning",
+        "CSV import stopped",
+        "The selected file does not contain the required Alpatech payroll headers.",
+      );
 
-    return;
-  }
-
-  const headerRow = rows[headerRowIndex];
-  const headerMap = new Map();
-
-  headerRow.forEach((header, index) => {
-    const key = normalizeBatchPayrollCsvHeader(header);
-
-    if (key) {
-      headerMap.set(key, index);
-    }
-  });
-
-  const dataRows = rows
-    .slice(headerRowIndex + 1)
-    .filter((row) => row.some((cell) => String(cell || "").trim()));
-
-  const preparedRows = [];
-  const skippedRows = [];
-
-  dataRows.forEach((row) => {
-    const preparedRow = buildBatchPayrollPreparedRowFromCsv(row, headerMap);
-
-    if (preparedRow.skipped) {
-      skippedRows.push(preparedRow);
       return;
     }
 
-    preparedRows.push(preparedRow);
-  });
+    const headerRow = rows[headerRowIndex];
+    const headerMap = new Map();
 
-  state.batchPayrollPreparedRows = preparedRows;
+    headerRow.forEach((header, index) => {
+      const key = normalizeBatchPayrollCsvHeader(header);
 
-  state.selectedEmployeesForPayroll = new Set(
-    preparedRows
-      .map((row) => String(row.employee_id || "").trim())
-      .filter(Boolean),
-  );
+      if (key) {
+        headerMap.set(key, index);
+      }
+    });
 
-  renderImportedBatchPayrollCsvRows(preparedRows, skippedRows);
-  // BATCH PAYROLL CSV IMPORT - STEP 5F
-  // CSV import opens the Batch Payroll Review panel directly.
-  // Rebuild the batch Pay Period dropdown here so HR can select the payroll month
-  // without needing to use the Run Payroll flow first.
-  populateBatchPayrollPayCycleOptions();
-  updateBatchPayDateFromPayCycle();
+    const dataRows = rows
+      .slice(headerRowIndex + 1)
+      .filter((row) => row.some((cell) => String(cell || "").trim()));
 
-  // BATCH PAYROLL CSV IMPORT - STEP 5
-  // CSV import is a batch flow, so hide the manual single payroll form
-  // after rows are imported. This prevents HR from thinking the manual
-  // Employee dropdown belongs to the CSV import process.
-  state.isRunPayrollSelectionMode = true;
+    const preparedRows = [];
+    const skippedRows = [];
 
-  if (state.dom.payrollEmployeeId) {
-    state.dom.payrollEmployeeId.value = "";
-  }
+    dataRows.forEach((row) => {
+      const preparedRow = buildBatchPayrollPreparedRowFromCsv(row, headerMap);
 
-  renderPayrollSelectedEmployeeReference("");
+      if (preparedRow.skipped) {
+        skippedRows.push(preparedRow);
+        return;
+      }
 
-  if (state.dom.payrollCreateForm) {
-    state.dom.payrollCreateForm.classList.add("d-none");
-  }
+      preparedRows.push(preparedRow);
+    });
 
-  setPayrollRecordToolbarForBatchMode();
+    state.batchPayrollPreparedRows = preparedRows;
 
-  if (state.dom.payrollFormTitle) {
-    state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
-  }
+    state.selectedEmployeesForPayroll = new Set(
+      preparedRows
+        .map((row) => String(row.employee_id || "").trim())
+        .filter(Boolean),
+    );
 
-  if (state.dom.payrollFormSubtext) {
-    state.dom.payrollFormSubtext.textContent =
-      "Import or review payroll rows in batch before submitting them into Payroll Records.";
-  }
+    renderImportedBatchPayrollCsvRows(preparedRows, skippedRows);
+    // BATCH PAYROLL CSV IMPORT - STEP 5F
+    // CSV import opens the Batch Payroll Review panel directly.
+    // Rebuild the batch Pay Period dropdown here so HR can select the payroll month
+    // without needing to use the Run Payroll flow first.
+    populateBatchPayrollPayCycleOptions();
+    updateBatchPayDateFromPayCycle();
 
-  updateSubmitBatchPayrollButtonState();
+    // BATCH PAYROLL CSV IMPORT - STEP 5
+    // CSV import is a batch flow, so hide the manual single payroll form
+    // after rows are imported. This prevents HR from thinking the manual
+    // Employee dropdown belongs to the CSV import process.
+    state.isRunPayrollSelectionMode = true;
 
-  if (state.dom.batchPayrollCsvImportSummary) {
-    state.dom.batchPayrollCsvImportSummary.classList.remove("d-none");
-    state.dom.batchPayrollCsvImportSummary.innerHTML = `
+    if (state.dom.payrollEmployeeId) {
+      state.dom.payrollEmployeeId.value = "";
+    }
+
+    renderPayrollSelectedEmployeeReference("");
+
+    if (state.dom.payrollCreateForm) {
+      state.dom.payrollCreateForm.classList.add("d-none");
+    }
+
+    setPayrollRecordToolbarForBatchMode();
+
+    if (state.dom.payrollFormTitle) {
+      state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
+    }
+
+    if (state.dom.payrollFormSubtext) {
+      state.dom.payrollFormSubtext.textContent =
+        "Import or review payroll rows in batch before submitting them into Payroll Records.";
+    }
+
+    updateSubmitBatchPayrollButtonState();
+
+    if (state.dom.batchPayrollCsvImportSummary) {
+      state.dom.batchPayrollCsvImportSummary.classList.remove("d-none");
+      state.dom.batchPayrollCsvImportSummary.innerHTML = `
       <div class="fw-semibold">CSV import prepared</div>
       <div class="small">
         ${preparedRows.length} row(s) matched active employees.
         ${skippedRows.length ? `${skippedRows.length} row(s) were skipped.` : "No rows were skipped."}
       </div>
     `;
-  }
+    }
 
     showPageAlert(
       preparedRows.length ? "success" : "warning",
@@ -6738,10 +6854,14 @@ function switchHrWorkspace(workspace) {
   }
 
   if (state.dom.hrModuleValue) {
+    // EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2D
+    // The internal workspace key remains "employees" to avoid breaking existing logic.
+    // The visible label is now broader because this area manages organization setup,
+    // employee records, manual employee creation, and batch employee import.
     state.dom.hrModuleValue.textContent = isProfile
       ? "Profile"
       : isEmployees
-        ? "Employee Management"
+        ? "Manage Organization"
         : "Payroll Management";
   }
 }
@@ -8533,28 +8653,69 @@ function renderOrganizationSettingsCard() {
       record?.status || "Not set";
   }
 
-  // MANAGE ORGANIZATION CARD - STEP 4B-1 FIX 2
-  // Do not auto-fill the editable Organization form from saved data on page load.
-  // The saved values should show in the summary tiles above, while the form
-  // stays clean/defaulted until HR intentionally enters new changes.
+  // MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1A
+  // This is a single-organisation system, so the form should show the saved
+  // organisation record instead of appearing blank like HR is creating another company.
+  // System-controlled fields are still locked in HTML, but their values remain
+  // available here for save/update payloads.
   if (state.dom.organizationSettingsForm) {
     state.dom.organizationSettingsForm.reset();
   }
 
+  if (state.dom.organizationName) {
+    state.dom.organizationName.value = record?.organization_name || "Pineharst";
+  }
+
+  if (state.dom.organizationEmail) {
+    state.dom.organizationEmail.value = record?.organization_email || "";
+  }
+
+  if (state.dom.organizationPhoneNumber) {
+    state.dom.organizationPhoneNumber.value = record?.phone_number || "";
+  }
+
+  if (state.dom.organizationPayrollContactEmail) {
+    state.dom.organizationPayrollContactEmail.value = record?.payroll_contact_email || "";
+  }
+
+  if (state.dom.organizationAddressLine) {
+    state.dom.organizationAddressLine.value = record?.address_line || "";
+  }
+
+  if (state.dom.organizationCity) {
+    state.dom.organizationCity.value = record?.city || "";
+  }
+
   if (state.dom.organizationCountry) {
-    state.dom.organizationCountry.value = "Nigeria";
+    state.dom.organizationCountry.value = record?.country || "Nigeria";
+  }
+
+  if (state.dom.organizationTin) {
+    // MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+    // Use the same database field name used by the save payload.
+    // Keep tin as a fallback in case older records used that shape.
+    state.dom.organizationTin.value =
+      record?.tax_identification_number || record?.tin || "";
+  }
+
+  if (state.dom.organizationRegistrationNumber) {
+    state.dom.organizationRegistrationNumber.value = record?.registration_number || "";
   }
 
   if (state.dom.organizationDefaultCurrency) {
-    state.dom.organizationDefaultCurrency.value = "NGN";
+    state.dom.organizationDefaultCurrency.value = record?.default_currency || "NGN";
   }
 
   if (state.dom.organizationDefaultPayCycle) {
-    state.dom.organizationDefaultPayCycle.value = "Monthly";
+    state.dom.organizationDefaultPayCycle.value = record?.default_pay_cycle || "Monthly";
   }
 
   if (state.dom.organizationStatus) {
-    state.dom.organizationStatus.value = "Active";
+    state.dom.organizationStatus.value = record?.status || "Active";
+  }
+
+  if (state.dom.organizationNotes) {
+    state.dom.organizationNotes.value = record?.notes || "";
   }
 
   if (state.dom.organizationSettingsSubmitLabel) {
@@ -8563,10 +8724,44 @@ function renderOrganizationSettingsCard() {
       : "Save Organization Details";
   }
 
+  // MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+  // Store the loaded editable values as the clean baseline.
+  // The Update button should remain grey until HR changes one of these values.
+  state.organizationSettingsBaseline = getOrganizationSettingsEditableSnapshot();
+
   // MANAGE ORGANIZATION CARD - STEP 4A FIX
   // After saved values are loaded into the form, refresh the button state.
   updateOrganizationSettingsSaveButtonState();
 }
+
+// MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+// Capture only the fields HR is allowed to maintain.
+// Locked system fields are deliberately excluded from the change check.
+function getOrganizationSettingsEditableSnapshot() {
+  return {
+    organization_email: String(state.dom.organizationEmail?.value || "").trim(),
+    phone_number: String(state.dom.organizationPhoneNumber?.value || "").trim(),
+    payroll_contact_email: String(state.dom.organizationPayrollContactEmail?.value || "").trim(),
+    address_line: String(state.dom.organizationAddressLine?.value || "").trim(),
+    city: String(state.dom.organizationCity?.value || "").trim(),
+    tax_identification_number: String(state.dom.organizationTin?.value || "").trim(),
+    registration_number: String(state.dom.organizationRegistrationNumber?.value || "").trim(),
+    notes: String(state.dom.organizationNotes?.value || "").trim(),
+  };
+}
+
+// MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+// Existing organization records should only be updateable when HR has
+// changed at least one editable operational field.
+function hasOrganizationSettingsEditableChanges() {
+  const currentSnapshot = getOrganizationSettingsEditableSnapshot();
+  const baselineSnapshot = state.organizationSettingsBaseline || {};
+
+  return Object.keys(currentSnapshot).some(
+    (key) => currentSnapshot[key] !== String(baselineSnapshot[key] || ""),
+  );
+}
+
 // MANAGE ORGANIZATION CARD - STEP 4A FIX
 // Organization Details follows the same grey/blue button behaviour
 // used across the HR & Payroll System forms.
@@ -8578,9 +8773,22 @@ function isOrganizationSettingsFormReadyForSubmit() {
     state.dom.organizationStatus,
   ];
 
-  return requiredFields.every((field) =>
+  const hasRequiredDefaults = requiredFields.every((field) =>
     Boolean(String(field?.value || "").trim()),
   );
+
+  if (!hasRequiredDefaults) {
+    return false;
+  }
+
+  // MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+  // If the single organization record does not exist yet, allow the first save.
+  // If it already exists, only allow Update after HR changes an editable field.
+  if (!state.organizationSettings?.id) {
+    return true;
+  }
+
+  return hasOrganizationSettingsEditableChanges();
 }
 
 // MANAGE ORGANIZATION CARD - STEP 4A FIX
@@ -8771,14 +8979,10 @@ async function handleOrganizationSettingsSave() {
 
     state.organizationSettings = response.data || null;
 
-    // MANAGE ORGANIZATION CARD - STEP 4B-1 FIX
-    // First refresh the saved summary from Supabase response.
+    // MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1B
+    // Refresh the saved summary and keep the single-organization form populated.
+    // This is not a create-another-organization form, so it should not clear after save.
     renderOrganizationSettingsCard();
-
-    // MANAGE ORGANIZATION CARD - STEP 4B-1 FIX
-    // Then clear the editable form so create/update behaves like the other forms.
-    // The summary tiles above still show the saved Organization details.
-    resetOrganizationSettingsFormAfterSave();
 
     showPageAlert(
       "success",

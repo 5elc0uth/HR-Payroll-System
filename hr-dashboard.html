@@ -62,7 +62,10 @@
 
 
 
-    <section class="card dashboard-section-card mb-4">
+<!-- WORKSPACE UI POLISH - HR/PAYROLL STANDARD STEP 2F-1
+     This card is a navigation switcher, not a main content section.
+     The class gives CSS a reliable target without affecting other dashboard cards. -->
+<section class="card dashboard-section-card workspace-switcher-card mb-4">
       <div class="card-body p-4">
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
           <div>
@@ -87,10 +90,13 @@
               <i class="bi bi-person-circle me-2"></i>Profile
             </button>
 
-            <button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap"
-              id="hrTabEmployeesBtn">
-              <i class="bi bi-people me-2"></i>Employees
-            </button>
+<!-- EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2D
+     Keep the existing ID because JavaScript uses hrTabEmployeesBtn
+     to open this workspace. Only the visible label is changing. -->
+<button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap"
+  id="hrTabEmployeesBtn">
+  <i class="bi bi-building me-2"></i>Manage Organization
+</button>
 
             <button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap" id="hrTabPayrollBtn">
               <i class="bi bi-cash-coin me-2"></i>Payroll
@@ -296,13 +302,35 @@
             </div>
 
             <form id="organizationSettingsForm" novalidate>
+              <!-- =========================================================
+     MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1A
+     This system is single-organisation, not multi-company.
+
+     HR can maintain contact, address, payroll, tax, and registration
+     details for the current organisation only. System-controlled
+     payroll defaults are locked below so HR does not accidentally
+     configure another organisation or unsupported payroll setup.
+========================================================== -->
+              <div class="alert alert-light border mb-4">
+                <div class="fw-semibold mb-1">Single organisation setup</div>
+                <div class="small text-secondary">
+                  This HR & Payroll System manages the current organisation only. Greyed-out fields are controlled
+                  system defaults.
+                </div>
+              </div>
               <div class="row g-4">
                 <div class="col-md-6">
                   <label for="organizationName" class="form-label fw-semibold">
                     Organization Name <span class="text-danger">*</span>
                   </label>
-                  <input type="text" id="organizationName" class="form-control" placeholder="Enter organization name"
-                    required />
+                  <!-- MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1A
+     Organization Name is locked because this is a single-organisation system.
+     HR should not create or switch to another company from this card. -->
+                  <input type="text" id="organizationName" class="form-control bg-light"
+                    placeholder="Loaded from saved organisation record" readonly required />
+                  <div class="form-text">
+                    Controlled organisation identity. Contact an administrator if the legal organisation name changes.
+                  </div>
                 </div>
 
                 <div class="col-md-6">
@@ -348,7 +376,13 @@
                   <label for="organizationCountry" class="form-label fw-semibold">
                     Country
                   </label>
-                  <input type="text" id="organizationCountry" class="form-control" placeholder="Enter country" />
+                  <!-- MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1A
+     Country is locked because the current payroll configuration is Nigeria-based. -->
+                  <input type="text" id="organizationCountry" class="form-control bg-light" placeholder="Nigeria"
+                    readonly />
+                  <div class="form-text">
+                    Controlled payroll jurisdiction.
+                  </div>
                 </div>
 
                 <div class="col-md-6">
@@ -371,7 +405,9 @@
                   <label for="organizationDefaultCurrency" class="form-label fw-semibold">
                     Default Currency <span class="text-danger">*</span>
                   </label>
-                  <select id="organizationDefaultCurrency" class="form-select" required>
+                  <!-- MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1A
+     Currency is locked because payroll currently supports NGN only. -->
+                  <select id="organizationDefaultCurrency" class="form-select bg-light" required disabled>
                     <option value="NGN">NGN - Nigerian Naira</option>
                   </select>
                 </div>
@@ -380,7 +416,9 @@
                   <label for="organizationDefaultPayCycle" class="form-label fw-semibold">
                     Default Pay Cycle <span class="text-danger">*</span>
                   </label>
-                  <select id="organizationDefaultPayCycle" class="form-select" required>
+                  <!-- MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1A
+     Pay Cycle is locked because payroll currently supports Monthly only. -->
+                  <select id="organizationDefaultPayCycle" class="form-select bg-light" required disabled>
                     <!-- MANAGE ORGANIZATION CARD - STEP 3A
        Payroll currently supports monthly processing only, so the organization
        default pay cycle is restricted to Monthly to avoid unsupported setup. -->
@@ -392,7 +430,9 @@
                   <label for="organizationStatus" class="form-label fw-semibold">
                     Status <span class="text-danger">*</span>
                   </label>
-                  <select id="organizationStatus" class="form-select" required>
+                  <!-- MANAGE ORGANIZATION - HR/PAYROLL STANDARD STEP 1A
+     Status is locked for this single active organisation setup. -->
+                  <select id="organizationStatus" class="form-select bg-light" required disabled>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
