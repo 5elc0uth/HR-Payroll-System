@@ -9,13 +9,115 @@ document.addEventListener("DOMContentLoaded", async () => {
     // This avoids manually cutting a large HTML card and keeps existing IDs/events intact.
     alignPayrollWorkspaceCardOrder();
 
-    // EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2C
-    // Keep the Employees workspace in the correct operational order:
-    // Summary first, Full Employee List next, then create/import actions,
-    // with organization setup moved lower as an admin/setup area.
-    alignEmployeeWorkspaceCardOrder();
+// EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2C
+// Keep the People workspace in the correct operational order:
+// Summary first, Full Employee List next, then create/import actions.
+alignEmployeeWorkspaceCardOrder();
 
-    // DESCRIPTION ITEM 4 - STEP 2B
+// SETUP WORKSPACE FUNCTIONAL GROUPING - STEP 1A
+// Creates a lightweight visual header inside Setup.
+// These headers group existing cards by HR/payroll function without
+// recreating cards or changing any existing form IDs, events, or save/edit logic.
+function createSetupWorkspaceGroupHeader(id, title, description, iconClass) {
+  let header = document.getElementById(id);
+
+  if (!header) {
+    header = document.createElement("section");
+    header.id = id;
+    header.className = "card dashboard-section-card mb-3";
+  }
+
+  header.innerHTML = `
+    <div class="card-body p-4">
+      <div class="d-flex align-items-start gap-3">
+        <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center flex-shrink-0"
+          style="width: 40px; height: 40px;">
+          <i class="${iconClass} text-primary"></i>
+        </div>
+
+        <div>
+          <h2 class="section-heading h5 mb-1">${title}</h2>
+          <p class="section-subtext mb-0">${description}</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return header;
+}
+
+// SETUP WORKSPACE FUNCTIONAL GROUPING - STEP 1B
+// Group Setup cards by function:
+// 1. Organization Setup
+// 2. Payroll Setup
+// 3. Payment Setup
+//
+// Existing cards are moved only. They are not recreated, so existing
+// collapse buttons, forms, event handlers, records tables, and Supabase
+// refresh logic remain intact.
+function alignSetupWorkspaceCardOrder() {
+  const setupSection = state.dom.hrSetupSection;
+  const setupLandingCard = state.dom.hrSetupLandingCard;
+
+  if (!setupSection || !setupLandingCard) return;
+
+  const organizationSetupHeader = createSetupWorkspaceGroupHeader(
+    "setupOrganizationGroupHeader",
+    "Organization Setup",
+    "Maintain company identity, departments, job titles, and organisation-level HR/payroll defaults.",
+    "bi bi-building-gear",
+  );
+
+  const payrollSetupHeader = createSetupWorkspaceGroupHeader(
+    "setupPayrollGroupHeader",
+    "Payroll Setup",
+    "Maintain payroll master data, allowances, deductions, and employee-specific payroll overrides.",
+    "bi bi-sliders",
+  );
+
+  const paymentSetupHeader = createSetupWorkspaceGroupHeader(
+    "setupPaymentGroupHeader",
+    "Payment Setup",
+    "Maintain approved banks and employee bank accounts used for payroll payment processing.",
+    "bi bi-bank",
+  );
+
+  const organizationCards = [
+    state.dom.organizationSettingsCardCollapse?.closest(".dashboard-section-card"),
+  ].filter(Boolean);
+
+  const payrollSetupCards = [
+    state.dom.payrollMasterCardCollapse?.closest(".dashboard-section-card"),
+    state.dom.payrollAllowanceCardCollapse?.closest(".dashboard-section-card"),
+    state.dom.payrollStatutoryCardCollapse?.closest(".dashboard-section-card"),
+    state.dom.payrollOtherDeductionCardCollapse?.closest(".dashboard-section-card"),
+    state.dom.payrollEmployeeOverrideCardCollapse?.closest(".dashboard-section-card"),
+  ].filter(Boolean);
+
+  const paymentSetupCards = [
+    state.dom.bankDirectoryCardCollapse?.closest(".dashboard-section-card"),
+    state.dom.employeeBankDetailsCardCollapse?.closest(".dashboard-section-card"),
+  ].filter(Boolean);
+
+  [
+    organizationSetupHeader,
+    ...organizationCards,
+    payrollSetupHeader,
+    ...payrollSetupCards,
+    paymentSetupHeader,
+    ...paymentSetupCards,
+  ].forEach((card) => {
+    card.classList.add("mb-4");
+    setupSection.appendChild(card);
+  });
+}
+
+// WORKSPACE REARRANGEMENT - STEP 1D
+// Move setup/master-data cards into the new Setup workspace before
+// default card collapse runs, so collapse state stays consistent.
+alignSetupWorkspaceCardOrder();
+
+// DESCRIPTION ITEM 4 - STEP 2B
     // Start long HR/payroll working cards collapsed by default.
     // This keeps the workspace clean while preserving all existing
     // save/edit flows that reopen cards when needed.
@@ -529,17 +631,28 @@ function cacheDomElements() {
     refreshEmployeesBtn: document.getElementById("refreshEmployeesBtn"),
     cancelEditBtn: document.getElementById("cancelEditBtn"),
 
-    hrTabProfileBtn: document.getElementById("hrTabProfileBtn"),
-    hrTabEmployeesBtn: document.getElementById("hrTabEmployeesBtn"),
-    hrTabPayrollBtn: document.getElementById("hrTabPayrollBtn"),
+hrTabProfileBtn: document.getElementById("hrTabProfileBtn"),
+hrTabEmployeesBtn: document.getElementById("hrTabEmployeesBtn"),
+
+// WORKSPACE REARRANGEMENT - STEP 1C
+// New Setup workspace tab for organisation, payroll, deduction, and bank master data.
+hrTabSetupBtn: document.getElementById("hrTabSetupBtn"),
+
+hrTabPayrollBtn: document.getElementById("hrTabPayrollBtn"),
 
     // RUN PAYROLL - STEP 1
     // Cache the primary Run Payroll workflow button in the HR workspace header.
     runPayrollActionBtn: document.getElementById("runPayrollActionBtn"),
 
-    hrProfileSection: document.getElementById("hrProfileSection"),
-    hrEmployeesSection: document.getElementById("hrEmployeesSection"),
-    hrPayrollSection: document.getElementById("hrPayrollSection"),
+hrProfileSection: document.getElementById("hrProfileSection"),
+hrEmployeesSection: document.getElementById("hrEmployeesSection"),
+
+// WORKSPACE REARRANGEMENT - STEP 1C
+// Setup section receives existing setup/master-data cards at runtime.
+hrSetupSection: document.getElementById("hrSetupSection"),
+hrSetupLandingCard: document.getElementById("hrSetupLandingCard"),
+
+hrPayrollSection: document.getElementById("hrPayrollSection"),
 
     hrInitials: document.getElementById("hrInitials"),
     hrHeroImage: document.getElementById("hrHeroImage"),
@@ -4003,19 +4116,9 @@ function alignPayrollWorkspaceCardOrder() {
   // Move Create Payroll Record / Create Payroll Batch directly below Payroll Overview.
   payrollOverviewCard.insertAdjacentElement("afterend", payrollRecordCard);
 }
-// EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2C
-// Reposition existing Employee workspace cards into a standard HR workflow order.
-//
-// Correct order:
-// 1. Employee Management Summary - quick overview
-// 2. Full Employee List - HR source of truth; check existing records first
-// 3. Create Employee Profile - create one employee manually
-// 4. Batch Employee Import - create multiple new employees from CSV
-// 5. Manage Organization - setup/admin values, not daily employee operations
-//
-// This moves existing cards only. It does not recreate or duplicate cards,
-// so existing IDs, event listeners, collapse buttons, search, import,
-// create, and edit behaviours remain intact.
+// WORKSPACE REARRANGEMENT - STEP 1E
+// People should contain employee records and employee creation/import only.
+// Organisation setup is now moved into the Setup workspace.
 function alignEmployeeWorkspaceCardOrder() {
   const employeesSection = state.dom.hrEmployeesSection;
 
@@ -4031,46 +4134,31 @@ function alignEmployeeWorkspaceCardOrder() {
   const batchEmployeeImportCard =
     state.dom.batchEmployeeCsvImportPanel?.closest(".dashboard-section-card");
 
-  const organizationSettingsCard =
-    state.dom.organizationSettingsCardCollapse?.closest(".dashboard-section-card");
-
   if (
     !employeesSection ||
     !employeeSummaryCard ||
     !employeeListCard ||
     !employeeFormCard ||
-    !batchEmployeeImportCard ||
-    !organizationSettingsCard
+    !batchEmployeeImportCard
   ) {
     return;
   }
 
-  // EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2E
-  // The Full Employee List card used to be the last card, so it did not always
-  // need bottom margin. After moving it into the middle of the workspace,
-  // give all reordered cards consistent spacing.
   [
     employeeSummaryCard,
     employeeListCard,
     employeeFormCard,
     batchEmployeeImportCard,
-    organizationSettingsCard,
   ].forEach((card) => {
     card.classList.add("mb-4");
   });
 
-  // If Full Employee List is already directly after the summary card,
-  // assume the order has already been applied.
-  if (employeeSummaryCard.nextElementSibling === employeeListCard) {
-    return;
-  }
-
-  // Move cards from bottom to top in the desired sequence.
-  employeeSummaryCard.insertAdjacentElement("afterend", organizationSettingsCard);
+  // Move cards from bottom to top in the desired People sequence.
   employeeSummaryCard.insertAdjacentElement("afterend", batchEmployeeImportCard);
   employeeSummaryCard.insertAdjacentElement("afterend", employeeFormCard);
   employeeSummaryCard.insertAdjacentElement("afterend", employeeListCard);
 }
+
 function bindEvents() {
   state.dom.logoutBtn?.addEventListener("click", async () => {
     await window.SessionManager.logoutUser("logout");
@@ -4099,20 +4187,31 @@ function bindEvents() {
     switchHrWorkspace("profile");
   });
 
-  state.dom.hrTabEmployeesBtn?.addEventListener("click", () => {
-    // EMPLOYEE LIST CONTEXTUAL PAYROLL SELECTION - STEP 1
-    // Opening Employees directly should show the normal HR employee list,
-    // not the Run Payroll selection version with Pay checkboxes.
-    state.isRunPayrollSelectionMode = false;
-    state.selectedEmployeesForPayroll.clear();
-    state.dom.runPayrollSelectionNotice?.classList.add("d-none");
+state.dom.hrTabEmployeesBtn?.addEventListener("click", () => {
+  // WORKSPACE REARRANGEMENT - STEP 1G
+  // Opening People directly should show normal employee records,
+  // not the Run Payroll selection version with Pay checkboxes.
+  state.isRunPayrollSelectionMode = false;
+  state.selectedEmployeesForPayroll.clear();
+  state.dom.runPayrollSelectionNotice?.classList.add("d-none");
 
-    switchHrWorkspace("employees");
-    applyEmployeeSearch();
-    syncSelectAllEmployeesForPayrollCheckbox();
-  });
+  switchHrWorkspace("employees");
+  applyEmployeeSearch();
+  syncSelectAllEmployeesForPayrollCheckbox();
+});
 
-  state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
+// WORKSPACE REARRANGEMENT - STEP 1G
+// Setup contains master data and configuration; it should not carry
+// any active Run Payroll selection state.
+state.dom.hrTabSetupBtn?.addEventListener("click", () => {
+  state.isRunPayrollSelectionMode = false;
+  state.selectedEmployeesForPayroll.clear();
+  state.dom.runPayrollSelectionNotice?.classList.add("d-none");
+
+  switchHrWorkspace("setup");
+});
+
+state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
     // BATCH PAYROLL DEFAULT - STEP 6A
     // Manual Payroll tab access should show the normal payroll workspace,
     // not a leftover batch review from the Run Payroll guided flow.
@@ -11427,10 +11526,18 @@ function startRunPayrollSelectionFlow() {
 function switchHrWorkspace(workspace) {
   const isProfile = workspace === "profile";
   const isEmployees = workspace === "employees";
+  const isSetup = workspace === "setup";
   const isPayroll = workspace === "payroll";
 
+  // WORKSPACE REARRANGEMENT - STEP 1H
+  // Four clear workspaces:
+  // Profile = signed-in HR user profile
+  // People = employee records and employee creation/import
+  // Setup = organisation, payroll, deduction, override, and bank master data
+  // Payroll = payroll processing, records, CSV export, and payslip status
   state.dom.hrProfileSection?.classList.toggle("d-none", !isProfile);
   state.dom.hrEmployeesSection?.classList.toggle("d-none", !isEmployees);
+  state.dom.hrSetupSection?.classList.toggle("d-none", !isSetup);
   state.dom.hrPayrollSection?.classList.toggle("d-none", !isPayroll);
 
   if (state.dom.hrTabProfileBtn) {
@@ -11445,6 +11552,12 @@ function switchHrWorkspace(workspace) {
       : "btn btn-outline-primary dashboard-action-btn text-nowrap";
   }
 
+  if (state.dom.hrTabSetupBtn) {
+    state.dom.hrTabSetupBtn.className = isSetup
+      ? "btn btn-primary dashboard-action-btn text-nowrap"
+      : "btn btn-outline-primary dashboard-action-btn text-nowrap";
+  }
+
   if (state.dom.hrTabPayrollBtn) {
     state.dom.hrTabPayrollBtn.className = isPayroll
       ? "btn btn-primary dashboard-action-btn text-nowrap"
@@ -11452,15 +11565,13 @@ function switchHrWorkspace(workspace) {
   }
 
   if (state.dom.hrModuleValue) {
-    // EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2D
-    // The internal workspace key remains "employees" to avoid breaking existing logic.
-    // The visible label is now broader because this area manages organization setup,
-    // employee records, manual employee creation, and batch employee import.
     state.dom.hrModuleValue.textContent = isProfile
       ? "Profile"
       : isEmployees
-        ? "Manage Organization"
-        : "Payroll Management";
+        ? "People"
+        : isSetup
+          ? "Setup & Master Data"
+          : "Payroll Processing";
   }
 }
 

@@ -74,7 +74,7 @@
        and aligns with the reduced tab labels. -->
             <h2 class="section-heading h4 mb-1">HR Workspace</h2>
             <p class="section-subtext mb-0">
-              Switch between your personal profile, employees, and payroll.
+              Switch between your profile, people, setup data, and payroll processing.
             </p>
           </div>
 
@@ -90,25 +90,22 @@
               <i class="bi bi-person-circle me-2"></i>Profile
             </button>
 
-            <!-- EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2D
-     Keep the existing ID because JavaScript uses hrTabEmployeesBtn
-     to open this workspace. Only the visible label is changing. -->
+            <!-- WORKSPACE REARRANGEMENT - STEP 1A
+     People now contains employee-facing HR records only.
+     Setup gets organisation/payroll/bank configuration separately. -->
             <button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap"
               id="hrTabEmployeesBtn">
-              <i class="bi bi-building me-2"></i>Manage Organization
+              <i class="bi bi-people me-2"></i>People
+            </button>
+
+            <button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap" id="hrTabSetupBtn">
+              <i class="bi bi-sliders me-2"></i>Setup
             </button>
 
             <button type="button" class="btn btn-outline-primary dashboard-action-btn text-nowrap" id="hrTabPayrollBtn">
               <i class="bi bi-cash-coin me-2"></i>Payroll
             </button>
 
-            <!-- RUN PAYROLL - STEP 1
-     Add Run Payroll as a separate primary workflow action.
-     It does not replace the Payroll tab; it starts the payroll selection flow
-     from the existing Full Employee List. -->
-            <button type="button" class="btn btn-success dashboard-action-btn text-nowrap" id="runPayrollActionBtn">
-              <i class="bi bi-play-circle me-2"></i>Run Payroll
-            </button>
           </div>
         </div>
       </div>
@@ -1371,20 +1368,75 @@
       </section>
     </section>
 
+    <!-- WORKSPACE REARRANGEMENT - STEP 1B
+     Setup is the home for HR/payroll master data and payment setup.
+     Existing setup cards are moved here by JavaScript so their IDs/events remain intact. -->
+    <section id="hrSetupSection" class="workspace-section d-none">
+      <section id="hrSetupLandingCard" class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <div class="mb-4">
+            <h2 class="section-heading h4 mb-1">Setup &amp; Master Data</h2>
+            <p class="section-subtext mb-0">
+              Maintain organisation, payroll structure, deductions, overrides, banks, and employee payment setup.
+            </p>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Organisation</div>
+                <div class="summary-tile-value h6 mb-0">Company setup</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Payroll Setup</div>
+                <div class="summary-tile-value h6 mb-0">Rules &amp; master data</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Deductions</div>
+                <div class="summary-tile-value h6 mb-0">Statutory &amp; other</div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+              <div class="summary-tile">
+                <div class="summary-tile-label">Payments</div>
+                <div class="summary-tile-value h6 mb-0">Banks &amp; accounts</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
     <section id="hrPayrollSection" class="workspace-section d-none">
 
       <section class="card dashboard-section-card mb-4">
         <div class="card-body p-4 p-lg-5">
-          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 2
-     Add a persistent header row so Payroll Overview can collapse and expand
-     cleanly like the employee management cards. -->
-          <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 2 REVERT
-     Keep Payroll Overview permanently visible. -->
+
+          <!-- WORKSPACE REARRANGEMENT - STEP 2A
+     Payroll actions now live inside Payroll, not in the global workspace switcher.
+     Run Payroll is an operational payroll action, not a separate workspace. -->
           <div class="mb-4">
-            <h2 class="section-heading h4 mb-1">Payroll Overview</h2>
-            <p class="section-subtext mb-0">
-              Review, create, and update payroll records using the HR payroll workspace.
-            </p>
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+              <div>
+                <h2 class="section-heading h4 mb-1">Payroll Overview</h2>
+                <p class="section-subtext mb-0">
+                  Review payroll totals, start payroll runs, and access payroll records.
+                </p>
+              </div>
+
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-success dashboard-action-btn text-nowrap" id="runPayrollActionBtn">
+                  <i class="bi bi-play-circle me-2"></i>Run Payroll
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="row g-4">
@@ -1595,8 +1647,12 @@
 
           <!-- EMPLOYEE BANK DETAILS - STEP 2
          Keep this collapsed by default so Payroll workspace remains tidy. -->
-          <div id="employeeBankDetailsCardCollapse" class="d-none mt-4">
-            <input type="hidden" id="editingEmployeeBankDetailsId" />
+<div id="employeeBankDetailsCardCollapse" class="d-none mt-4">
+  <!-- SETUP REGRESSION POLISH - STEP 1A
+       Restore the Employee Bank Details form wrapper.
+       The Cancel/reset logic depends on employeeBankDetailsForm.reset(). -->
+  <form id="employeeBankDetailsForm" class="dashboard-form" novalidate>
+    <input type="hidden" id="editingEmployeeBankDetailsId" />
 
             <!-- HRP-83 RECOVERY - STEP 1A
                    Restore Employee Bank Details to its correct employee-bank form.
@@ -1672,13 +1728,13 @@
                 <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
               </button>
 
-              <!-- EMPLOYEE BANK DETAILS - STEP 5
-     Keep a visible Cancel button so HR can abandon account entry
-     before saving anything to Supabase. -->
-              <button type="button" id="cancelEmployeeBankDetailsEditBtn"
-                class="btn btn-outline-secondary dashboard-action-btn">
-                <i class="bi bi-x-circle me-2"></i>Cancel
-              </button>
+<!-- SETUP REGRESSION POLISH - STEP 1B
+     Cancel is a discard/exit action, so use the danger outline
+     consistently with other edit-cancel buttons. -->
+<button type="button" id="cancelEmployeeBankDetailsEditBtn"
+  class="btn btn-outline-danger dashboard-action-btn">
+  <i class="bi bi-x-circle me-2"></i>Cancel
+</button>
             </div>
             </form>
 
@@ -2821,11 +2877,14 @@
                   <span id="savePayrollEmployeeOverrideBtnText">Create Employee Override</span>
                 </button>
 
-                <button type="button" id="cancelPayrollEmployeeOverrideEditBtn"
-                  class="btn btn-outline-secondary dashboard-action-btn d-none">
-                  <i class="bi bi-x-circle me-2"></i>
-                  Cancel Edit
-                </button>
+<!-- SETUP REGRESSION POLISH - STEP 1C
+     Cancel Edit should use the same red outline pattern
+     as other payroll setup edit-cancel actions. -->
+<button type="button" id="cancelPayrollEmployeeOverrideEditBtn"
+  class="btn btn-outline-danger dashboard-action-btn d-none">
+  <i class="bi bi-x-circle me-2"></i>
+  Cancel Edit
+</button>
 
                 <button type="button" id="resetPayrollEmployeeOverrideFormBtn"
                   class="btn btn-outline-secondary dashboard-action-btn">
