@@ -438,13 +438,6 @@
                   </select>
                 </div>
 
-                <div class="col-12">
-                  <label for="organizationNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <textarea id="organizationNotes" class="form-control" rows="3"
-                    placeholder="Optional notes for HR/payroll use"></textarea>
-                </div>
 
                 <div class="col-12">
                   <button type="submit" id="saveOrganizationSettingsBtn" class="btn btn-secondary dashboard-action-btn"
@@ -495,13 +488,6 @@
                   </select>
                 </div>
 
-                <div class="col-md-4">
-                  <label for="organizationDepartmentNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <input type="text" id="organizationDepartmentNotes" class="form-control"
-                    placeholder="Optional department note" />
-                </div>
 
                 <div class="col-12">
                   <div class="d-flex flex-wrap gap-2 pt-2">
@@ -608,13 +594,6 @@
                   </select>
                 </div>
 
-                <div class="col-12">
-                  <label for="organizationJobTitleNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <input type="text" id="organizationJobTitleNotes" class="form-control"
-                    placeholder="Optional job title note" />
-                </div>
 
                 <div class="col-12">
                   <div class="d-flex flex-wrap gap-2 pt-2">
@@ -850,7 +829,10 @@
               </button>
             </div>
 
-            <form id="employeeCreateForm" novalidate>
+            <!-- EMPLOYEE BIODATA COMPLETION - STEP 4I
+     Disable browser autofill/address-save prompts on the HR employee form.
+     Employee address data is app data, not the signed-in user's browser address. -->
+            <form id="employeeCreateForm" novalidate autocomplete="off">
               <input type="hidden" id="editingEmployeeId" />
 
               <div class="row g-4">
@@ -918,16 +900,33 @@
                   <div class="invalid-feedback">Last name is required.</div>
                 </div>
 
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 2A
+     Contact Details separates work contact from personal contact.
+     Work Email remains required/unique for system access; Personal Email is optional HR biodata. -->
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-3 mt-2">Contact Details</h3>
+                </div>
+
                 <div class="col-md-6 col-xl-4">
                   <label for="workEmail" class="form-label fw-semibold">
                     Work Email <span class="text-danger">*</span>
                   </label>
                   <input type="email" id="workEmail" class="form-control" placeholder="employee@company.com" required />
                   <div class="form-text">
-                    This email must be unique because it supports sign-on and
-                    notifications.
+                    This email must be unique because it supports sign-on and notifications.
                   </div>
                   <div class="invalid-feedback">A valid work email is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="personalEmail" class="form-label fw-semibold">
+                    Personal Email
+                  </label>
+                  <input type="email" id="personalEmail" class="form-control" placeholder="personal@email.com" />
+                  <div class="form-text">
+                    Optional personal contact email for HR records.
+                  </div>
+                  <div class="invalid-feedback">Enter a valid personal email.</div>
                 </div>
 
                 <div class="col-md-6 col-xl-4">
@@ -935,6 +934,53 @@
                     Phone Number
                   </label>
                   <input type="text" id="phoneNumber" class="form-control" placeholder="Enter phone number" />
+                </div>
+
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 2A
+     Personal Details stores stable HR biodata directly on the employee profile. -->
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-3 mt-2">Personal Details</h3>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="dateOfBirth" class="form-label fw-semibold">
+                    Date of Birth
+                  </label>
+                  <input type="date" id="dateOfBirth" class="form-control" />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="gender" class="form-label fw-semibold">
+                    Sex / Gender
+                  </label>
+                  <select id="gender" class="form-select">
+                    <option value="">Select sex / gender</option>
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="maritalStatus" class="form-label fw-semibold">
+                    Marital Status
+                  </label>
+                  <select id="maritalStatus" class="form-select">
+                    <option value="">Select marital status</option>
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                    <option value="Separated">Separated</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="nationality" class="form-label fw-semibold">
+                    Nationality
+                  </label>
+                  <input type="text" id="nationality" class="form-control" placeholder="Example: Nigerian" />
                 </div>
 
                 <div class="col-12">
@@ -1012,57 +1058,84 @@
                   <div class="invalid-feedback">Job title is required.</div>
                 </div>
 
-                <!-- ASSIGN LINE MANAGER - STEP 1
-     HR now selects an existing active employee as the assigned line manager.
-     The selected manager will populate Line Manager and Approver Email below. -->
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 3A
+     Reporting Lines supports the Product Owner requirement for two or more
+     managers while keeping the existing primary Line Manager / Approver Email
+     snapshot used by current workflow logic. -->
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-2 mt-2">Reporting Lines</h3>
+                  <p class="text-secondary small mb-0">
+                    Assign the employee’s primary manager and any additional reporting managers.
+                  </p>
+                </div>
+
                 <div class="col-md-6 col-xl-4">
                   <label for="assignedLineManagerEmployeeId" class="form-label fw-semibold">
-                    Assign Line Manager
+                    Primary Line Manager
                   </label>
                   <select id="assignedLineManagerEmployeeId" class="form-select">
-                    <option value="">Select line manager</option>
+                    <option value="">Select primary line manager</option>
                   </select>
                   <div class="form-text">
-                    Select an active employee to auto-fill manager name and approver email.
+                    Primary manager is used for workflow routing and approval defaults.
                   </div>
                 </div>
 
-                <!-- ASSIGN LINE MANAGER - STEP 1
-     This field is now auto-filled from Assign Line Manager.
-     It stays in the form because existing save logic already stores line_manager. -->
                 <div class="col-md-6 col-xl-4">
                   <label for="lineManager" class="form-label fw-semibold">
-                    Line Manager
+                    Primary Manager Name
                   </label>
                   <input type="text" id="lineManager" class="form-control bg-light"
                     placeholder="Auto-filled from selected manager" autocomplete="off" readonly />
                 </div>
 
-                <!-- DESCRIPTION ITEM 5 - SYNC FOUNDATION STEP 3A
-     Remove stray text that was breaking the employee form grid layout
-     before continuing employee-to-payroll alignment work. -->
+                <div class="col-md-6 col-xl-4">
+                  <label for="approverEmail" class="form-label fw-semibold">
+                    Primary Approver Email
+                  </label>
+                  <input type="email" id="approverEmail" class="form-control bg-light"
+                    placeholder="Auto-filled from selected manager" readonly />
+                  <div class="form-text">
+                    Used for workflow routing and approvals.
+                  </div>
+                  <div class="invalid-feedback">A valid approver email is required.</div>
+                </div>
 
+                <div class="col-12">
+                  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
+                      <div>
+                        <div class="fw-bold">Additional Reporting Managers</div>
+                        <div class="small text-secondary">
+                          Add secondary, dotted-line, or functional managers where the employee reports to more than one
+                          person.
+                        </div>
+                      </div>
+
+                      <button type="button" id="addEmployeeReportingLineBtn"
+                        class="btn btn-outline-primary dashboard-action-btn text-nowrap">
+                        <i class="bi bi-plus-circle me-2"></i>Add Manager
+                      </button>
+                    </div>
+
+                    <div id="employeeReportingLinesList">
+                      <div class="alert alert-light border mb-0" data-reporting-line-empty-state>
+                        No additional reporting managers added.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 3J
+     Employment Date is required by the employee save readiness check.
+     It must stay visible after the Reporting Lines section so Update Employee
+     can turn blue when the employee profile is complete. -->
                 <div class="col-md-6 col-xl-4">
                   <label for="employmentDate" class="form-label fw-semibold">
                     Employment Date <span class="text-danger">*</span>
                   </label>
                   <input type="date" id="employmentDate" class="form-control" required />
                   <div class="invalid-feedback">Employment date is required.</div>
-                </div>
-
-                <!-- ASSIGN LINE MANAGER - STEP 1
-     Approver Email is now auto-filled from the selected manager's work email.
-     This keeps workflow routing consistent and avoids manual typing errors. -->
-                <div class="col-md-6 col-xl-4">
-                  <label for="approverEmail" class="form-label fw-semibold">
-                    Approver Email <span class="text-danger">*</span>
-                  </label>
-                  <input type="email" id="approverEmail" class="form-control bg-light"
-                    placeholder="Auto-filled from selected manager" readonly />
-                  <div class="form-text">
-                    This email is used for workflow routing and approvals.
-                  </div>
-                  <div class="invalid-feedback">A valid approver email is required.</div>
                 </div>
 
                 <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1A
@@ -1087,7 +1160,21 @@
                     <option value="Active" selected>Active</option>
                     <option value="Inactive">Inactive</option>
                     <option value="Pending">Pending</option>
+                    <option value="Exited">Exited</option>
                   </select>
+                </div>
+
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 2B
+     Exit Date belongs to Employment Details because it marks employee lifecycle end.
+     It is optional and should normally be completed only when status is Exited/Inactive. -->
+                <div class="col-md-6 col-xl-4">
+                  <label for="exitDate" class="form-label fw-semibold">
+                    Exit Date
+                  </label>
+                  <input type="date" id="exitDate" class="form-control" />
+                  <div class="form-text">
+                    Complete only when the employee has left or is being offboarded.
+                  </div>
                 </div>
 
                 <!-- ASSIGN LINE MANAGER - STEP 1E
@@ -1119,6 +1206,146 @@
 
                   <div class="form-text">
                     Manager, Supervisor, HR Manager, and Leadership can be used as line managers.
+                  </div>
+                </div>
+
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 2B
+     HMO details are single-value employee benefit details.
+     Dependants/beneficiaries will be handled later as separate repeatable records. -->
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-3 mt-2">Benefits / HMO</h3>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="hmoProvider" class="form-label fw-semibold">
+                    HMO Provider
+                  </label>
+                  <input type="text" id="hmoProvider" class="form-control" placeholder="Enter HMO provider" />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="hmoPlan" class="form-label fw-semibold">
+                    HMO Plan
+                  </label>
+                  <input type="text" id="hmoPlan" class="form-control" placeholder="Enter HMO plan" />
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="hmoNumber" class="form-label fw-semibold">
+                    HMO Number
+                  </label>
+                  <input type="text" id="hmoNumber" class="form-control" placeholder="Enter HMO number" />
+                </div>
+
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 4B
+     Address Details are stored in employee_addresses, not flat employee columns.
+     The biodata form shows the two standard HR address types: Current and Permanent. -->
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-2 mt-2">Address Details</h3>
+                  <p class="text-secondary small mb-0">
+                    Capture the employee’s current residential address and permanent/home address.
+                  </p>
+                </div>
+
+                <div class="col-12">
+                  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="fw-bold mb-3">Current Address</div>
+
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label for="employeeCurrentAddressLine1" class="form-label fw-semibold">
+                          Current Address
+                        </label>
+                        <!-- EMPLOYEE BIODATA COMPLETION - STEP 4I
+     Disable browser address autofill popup on HR employee address fields. -->
+                        <input type="text" id="employeeCurrentAddressLine1" class="form-control"
+                          placeholder="Enter current address" autocomplete="new-password" />
+                        <div class="invalid-feedback">Current address is required if other current address details are
+                          entered.</div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeeCurrentCity" class="form-label fw-semibold">
+                          City
+                        </label>
+                        <input type="text" id="employeeCurrentCity" class="form-control" placeholder="Enter city"
+                          autocomplete="new-password" />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeeCurrentStateRegion" class="form-label fw-semibold">
+                          State / Region
+                        </label>
+                        <input type="text" id="employeeCurrentStateRegion" class="form-control"
+                          placeholder="Enter state or region" autocomplete="new-password" />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeeCurrentCountry" class="form-label fw-semibold">
+                          Country
+                        </label>
+                        <input type="text" id="employeeCurrentCountry" class="form-control" placeholder="Nigeria"
+                          autocomplete="new-password" />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeeCurrentPostalCode" class="form-label fw-semibold">
+                          Postal Code
+                        </label>
+                        <input type="text" id="employeeCurrentPostalCode" class="form-control"
+                          placeholder="Optional postal code" autocomplete="new-password" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="fw-bold mb-3">Permanent Address</div>
+
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label for="employeePermanentAddressLine1" class="form-label fw-semibold">
+                          Permanent Address
+                        </label>
+                        <input type="text" id="employeePermanentAddressLine1" class="form-control"
+                          placeholder="Enter permanent/home address" autocomplete="new-password" />
+                        <div class="invalid-feedback">Permanent address is required if other permanent address details
+                          are entered.</div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeePermanentCity" class="form-label fw-semibold">
+                          City
+                        </label>
+                        <input type="text" id="employeePermanentCity" class="form-control" placeholder="Enter city"
+                          autocomplete="new-password" />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeePermanentStateRegion" class="form-label fw-semibold">
+                          State / Region
+                        </label>
+                        <input type="text" id="employeePermanentStateRegion" class="form-control"
+                          placeholder="Enter state or region" autocomplete="new-password" />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeePermanentCountry" class="form-label fw-semibold">
+                          Country
+                        </label>
+                        <input type="text" id="employeePermanentCountry" class="form-control" placeholder="Nigeria"
+                          autocomplete="new-password" />
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeePermanentPostalCode" class="form-label fw-semibold">
+                          Postal Code
+                        </label>
+                        <input type="text" id="employeePermanentPostalCode" class="form-control"
+                          placeholder="Optional postal code" autocomplete="new-password" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1647,95 +1874,95 @@
 
           <!-- EMPLOYEE BANK DETAILS - STEP 2
          Keep this collapsed by default so Payroll workspace remains tidy. -->
-<div id="employeeBankDetailsCardCollapse" class="d-none mt-4">
-  <!-- SETUP REGRESSION POLISH - STEP 1A
+          <div id="employeeBankDetailsCardCollapse" class="d-none mt-4">
+            <!-- SETUP REGRESSION POLISH - STEP 1A
        Restore the Employee Bank Details form wrapper.
        The Cancel/reset logic depends on employeeBankDetailsForm.reset(). -->
-  <form id="employeeBankDetailsForm" class="dashboard-form" novalidate>
-    <input type="hidden" id="editingEmployeeBankDetailsId" />
+            <form id="employeeBankDetailsForm" class="dashboard-form" novalidate>
+              <input type="hidden" id="editingEmployeeBankDetailsId" />
 
-            <!-- HRP-83 RECOVERY - STEP 1A
+              <!-- HRP-83 RECOVERY - STEP 1A
                    Restore Employee Bank Details to its correct employee-bank form.
                    The Create Payroll select-all checkbox must not live inside this card. -->
-            <div class="row g-4">
-              <div class="col-md-6 col-xl-4">
-                <label for="employeeBankEmployeeId" class="form-label fw-semibold">
-                  Employee <span class="text-danger">*</span>
-                </label>
-                <select id="employeeBankEmployeeId" class="form-select dashboard-input" required>
-                  <option value="">Select employee</option>
-                </select>
-                <div class="invalid-feedback">Please select an employee.</div>
-              </div>
-              <div class="col-md-6 col-xl-4">
-                <label for="employeeBankBankId" class="form-label fw-semibold">
-                  Bank Name <span class="text-danger">*</span>
-                </label>
-                <select id="employeeBankBankId" class="form-select dashboard-input" required>
-                  <option value="">Select bank from Bank Directory</option>
-                </select>
-                <div class="invalid-feedback">Please select a bank.</div>
+              <div class="row g-4">
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankEmployeeId" class="form-label fw-semibold">
+                    Employee <span class="text-danger">*</span>
+                  </label>
+                  <select id="employeeBankEmployeeId" class="form-select dashboard-input" required>
+                    <option value="">Select employee</option>
+                  </select>
+                  <div class="invalid-feedback">Please select an employee.</div>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankBankId" class="form-label fw-semibold">
+                    Bank Name <span class="text-danger">*</span>
+                  </label>
+                  <select id="employeeBankBankId" class="form-select dashboard-input" required>
+                    <option value="">Select bank from Bank Directory</option>
+                  </select>
+                  <div class="invalid-feedback">Please select a bank.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankCode" class="form-label fw-semibold">
+                    Bank Code <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="employeeBankCode" class="form-control dashboard-input"
+                    placeholder="Auto-filled from selected bank" readonly required />
+                  <div class="invalid-feedback">Bank code is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankAccountNumber" class="form-label fw-semibold">
+                    Account Number <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="employeeBankAccountNumber" class="form-control dashboard-input"
+                    placeholder="Enter account number" inputmode="numeric" required />
+                  <div class="invalid-feedback">Account number is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankAccountName" class="form-label fw-semibold">
+                    Account Name <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" id="employeeBankAccountName" class="form-control dashboard-input"
+                    placeholder="Enter account name" required />
+                  <div class="invalid-feedback">Account name is required.</div>
+                </div>
+
+                <div class="col-md-6 col-xl-4">
+                  <label for="employeeBankStatus" class="form-label fw-semibold">
+                    Status <span class="text-danger">*</span>
+                  </label>
+                  <select id="employeeBankStatus" class="form-select dashboard-input" required>
+                    <option value="Active" selected>Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                  <div class="invalid-feedback">Status is required.</div>
+                </div>
               </div>
 
-              <div class="col-md-6 col-xl-4">
-                <label for="employeeBankCode" class="form-label fw-semibold">
-                  Bank Code <span class="text-danger">*</span>
-                </label>
-                <input type="text" id="employeeBankCode" class="form-control dashboard-input"
-                  placeholder="Auto-filled from selected bank" readonly required />
-                <div class="invalid-feedback">Bank code is required.</div>
-              </div>
-
-              <div class="col-md-6 col-xl-4">
-                <label for="employeeBankAccountNumber" class="form-label fw-semibold">
-                  Account Number <span class="text-danger">*</span>
-                </label>
-                <input type="text" id="employeeBankAccountNumber" class="form-control dashboard-input"
-                  placeholder="Enter account number" inputmode="numeric" required />
-                <div class="invalid-feedback">Account number is required.</div>
-              </div>
-
-              <div class="col-md-6 col-xl-4">
-                <label for="employeeBankAccountName" class="form-label fw-semibold">
-                  Account Name <span class="text-danger">*</span>
-                </label>
-                <input type="text" id="employeeBankAccountName" class="form-control dashboard-input"
-                  placeholder="Enter account name" required />
-                <div class="invalid-feedback">Account name is required.</div>
-              </div>
-
-              <div class="col-md-6 col-xl-4">
-                <label for="employeeBankStatus" class="form-label fw-semibold">
-                  Status <span class="text-danger">*</span>
-                </label>
-                <select id="employeeBankStatus" class="form-select dashboard-input" required>
-                  <option value="Active" selected>Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-                <div class="invalid-feedback">Status is required.</div>
-              </div>
-            </div>
-
-            <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
-              <!-- EMPLOYEE BANK DETAILS - STEP 2
+              <div class="d-flex flex-wrap gap-2 justify-content-end mt-4">
+                <!-- EMPLOYEE BANK DETAILS - STEP 2
                Disabled until save logic is wired in the next step. -->
-              <!-- EMPLOYEE BANK DETAILS - STEP 7
+                <!-- EMPLOYEE BANK DETAILS - STEP 7
      Make the button submit the Employee Bank Details form.
      The JS save handler will persist the record to Supabase. -->
-              <button type="submit" id="saveEmployeeBankDetailsBtn" class="btn btn-primary dashboard-action-btn"
-                disabled>
-                <i class="bi bi-save me-2"></i>
-                <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
-              </button>
+                <button type="submit" id="saveEmployeeBankDetailsBtn" class="btn btn-primary dashboard-action-btn"
+                  disabled>
+                  <i class="bi bi-save me-2"></i>
+                  <span id="employeeBankDetailsSubmitLabel">Save Employee Bank Details</span>
+                </button>
 
-<!-- SETUP REGRESSION POLISH - STEP 1B
+                <!-- SETUP REGRESSION POLISH - STEP 1B
      Cancel is a discard/exit action, so use the danger outline
      consistently with other edit-cancel buttons. -->
-<button type="button" id="cancelEmployeeBankDetailsEditBtn"
-  class="btn btn-outline-danger dashboard-action-btn">
-  <i class="bi bi-x-circle me-2"></i>Cancel
-</button>
-            </div>
+                <button type="button" id="cancelEmployeeBankDetailsEditBtn"
+                  class="btn btn-outline-danger dashboard-action-btn">
+                  <i class="bi bi-x-circle me-2"></i>Cancel
+                </button>
+              </div>
             </form>
 
             <hr class="my-4" />
@@ -1923,13 +2150,6 @@
                    DESCRIPTION ITEM 1 - STEP 2C
                    Optional notes and save action for payroll master record
               ========================================================== -->
-                <div class="col-12">
-                  <label for="payrollMasterNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <textarea id="payrollMasterNotes" class="form-control" rows="3"
-                    placeholder="Optional payroll master notes"></textarea>
-                </div>
                 <div class="col-12">
                   <div class="d-flex flex-wrap gap-2 pt-2">
                     <button type="submit" id="savePayrollMasterBtn" class="btn btn-primary dashboard-action-btn">
@@ -2125,13 +2345,7 @@
                   </select>
                 </div>
 
-                <div class="col-12">
-                  <label for="payrollAllowanceNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <textarea id="payrollAllowanceNotes" class="form-control" rows="3"
-                    placeholder="Optional allowance notes"></textarea>
-                </div>
+
                 <div class="col-12">
                   <div class="d-flex flex-wrap gap-2 pt-2">
                     <button type="submit" id="savePayrollAllowanceBtn" class="btn btn-primary dashboard-action-btn">
@@ -2357,13 +2571,7 @@
                   </select>
                 </div>
 
-                <div class="col-12">
-                  <label for="payrollStatutoryNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <textarea id="payrollStatutoryNotes" class="form-control" rows="3"
-                    placeholder="Optional statutory deduction notes"></textarea>
-                </div>
+
 
                 <!-- DESCRIPTION ITEM 3 - STEP 2B
                    Save controls for Statutory Deductions.
@@ -2571,13 +2779,6 @@
                   </select>
                 </div>
 
-                <div class="col-12">
-                  <label for="payrollOtherDeductionNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <textarea id="payrollOtherDeductionNotes" class="form-control" rows="3"
-                    placeholder="Optional deduction notes"></textarea>
-                </div>
 
                 <!-- DESCRIPTION ITEM 4 - STEP 2
                      Save remains disabled in this UI shell step.
@@ -2861,13 +3062,10 @@
                     placeholder="Explain why this employee-specific override is needed" required></textarea>
                 </div>
 
-                <div class="col-12">
-                  <label for="payrollEmployeeOverrideNotes" class="form-label fw-semibold">
-                    Notes
-                  </label>
-                  <textarea id="payrollEmployeeOverrideNotes" class="form-control" rows="2"
-                    placeholder="Optional override notes"></textarea>
-                </div>
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 4J
+     Removed the visible Notes field from Employee Payroll Overrides.
+     Reason, Approval Reference, and Rule Snapshot already provide the
+     required HR/payroll audit context, so Notes is unnecessary here. -->
               </div>
 
               <div class="d-flex flex-wrap gap-2 mt-4">
@@ -2877,14 +3075,14 @@
                   <span id="savePayrollEmployeeOverrideBtnText">Create Employee Override</span>
                 </button>
 
-<!-- SETUP REGRESSION POLISH - STEP 1C
+                <!-- SETUP REGRESSION POLISH - STEP 1C
      Cancel Edit should use the same red outline pattern
      as other payroll setup edit-cancel actions. -->
-<button type="button" id="cancelPayrollEmployeeOverrideEditBtn"
-  class="btn btn-outline-danger dashboard-action-btn d-none">
-  <i class="bi bi-x-circle me-2"></i>
-  Cancel Edit
-</button>
+                <button type="button" id="cancelPayrollEmployeeOverrideEditBtn"
+                  class="btn btn-outline-danger dashboard-action-btn d-none">
+                  <i class="bi bi-x-circle me-2"></i>
+                  Cancel Edit
+                </button>
 
                 <button type="button" id="resetPayrollEmployeeOverrideFormBtn"
                   class="btn btn-outline-secondary dashboard-action-btn">
@@ -3649,11 +3847,7 @@
                     </div>
                   </div>
 
-                  <div class="col-12">
-                    <label for="payrollNotes" class="form-label fw-semibold">Notes</label>
-                    <textarea id="payrollNotes" class="form-control" rows="3"
-                      placeholder="Optional payroll notes"></textarea>
-                  </div>
+
 
                   <div class="col-12">
                     <div class="d-flex flex-wrap gap-2 pt-2">

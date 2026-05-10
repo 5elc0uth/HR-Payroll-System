@@ -9,25 +9,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     // This avoids manually cutting a large HTML card and keeps existing IDs/events intact.
     alignPayrollWorkspaceCardOrder();
 
-// EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2C
-// Keep the People workspace in the correct operational order:
-// Summary first, Full Employee List next, then create/import actions.
-alignEmployeeWorkspaceCardOrder();
+    // EMPLOYEE WORKSPACE LAYOUT - HR/PAYROLL STANDARD STEP 2C
+    // Keep the People workspace in the correct operational order:
+    // Summary first, Full Employee List next, then create/import actions.
+    alignEmployeeWorkspaceCardOrder();
 
-// SETUP WORKSPACE FUNCTIONAL GROUPING - STEP 1A
-// Creates a lightweight visual header inside Setup.
-// These headers group existing cards by HR/payroll function without
-// recreating cards or changing any existing form IDs, events, or save/edit logic.
-function createSetupWorkspaceGroupHeader(id, title, description, iconClass) {
-  let header = document.getElementById(id);
+    // SETUP WORKSPACE FUNCTIONAL GROUPING - STEP 1A
+    // Creates a lightweight visual header inside Setup.
+    // These headers group existing cards by HR/payroll function without
+    // recreating cards or changing any existing form IDs, events, or save/edit logic.
+    function createSetupWorkspaceGroupHeader(id, title, description, iconClass) {
+      let header = document.getElementById(id);
 
-  if (!header) {
-    header = document.createElement("section");
-    header.id = id;
-    header.className = "card dashboard-section-card mb-3";
-  }
+      if (!header) {
+        header = document.createElement("section");
+        header.id = id;
+        header.className = "card dashboard-section-card mb-3";
+      }
 
-  header.innerHTML = `
+      header.innerHTML = `
     <div class="card-body p-4">
       <div class="d-flex align-items-start gap-3">
         <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center flex-shrink-0"
@@ -43,81 +43,81 @@ function createSetupWorkspaceGroupHeader(id, title, description, iconClass) {
     </div>
   `;
 
-  return header;
-}
+      return header;
+    }
 
-// SETUP WORKSPACE FUNCTIONAL GROUPING - STEP 1B
-// Group Setup cards by function:
-// 1. Organization Setup
-// 2. Payroll Setup
-// 3. Payment Setup
-//
-// Existing cards are moved only. They are not recreated, so existing
-// collapse buttons, forms, event handlers, records tables, and Supabase
-// refresh logic remain intact.
-function alignSetupWorkspaceCardOrder() {
-  const setupSection = state.dom.hrSetupSection;
-  const setupLandingCard = state.dom.hrSetupLandingCard;
+    // SETUP WORKSPACE FUNCTIONAL GROUPING - STEP 1B
+    // Group Setup cards by function:
+    // 1. Organization Setup
+    // 2. Payroll Setup
+    // 3. Payment Setup
+    //
+    // Existing cards are moved only. They are not recreated, so existing
+    // collapse buttons, forms, event handlers, records tables, and Supabase
+    // refresh logic remain intact.
+    function alignSetupWorkspaceCardOrder() {
+      const setupSection = state.dom.hrSetupSection;
+      const setupLandingCard = state.dom.hrSetupLandingCard;
 
-  if (!setupSection || !setupLandingCard) return;
+      if (!setupSection || !setupLandingCard) return;
 
-  const organizationSetupHeader = createSetupWorkspaceGroupHeader(
-    "setupOrganizationGroupHeader",
-    "Organization Setup",
-    "Maintain company identity, departments, job titles, and organisation-level HR/payroll defaults.",
-    "bi bi-building-gear",
-  );
+      const organizationSetupHeader = createSetupWorkspaceGroupHeader(
+        "setupOrganizationGroupHeader",
+        "Organization Setup",
+        "Maintain company identity, departments, job titles, and organisation-level HR/payroll defaults.",
+        "bi bi-building-gear",
+      );
 
-  const payrollSetupHeader = createSetupWorkspaceGroupHeader(
-    "setupPayrollGroupHeader",
-    "Payroll Setup",
-    "Maintain payroll master data, allowances, deductions, and employee-specific payroll overrides.",
-    "bi bi-sliders",
-  );
+      const payrollSetupHeader = createSetupWorkspaceGroupHeader(
+        "setupPayrollGroupHeader",
+        "Payroll Setup",
+        "Maintain payroll master data, allowances, deductions, and employee-specific payroll overrides.",
+        "bi bi-sliders",
+      );
 
-  const paymentSetupHeader = createSetupWorkspaceGroupHeader(
-    "setupPaymentGroupHeader",
-    "Payment Setup",
-    "Maintain approved banks and employee bank accounts used for payroll payment processing.",
-    "bi bi-bank",
-  );
+      const paymentSetupHeader = createSetupWorkspaceGroupHeader(
+        "setupPaymentGroupHeader",
+        "Payment Setup",
+        "Maintain approved banks and employee bank accounts used for payroll payment processing.",
+        "bi bi-bank",
+      );
 
-  const organizationCards = [
-    state.dom.organizationSettingsCardCollapse?.closest(".dashboard-section-card"),
-  ].filter(Boolean);
+      const organizationCards = [
+        state.dom.organizationSettingsCardCollapse?.closest(".dashboard-section-card"),
+      ].filter(Boolean);
 
-  const payrollSetupCards = [
-    state.dom.payrollMasterCardCollapse?.closest(".dashboard-section-card"),
-    state.dom.payrollAllowanceCardCollapse?.closest(".dashboard-section-card"),
-    state.dom.payrollStatutoryCardCollapse?.closest(".dashboard-section-card"),
-    state.dom.payrollOtherDeductionCardCollapse?.closest(".dashboard-section-card"),
-    state.dom.payrollEmployeeOverrideCardCollapse?.closest(".dashboard-section-card"),
-  ].filter(Boolean);
+      const payrollSetupCards = [
+        state.dom.payrollMasterCardCollapse?.closest(".dashboard-section-card"),
+        state.dom.payrollAllowanceCardCollapse?.closest(".dashboard-section-card"),
+        state.dom.payrollStatutoryCardCollapse?.closest(".dashboard-section-card"),
+        state.dom.payrollOtherDeductionCardCollapse?.closest(".dashboard-section-card"),
+        state.dom.payrollEmployeeOverrideCardCollapse?.closest(".dashboard-section-card"),
+      ].filter(Boolean);
 
-  const paymentSetupCards = [
-    state.dom.bankDirectoryCardCollapse?.closest(".dashboard-section-card"),
-    state.dom.employeeBankDetailsCardCollapse?.closest(".dashboard-section-card"),
-  ].filter(Boolean);
+      const paymentSetupCards = [
+        state.dom.bankDirectoryCardCollapse?.closest(".dashboard-section-card"),
+        state.dom.employeeBankDetailsCardCollapse?.closest(".dashboard-section-card"),
+      ].filter(Boolean);
 
-  [
-    organizationSetupHeader,
-    ...organizationCards,
-    payrollSetupHeader,
-    ...payrollSetupCards,
-    paymentSetupHeader,
-    ...paymentSetupCards,
-  ].forEach((card) => {
-    card.classList.add("mb-4");
-    setupSection.appendChild(card);
-  });
-}
+      [
+        organizationSetupHeader,
+        ...organizationCards,
+        payrollSetupHeader,
+        ...payrollSetupCards,
+        paymentSetupHeader,
+        ...paymentSetupCards,
+      ].forEach((card) => {
+        card.classList.add("mb-4");
+        setupSection.appendChild(card);
+      });
+    }
 
-// WORKSPACE REARRANGEMENT - STEP 1D
-// Move setup/master-data cards into the new Setup workspace before
-// default card collapse runs, so collapse state stays consistent.
-alignSetupWorkspaceCardOrder();
+    // WORKSPACE REARRANGEMENT - STEP 1D
+    // Move setup/master-data cards into the new Setup workspace before
+    // default card collapse runs, so collapse state stays consistent.
+    alignSetupWorkspaceCardOrder();
 
-// DESCRIPTION ITEM 4 - STEP 2B
+    // DESCRIPTION ITEM 4 - STEP 2B
     // Start long HR/payroll working cards collapsed by default.
     // This keeps the workspace clean while preserving all existing
     // save/edit flows that reopen cards when needed.
@@ -631,28 +631,28 @@ function cacheDomElements() {
     refreshEmployeesBtn: document.getElementById("refreshEmployeesBtn"),
     cancelEditBtn: document.getElementById("cancelEditBtn"),
 
-hrTabProfileBtn: document.getElementById("hrTabProfileBtn"),
-hrTabEmployeesBtn: document.getElementById("hrTabEmployeesBtn"),
+    hrTabProfileBtn: document.getElementById("hrTabProfileBtn"),
+    hrTabEmployeesBtn: document.getElementById("hrTabEmployeesBtn"),
 
-// WORKSPACE REARRANGEMENT - STEP 1C
-// New Setup workspace tab for organisation, payroll, deduction, and bank master data.
-hrTabSetupBtn: document.getElementById("hrTabSetupBtn"),
+    // WORKSPACE REARRANGEMENT - STEP 1C
+    // New Setup workspace tab for organisation, payroll, deduction, and bank master data.
+    hrTabSetupBtn: document.getElementById("hrTabSetupBtn"),
 
-hrTabPayrollBtn: document.getElementById("hrTabPayrollBtn"),
+    hrTabPayrollBtn: document.getElementById("hrTabPayrollBtn"),
 
     // RUN PAYROLL - STEP 1
     // Cache the primary Run Payroll workflow button in the HR workspace header.
     runPayrollActionBtn: document.getElementById("runPayrollActionBtn"),
 
-hrProfileSection: document.getElementById("hrProfileSection"),
-hrEmployeesSection: document.getElementById("hrEmployeesSection"),
+    hrProfileSection: document.getElementById("hrProfileSection"),
+    hrEmployeesSection: document.getElementById("hrEmployeesSection"),
 
-// WORKSPACE REARRANGEMENT - STEP 1C
-// Setup section receives existing setup/master-data cards at runtime.
-hrSetupSection: document.getElementById("hrSetupSection"),
-hrSetupLandingCard: document.getElementById("hrSetupLandingCard"),
+    // WORKSPACE REARRANGEMENT - STEP 1C
+    // Setup section receives existing setup/master-data cards at runtime.
+    hrSetupSection: document.getElementById("hrSetupSection"),
+    hrSetupLandingCard: document.getElementById("hrSetupLandingCard"),
 
-hrPayrollSection: document.getElementById("hrPayrollSection"),
+    hrPayrollSection: document.getElementById("hrPayrollSection"),
 
     hrInitials: document.getElementById("hrInitials"),
     hrHeroImage: document.getElementById("hrHeroImage"),
@@ -702,7 +702,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     organizationDefaultCurrency: document.getElementById("organizationDefaultCurrency"),
     organizationDefaultPayCycle: document.getElementById("organizationDefaultPayCycle"),
     organizationStatus: document.getElementById("organizationStatus"),
-    organizationNotes: document.getElementById("organizationNotes"),
     saveOrganizationSettingsBtn: document.getElementById("saveOrganizationSettingsBtn"),
     organizationSettingsSubmitLabel: document.getElementById("organizationSettingsSubmitLabel"),
     // ORGANIZATION HR SETUP VALUES - STEP 4B-4A
@@ -722,7 +721,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     editingOrganizationDepartmentId: document.getElementById("editingOrganizationDepartmentId"),
     organizationDepartmentName: document.getElementById("organizationDepartmentName"),
     organizationDepartmentStatus: document.getElementById("organizationDepartmentStatus"),
-    organizationDepartmentNotes: document.getElementById("organizationDepartmentNotes"),
     saveOrganizationDepartmentBtn: document.getElementById("saveOrganizationDepartmentBtn"),
     organizationDepartmentSubmitLabel: document.getElementById("organizationDepartmentSubmitLabel"),
     cancelOrganizationDepartmentEditBtn: document.getElementById("cancelOrganizationDepartmentEditBtn"),
@@ -737,7 +735,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     organizationJobTitleDepartmentId: document.getElementById("organizationJobTitleDepartmentId"),
     organizationJobTitleName: document.getElementById("organizationJobTitleName"),
     organizationJobTitleStatus: document.getElementById("organizationJobTitleStatus"),
-    organizationJobTitleNotes: document.getElementById("organizationJobTitleNotes"),
     saveOrganizationJobTitleBtn: document.getElementById("saveOrganizationJobTitleBtn"),
     organizationJobTitleSubmitLabel: document.getElementById("organizationJobTitleSubmitLabel"),
     cancelOrganizationJobTitleEditBtn: document.getElementById("cancelOrganizationJobTitleEditBtn"),
@@ -761,6 +758,32 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
 
     lastName: document.getElementById("lastName"),
     workEmail: document.getElementById("workEmail"),
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 2C
+    // Additional single-value employee biodata fields added after DB migration.
+    personalEmail: document.getElementById("personalEmail"),
+    dateOfBirth: document.getElementById("dateOfBirth"),
+    gender: document.getElementById("gender"),
+    maritalStatus: document.getElementById("maritalStatus"),
+    nationality: document.getElementById("nationality"),
+    exitDate: document.getElementById("exitDate"),
+    hmoProvider: document.getElementById("hmoProvider"),
+    hmoPlan: document.getElementById("hmoPlan"),
+    hmoNumber: document.getElementById("hmoNumber"),
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 4C
+    // Current/Permanent address fields are saved to employee_addresses.
+    employeeCurrentAddressLine1: document.getElementById("employeeCurrentAddressLine1"),
+    employeeCurrentCity: document.getElementById("employeeCurrentCity"),
+    employeeCurrentStateRegion: document.getElementById("employeeCurrentStateRegion"),
+    employeeCurrentCountry: document.getElementById("employeeCurrentCountry"),
+    employeeCurrentPostalCode: document.getElementById("employeeCurrentPostalCode"),
+    employeePermanentAddressLine1: document.getElementById("employeePermanentAddressLine1"),
+    employeePermanentCity: document.getElementById("employeePermanentCity"),
+    employeePermanentStateRegion: document.getElementById("employeePermanentStateRegion"),
+    employeePermanentCountry: document.getElementById("employeePermanentCountry"),
+    employeePermanentPostalCode: document.getElementById("employeePermanentPostalCode"),
+
     phoneNumber: document.getElementById("phoneNumber"),
     department: document.getElementById("department"),
     jobTitle: document.getElementById("jobTitle"),
@@ -773,8 +796,14 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     lineManager: document.getElementById("lineManager"),
     employmentDate: document.getElementById("employmentDate"),
     approverEmail: document.getElementById("approverEmail"),
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 3B
+    // Additional reporting lines are saved to employee_reporting_lines.
+    // The existing primary manager fields above remain as the main workflow snapshot.
+    addEmployeeReportingLineBtn: document.getElementById("addEmployeeReportingLineBtn"),
+    employeeReportingLinesList: document.getElementById("employeeReportingLinesList"),
+
     employeeNumber: document.getElementById("employeeNumber"),
-    employmentStatus: document.getElementById("employmentStatus"),
 
     // ASSIGN LINE MANAGER - STEP 1E
     // System Role is saved on employee records and displayed in the employee list.
@@ -1027,7 +1056,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     payrollMasterEffectiveDate: document.getElementById("payrollMasterEffectiveDate"),
     payrollMasterPayCycle: document.getElementById("payrollMasterPayCycle"),
     payrollMasterStatus: document.getElementById("payrollMasterStatus"),
-    payrollMasterNotes: document.getElementById("payrollMasterNotes"),
 
     payrollMasterSearchInput: document.getElementById("payrollMasterSearchInput"),
 
@@ -1065,7 +1093,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     payrollAllowanceAmount: document.getElementById("payrollAllowanceAmount"),
     payrollAllowanceEffectiveDate: document.getElementById("payrollAllowanceEffectiveDate"),
     payrollAllowanceStatus: document.getElementById("payrollAllowanceStatus"),
-    payrollAllowanceNotes: document.getElementById("payrollAllowanceNotes"),
 
     payrollAllowanceSearchInput: document.getElementById("payrollAllowanceSearchInput"),
 
@@ -1107,7 +1134,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     payrollStatutoryGradeLevelSnapshot: document.getElementById("payrollStatutoryGradeLevelSnapshot"),
     payrollStatutoryGradeLevelHelp: document.getElementById("payrollStatutoryGradeLevelHelp"),
     payrollStatutoryStatus: document.getElementById("payrollStatutoryStatus"),
-    payrollStatutoryNotes: document.getElementById("payrollStatutoryNotes"),
 
     // DESCRIPTION ITEM 3 - STEP 2B
     // Cache Statutory Deduction create controls.
@@ -1143,7 +1169,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     payrollOtherDeductionStartDate: document.getElementById("payrollOtherDeductionStartDate"),
     payrollOtherDeductionReferenceNumber: document.getElementById("payrollOtherDeductionReferenceNumber"),
     payrollOtherDeductionStatus: document.getElementById("payrollOtherDeductionStatus"),
-    payrollOtherDeductionNotes: document.getElementById("payrollOtherDeductionNotes"),
     savePayrollOtherDeductionBtn: document.getElementById("savePayrollOtherDeductionBtn"),
     savePayrollOtherDeductionBtnText: document.getElementById("savePayrollOtherDeductionBtnText"),
     cancelPayrollOtherDeductionEditBtn: document.getElementById("cancelPayrollOtherDeductionEditBtn"),
@@ -1175,7 +1200,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     payrollEmployeeOverrideApprovalReference: document.getElementById("payrollEmployeeOverrideApprovalReference"),
     payrollEmployeeOverrideRuleSnapshot: document.getElementById("payrollEmployeeOverrideRuleSnapshot"),
     payrollEmployeeOverrideReason: document.getElementById("payrollEmployeeOverrideReason"),
-    payrollEmployeeOverrideNotes: document.getElementById("payrollEmployeeOverrideNotes"),
     savePayrollEmployeeOverrideBtn: document.getElementById("savePayrollEmployeeOverrideBtn"),
     savePayrollEmployeeOverrideBtnText: document.getElementById("savePayrollEmployeeOverrideBtnText"),
     cancelPayrollEmployeeOverrideEditBtn: document.getElementById("cancelPayrollEmployeeOverrideEditBtn"),
@@ -1354,7 +1378,6 @@ hrPayrollSection: document.getElementById("hrPayrollSection"),
     payrollNetPay: document.getElementById("payrollNetPay"),
     payrollCurrency: document.getElementById("payrollCurrency"),
     payrollIsFinalised: document.getElementById("payrollIsFinalised"),
-    payrollNotes: document.getElementById("payrollNotes"),
 
     // BATCH PAYROLL DEFAULT - STEP 6D
     // Floating page-level shortcut for long HR/payroll screens.
@@ -1623,20 +1646,27 @@ function openEmployeeListCard() {
   );
 }
 
-// REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 4
-// After save, land at the start of the Full Employee List card.
-// Use the parent card as the scroll target so the card starts cleanly
-// without leaving a large blank gap above the heading.
+// EMPLOYEE BIODATA COMPLETION - STEP 3K
+// After create/update, always return HR to the open Full Employee List.
+// This is stronger than a direct scroll because the list card may have been
+// collapsed earlier during editing or default dashboard cleanup.
 function redirectToFullEmployeeListAfterEmployeeSave() {
+  switchHrWorkspace("employees");
   closeEmployeeFormCard();
   openEmployeeListCard();
 
-  const employeeListCard =
-    state.dom.employeeListCardCollapse?.closest(".dashboard-section-card") ||
-    state.dom.employeeListCardHeader ||
-    state.dom.employeeListCardCollapse;
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      openEmployeeListCard();
 
-  scrollToDashboardTarget(employeeListCard, 16);
+      const employeeListCard =
+        state.dom.employeeListCardCollapse?.closest(".dashboard-section-card") ||
+        state.dom.employeeListCardHeader ||
+        state.dom.employeeListCardCollapse;
+
+      scrollToDashboardTarget(employeeListCard, 16);
+    });
+  });
 }
 
 // REMOVE GRADE LEVEL FIELD FROM EMPLOYEE DATA - STEP 3
@@ -3207,7 +3237,6 @@ function resetPayrollEmployeeOverrideForm() {
     state.dom.payrollEmployeeOverrideApprovalReference,
     state.dom.payrollEmployeeOverrideRuleSnapshot,
     state.dom.payrollEmployeeOverrideReason,
-    state.dom.payrollEmployeeOverrideNotes,
   ].forEach((field) => {
     if (field) {
       field.value = "";
@@ -4187,31 +4216,31 @@ function bindEvents() {
     switchHrWorkspace("profile");
   });
 
-state.dom.hrTabEmployeesBtn?.addEventListener("click", () => {
+  state.dom.hrTabEmployeesBtn?.addEventListener("click", () => {
+    // WORKSPACE REARRANGEMENT - STEP 1G
+    // Opening People directly should show normal employee records,
+    // not the Run Payroll selection version with Pay checkboxes.
+    state.isRunPayrollSelectionMode = false;
+    state.selectedEmployeesForPayroll.clear();
+    state.dom.runPayrollSelectionNotice?.classList.add("d-none");
+
+    switchHrWorkspace("employees");
+    applyEmployeeSearch();
+    syncSelectAllEmployeesForPayrollCheckbox();
+  });
+
   // WORKSPACE REARRANGEMENT - STEP 1G
-  // Opening People directly should show normal employee records,
-  // not the Run Payroll selection version with Pay checkboxes.
-  state.isRunPayrollSelectionMode = false;
-  state.selectedEmployeesForPayroll.clear();
-  state.dom.runPayrollSelectionNotice?.classList.add("d-none");
+  // Setup contains master data and configuration; it should not carry
+  // any active Run Payroll selection state.
+  state.dom.hrTabSetupBtn?.addEventListener("click", () => {
+    state.isRunPayrollSelectionMode = false;
+    state.selectedEmployeesForPayroll.clear();
+    state.dom.runPayrollSelectionNotice?.classList.add("d-none");
 
-  switchHrWorkspace("employees");
-  applyEmployeeSearch();
-  syncSelectAllEmployeesForPayrollCheckbox();
-});
+    switchHrWorkspace("setup");
+  });
 
-// WORKSPACE REARRANGEMENT - STEP 1G
-// Setup contains master data and configuration; it should not carry
-// any active Run Payroll selection state.
-state.dom.hrTabSetupBtn?.addEventListener("click", () => {
-  state.isRunPayrollSelectionMode = false;
-  state.selectedEmployeesForPayroll.clear();
-  state.dom.runPayrollSelectionNotice?.classList.add("d-none");
-
-  switchHrWorkspace("setup");
-});
-
-state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
+  state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
     // BATCH PAYROLL DEFAULT - STEP 6A
     // Manual Payroll tab access should show the normal payroll workspace,
     // not a leftover batch review from the Run Payroll guided flow.
@@ -4326,6 +4355,20 @@ state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
     state.dom.middleName,
     state.dom.lastName,
     state.dom.workEmail,
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 2G
+    // Optional biodata fields should still refresh Save button readiness
+    // when HR enters invalid optional email or changes lifecycle details.
+    state.dom.personalEmail,
+    state.dom.dateOfBirth,
+    state.dom.gender,
+    state.dom.maritalStatus,
+    state.dom.nationality,
+    state.dom.exitDate,
+    state.dom.hmoProvider,
+    state.dom.hmoPlan,
+    state.dom.hmoNumber,
+
     state.dom.phoneNumber,
     state.dom.department,
     state.dom.jobTitle,
@@ -4358,10 +4401,18 @@ state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
     populateJobTitleOptionsForDepartment("");
   });
 
-  // ASSIGN LINE MANAGER - STEP 1
-  // Selecting a manager auto-fills Line Manager and Approver Email.
+  // EMPLOYEE BIODATA COMPLETION - STEP 3I
+  // Selecting a primary manager auto-fills manager/approver fields and
+  // immediately refreshes the employee save button state.
   state.dom.assignedLineManagerEmployeeId?.addEventListener("change", () => {
     applyAssignedLineManagerSelection();
+    updateEmployeeSaveButtonState();
+  });
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 3D
+  // Add secondary/dotted-line reporting managers into the repeatable child table UI.
+  state.dom.addEmployeeReportingLineBtn?.addEventListener("click", () => {
+    addEmployeeReportingLineRow();
   });
 
   populateJobTitleOptionsForDepartment(state.dom.jobTitle?.value || "");
@@ -4411,7 +4462,6 @@ state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
     state.dom.organizationCity,
     state.dom.organizationTin,
     state.dom.organizationRegistrationNumber,
-    state.dom.organizationNotes,
   ].forEach((field) => {
     field?.addEventListener("input", updateOrganizationSettingsSaveButtonState);
     field?.addEventListener("change", updateOrganizationSettingsSaveButtonState);
@@ -4777,7 +4827,6 @@ state.dom.hrTabPayrollBtn?.addEventListener("click", () => {
     state.dom.payrollStatutoryEffectiveDate,
     state.dom.payrollStatutoryConfigSource,
     state.dom.payrollStatutoryStatus,
-    state.dom.payrollStatutoryNotes,
   ].forEach((field) => {
     field?.addEventListener("input", updatePayrollStatutorySaveButtonState);
     field?.addEventListener("change", updatePayrollStatutorySaveButtonState);
@@ -6465,6 +6514,572 @@ function syncAssignedLineManagerFromSavedValues(employee = {}) {
   }
 }
 
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Return manager candidates that can be assigned as reporting lines.
+// This mirrors the existing Primary Line Manager rule: active employees
+// with manager-level roles or manager-style job titles only.
+function getEmployeeReportingLineManagerCandidates() {
+  const currentEditingEmployeeId = String(
+    state.currentEditingEmployee?.id || state.dom.editingEmployeeId?.value || "",
+  ).trim();
+
+  const managerEligibleRoles = new Set([
+    "manager",
+    "supervisor",
+    "hr_manager",
+    "leadership",
+  ]);
+
+  return (state.employees || [])
+    .filter((employee) => {
+      const isActive = normalizeText(employee.status) === "active";
+      const hasEmail = Boolean(String(employee.work_email || "").trim());
+      const isNotCurrentEmployee =
+        String(employee.id || "").trim() !== currentEditingEmployeeId;
+
+      const systemRole = normalizeText(employee.system_role || employee.role || "");
+      const jobTitle = normalizeText(employee.job_title || "");
+
+      const hasManagerRole = managerEligibleRoles.has(systemRole);
+
+      const hasManagerJobTitle =
+        jobTitle.includes("manager") ||
+        jobTitle.includes("supervisor") ||
+        jobTitle.includes("lead") ||
+        jobTitle.includes("head");
+
+      return (
+        isActive &&
+        hasEmail &&
+        isNotCurrentEmployee &&
+        (hasManagerRole || hasManagerJobTitle)
+      );
+    })
+    .sort((a, b) =>
+      getEmployeeManagerDisplayName(a).localeCompare(
+        getEmployeeManagerDisplayName(b),
+      ),
+    );
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Build select options for additional reporting manager rows.
+function buildEmployeeReportingLineManagerOptions(selectedManagerId = "") {
+  const selectedId = String(selectedManagerId || "").trim();
+  const candidates = getEmployeeReportingLineManagerCandidates();
+
+  const options = [
+    `<option value="">Select manager</option>`,
+  ];
+
+  candidates.forEach((employee) => {
+    const employeeId = String(employee.id || "").trim();
+    const selected = employeeId === selectedId ? " selected" : "";
+
+    options.push(`
+      <option value="${escapeHtml(employeeId)}"${selected}
+        data-manager-name="${escapeHtml(getEmployeeManagerDisplayName(employee))}"
+        data-manager-email="${escapeHtml(String(employee.work_email || "").trim().toLowerCase())}">
+        ${escapeHtml(getEmployeeManagerDisplayName(employee))} — ${escapeHtml(employee.work_email || "--")}
+      </option>
+    `);
+  });
+
+  return options.join("");
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Empty-state for additional reporting lines.
+function renderEmployeeReportingLinesEmptyStateIfNeeded() {
+  const container = state.dom.employeeReportingLinesList;
+  if (!container) return;
+
+  const hasRows = Boolean(
+    container.querySelector("[data-employee-reporting-line-row]"),
+  );
+
+  if (hasRows) return;
+
+  container.innerHTML = `
+    <div class="alert alert-light border mb-0" data-reporting-line-empty-state>
+      No additional reporting managers added.
+    </div>
+  `;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Add one additional reporting manager row.
+// This is not a placeholder: rows are read and saved to employee_reporting_lines.
+function addEmployeeReportingLineRow(rowData = {}) {
+  const container = state.dom.employeeReportingLinesList;
+  if (!container) return;
+
+  container.querySelector("[data-reporting-line-empty-state]")?.remove();
+
+  const row = document.createElement("div");
+  row.className = "border rounded-4 p-3 mb-3 bg-white";
+  row.dataset.employeeReportingLineRow = "true";
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 3I
+  // Keep additional reporting lines simple in the employee biodata form.
+  // The Product Owner asked for 2+ line managers, not complex reporting types.
+  // Additional managers are saved as Secondary by default.
+  row.innerHTML = `
+    <div class="row g-3 align-items-end">
+      <div class="col-md-11">
+        <label class="form-label fw-semibold">Secondary Manager</label>
+        <select class="form-select" data-reporting-line-manager-id>
+          ${buildEmployeeReportingLineManagerOptions(rowData.managerEmployeeId || "")}
+        </select>
+        <div class="invalid-feedback">Select a secondary manager or remove this row.</div>
+      </div>
+
+      <div class="col-md-1">
+        <button type="button" class="btn btn-outline-danger w-100"
+          title="Remove secondary manager" data-remove-reporting-line-row>
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+
+      <input type="hidden" data-reporting-line-manager-type value="Secondary" />
+    </div>
+  `;
+
+  container.appendChild(row);
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 3I
+  // Manager Type is hidden in the biodata form and saved as Secondary.
+  const managerType = row.querySelector("[data-reporting-line-manager-type]");
+  if (managerType) managerType.value = "Secondary";
+
+  row.querySelectorAll("select, input").forEach((field) => {
+    field.addEventListener("input", updateEmployeeSaveButtonState);
+    field.addEventListener("change", updateEmployeeSaveButtonState);
+  });
+
+  row.querySelector("[data-remove-reporting-line-row]")?.addEventListener("click", () => {
+    row.remove();
+    renderEmployeeReportingLinesEmptyStateIfNeeded();
+    updateEmployeeSaveButtonState();
+  });
+
+  updateEmployeeSaveButtonState();
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Reset additional reporting lines when the employee form clears.
+function resetEmployeeReportingLineRows() {
+  if (!state.dom.employeeReportingLinesList) return;
+  state.dom.employeeReportingLinesList.innerHTML = "";
+  renderEmployeeReportingLinesEmptyStateIfNeeded();
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Keep the existing employee table fields aligned with the selected primary manager.
+// This preserves current workflow behaviour while child rows support multiple managers.
+function syncPrimaryReportingLineSnapshotToEmployeeFields() {
+  applyAssignedLineManagerSelection();
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Read primary + additional reporting lines from the form.
+function getEmployeeReportingLinesFromForm() {
+  const rows = [];
+
+  const primaryManagerId = String(
+    state.dom.assignedLineManagerEmployeeId?.value || "",
+  ).trim();
+
+  if (primaryManagerId && !primaryManagerId.startsWith("saved:")) {
+    rows.push({
+      managerEmployeeId: primaryManagerId,
+      managerType: "Primary",
+      effectiveDate: state.dom.employmentDate?.value || null,
+      status: "Active",
+      notes: "Primary reporting line",
+    });
+  }
+
+  state.dom.employeeReportingLinesList
+    ?.querySelectorAll("[data-employee-reporting-line-row]")
+    .forEach((row) => {
+      // EMPLOYEE BIODATA COMPLETION - STEP 3H
+      // Additional manager UI is intentionally simple.
+      // Effective Date defaults to Employment Date, Status defaults to Active,
+      // and Notes stays null unless a future maintenance screen exposes it.
+      rows.push({
+        managerEmployeeId: String(
+          row.querySelector("[data-reporting-line-manager-id]")?.value || "",
+        ).trim(),
+        managerType: String(
+          row.querySelector("[data-reporting-line-manager-type]")?.value || "Secondary",
+        ).trim(),
+        effectiveDate: state.dom.employmentDate?.value || null,
+        status: "Active",
+        notes: null,
+        rowElement: row,
+      });
+    });
+
+  return rows;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Validate additional reporting lines before saving.
+// Primary manager remains optional, but any added row must be complete,
+// and the same manager cannot be assigned twice.
+function validateEmployeeReportingLines() {
+  const rows = getEmployeeReportingLinesFromForm();
+  const managerIds = [];
+  let isValid = true;
+  let firstInvalidField = null;
+
+  state.dom.employeeReportingLinesList
+    ?.querySelectorAll("[data-reporting-line-manager-id]")
+    .forEach((select) => {
+      select.classList.remove("is-invalid");
+    });
+
+  rows.forEach((row) => {
+    if (!row.managerEmployeeId) {
+      const managerSelect = row.rowElement?.querySelector("[data-reporting-line-manager-id]");
+      managerSelect?.classList.add("is-invalid");
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = managerSelect;
+      return;
+    }
+
+    managerIds.push(row.managerEmployeeId);
+  });
+
+  const duplicateManagerId = managerIds.find(
+    (managerId, index) => managerIds.indexOf(managerId) !== index,
+  );
+
+  if (duplicateManagerId) {
+    state.dom.employeeReportingLinesList
+      ?.querySelectorAll("[data-reporting-line-manager-id]")
+      .forEach((select) => {
+        if (select.value === duplicateManagerId) {
+          select.classList.add("is-invalid");
+        }
+      });
+
+    showPageAlert(
+      "warning",
+      "The same manager cannot be assigned more than once on the employee reporting lines.",
+    );
+
+    isValid = false;
+  }
+
+  if (!isValid) {
+    if (firstInvalidField?.focus) {
+      firstInvalidField.focus();
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Save reporting lines by replacing this employee's current reporting setup.
+// This keeps the child table aligned with the latest employee form state.
+async function saveEmployeeReportingLinesForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return;
+
+  const supabase = getSupabaseClient();
+  const reportingRows = getEmployeeReportingLinesFromForm()
+    .filter((row) => row.managerEmployeeId)
+    .map((row) => ({
+      employee_id: employeeKey,
+      manager_employee_id: row.managerEmployeeId,
+      manager_type: row.managerType || "Secondary",
+      effective_date: row.effectiveDate || null,
+      status: row.status || "Active",
+      notes: row.notes || null,
+      created_by: state.currentUser?.id || null,
+      updated_by: state.currentUser?.id || null,
+    }));
+
+  const { error: deleteError } = await supabase
+    .from("employee_reporting_lines")
+    .delete()
+    .eq("employee_id", employeeKey);
+
+  if (deleteError) throw deleteError;
+
+  if (!reportingRows.length) return;
+
+  const { error: insertError } = await supabase
+    .from("employee_reporting_lines")
+    .insert(reportingRows);
+
+  if (insertError) throw insertError;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 3C
+// Load saved child reporting lines when HR edits an employee.
+async function loadEmployeeReportingLinesForEdit(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  resetEmployeeReportingLineRows();
+
+  if (!employeeKey) return;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("employee_reporting_lines")
+      .select("*")
+      .eq("employee_id", employeeKey)
+      .order("manager_type", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+
+    const primaryRow = rows.find(
+      (row) => normalizeText(row.manager_type) === "primary",
+    );
+
+    if (primaryRow?.manager_employee_id) {
+      populateAssignedLineManagerOptions(primaryRow.manager_employee_id);
+
+      if (state.dom.assignedLineManagerEmployeeId) {
+        state.dom.assignedLineManagerEmployeeId.value = primaryRow.manager_employee_id;
+      }
+
+      applyAssignedLineManagerSelection();
+    }
+
+    rows
+      .filter((row) => row.id !== primaryRow?.id)
+      .forEach((row) => {
+        addEmployeeReportingLineRow({
+          managerEmployeeId: row.manager_employee_id || "",
+          managerType: row.manager_type || "Secondary",
+          effectiveDate: row.effective_date || "",
+          status: row.status || "Active",
+          notes: row.notes || "",
+        });
+      });
+  } catch (error) {
+    console.error("Error loading employee reporting lines:", error);
+
+    showPageAlert(
+      "warning",
+      "Employee profile opened, but saved reporting lines could not be loaded. Please refresh and try again.",
+    );
+  }
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 4D
+// Address data is stored in employee_addresses because employees can have
+// different address types over time. The biodata form currently exposes the
+// two standard HR address types: Current and Permanent.
+function getEmployeeAddressGroups() {
+  return [
+    {
+      type: "Current",
+      isPrimary: true,
+      addressLine1: state.dom.employeeCurrentAddressLine1,
+      city: state.dom.employeeCurrentCity,
+      stateRegion: state.dom.employeeCurrentStateRegion,
+      country: state.dom.employeeCurrentCountry,
+      postalCode: state.dom.employeeCurrentPostalCode,
+    },
+    {
+      type: "Permanent",
+      isPrimary: false,
+      addressLine1: state.dom.employeePermanentAddressLine1,
+      city: state.dom.employeePermanentCity,
+      stateRegion: state.dom.employeePermanentStateRegion,
+      country: state.dom.employeePermanentCountry,
+      postalCode: state.dom.employeePermanentPostalCode,
+    },
+  ];
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 4D
+// Address fields are optional, but if HR starts entering an address group,
+// the main address line must be completed before save.
+function isEmployeeAddressGroupStarted(group = {}) {
+  return [
+    group.addressLine1,
+    group.city,
+    group.stateRegion,
+    group.country,
+    group.postalCode,
+  ].some((field) => Boolean(String(field?.value || "").trim()));
+}
+
+function clearEmployeeAddressValidationState() {
+  getEmployeeAddressGroups().forEach((group) => {
+    group.addressLine1?.classList.remove("is-invalid");
+  });
+}
+
+function validateEmployeeAddressFields() {
+  clearEmployeeAddressValidationState();
+
+  let isValid = true;
+  let firstInvalidField = null;
+
+  getEmployeeAddressGroups().forEach((group) => {
+    const hasAnyValue = isEmployeeAddressGroupStarted(group);
+    const hasMainAddress = Boolean(String(group.addressLine1?.value || "").trim());
+
+    if (hasAnyValue && !hasMainAddress) {
+      group.addressLine1?.classList.add("is-invalid");
+      isValid = false;
+      if (!firstInvalidField) firstInvalidField = group.addressLine1;
+    }
+  });
+
+  if (!isValid) {
+    showPageAlert(
+      "warning",
+      "Please complete the main address line for any current or permanent address you started.",
+    );
+
+    firstInvalidField?.focus?.();
+  }
+
+  return isValid;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 4D
+// Build insert rows for employee_addresses.
+// Empty address groups are not saved.
+function buildEmployeeAddressRowsForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return [];
+
+  return getEmployeeAddressGroups()
+    .filter((group) => isEmployeeAddressGroupStarted(group))
+    .map((group) => ({
+      employee_id: employeeKey,
+      address_type: group.type,
+      address_line_1: String(group.addressLine1?.value || "").trim(),
+      address_line_2: null,
+      city: String(group.city?.value || "").trim() || null,
+      state_region: String(group.stateRegion?.value || "").trim() || null,
+      country: String(group.country?.value || "").trim() || "Nigeria",
+      postal_code: String(group.postalCode?.value || "").trim() || null,
+      is_primary: Boolean(group.isPrimary),
+      status: "Active",
+      created_by: state.currentUser?.id || null,
+      updated_by: state.currentUser?.id || null,
+    }));
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 4D
+// Save addresses by replacing the employee's current address snapshot.
+// This matches the reporting-line save pattern and keeps the form state clean.
+async function saveEmployeeAddressesForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return;
+
+  const supabase = getSupabaseClient();
+  const addressRows = buildEmployeeAddressRowsForEmployee(employeeKey);
+
+  const { error: deleteError } = await supabase
+    .from("employee_addresses")
+    .delete()
+    .eq("employee_id", employeeKey);
+
+  if (deleteError) throw deleteError;
+
+  if (!addressRows.length) return;
+
+  const { error: insertError } = await supabase
+    .from("employee_addresses")
+    .insert(addressRows);
+
+  if (insertError) throw insertError;
+}
+
+function resetEmployeeAddressFields() {
+  getEmployeeAddressGroups().forEach((group) => {
+    [
+      group.addressLine1,
+      group.city,
+      group.stateRegion,
+      group.country,
+      group.postalCode,
+    ].forEach((field) => {
+      if (!field) return;
+      field.value = "";
+      field.classList.remove("is-invalid");
+    });
+  });
+}
+
+function applyEmployeeAddressRecordToFields(record = {}) {
+  const addressType = normalizeText(record.address_type);
+
+  const group = getEmployeeAddressGroups().find(
+    (item) => normalizeText(item.type) === addressType,
+  );
+
+  if (!group) return;
+
+  if (group.addressLine1) group.addressLine1.value = record.address_line_1 || "";
+  if (group.city) group.city.value = record.city || "";
+  if (group.stateRegion) group.stateRegion.value = record.state_region || "";
+  if (group.country) group.country.value = record.country || "";
+  if (group.postalCode) group.postalCode.value = record.postal_code || "";
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 4D
+// Load saved current/permanent addresses when HR edits an employee.
+async function loadEmployeeAddressesForEdit(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  resetEmployeeAddressFields();
+
+  if (!employeeKey) return;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("employee_addresses")
+      .select("*")
+      .eq("employee_id", employeeKey)
+      .order("address_type", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    (Array.isArray(data) ? data : []).forEach((record) => {
+      applyEmployeeAddressRecordToFields(record);
+    });
+
+    updateEmployeeSaveButtonState();
+  } catch (error) {
+    console.error("Error loading employee addresses:", error);
+
+    showPageAlert(
+      "warning",
+      "Employee profile opened, but saved address details could not be loaded. Please refresh and try again.",
+    );
+  }
+}
+
+function areEmployeeAddressFieldsReadyForSubmit() {
+  return getEmployeeAddressGroups().every((group) => {
+    const hasAnyValue = isEmployeeAddressGroupStarted(group);
+    const hasMainAddress = Boolean(String(group.addressLine1?.value || "").trim());
+
+    return !hasAnyValue || hasMainAddress;
+  });
+}
+
 // ASSIGN LINE MANAGER - STEP 1E
 // Display labels for standard system roles.
 // Custom roles are displayed as typed by HR.
@@ -6584,7 +7199,43 @@ function isEmployeeFormReadyForSubmit() {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const hasValidWorkEmail = emailPattern.test(workEmail);
 
-  return hasRequiredValues && hasValidWorkEmail;
+  // EMPLOYEE BIODATA COMPLETION - STEP 2G
+  // Optional Personal Email should not be required, but should block Save
+  // if HR enters an invalid email format.
+  const personalEmail = String(state.dom.personalEmail?.value || "").trim();
+  const hasValidPersonalEmail = !personalEmail || emailPattern.test(personalEmail);
+
+  const employmentDateValue = String(state.dom.employmentDate?.value || "").trim();
+  const exitDateValue = String(state.dom.exitDate?.value || "").trim();
+  const hasValidExitDate =
+    !employmentDateValue ||
+    !exitDateValue ||
+    new Date(exitDateValue).getTime() >= new Date(employmentDateValue).getTime();
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 3I
+  // Additional reporting manager rows are optional.
+  // But if HR adds a row, the secondary manager must be selected before Save turns blue.
+  const reportingLineRows = Array.from(
+    state.dom.employeeReportingLinesList?.querySelectorAll("[data-employee-reporting-line-row]") || [],
+  );
+
+  const hasValidReportingLines = reportingLineRows.every((row) =>
+    Boolean(String(row.querySelector("[data-reporting-line-manager-id]")?.value || "").trim()),
+  );
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 4H
+  // Address groups are optional. If HR starts Current or Permanent Address,
+  // the main address line must be present before Save turns blue.
+  const hasValidAddressFields = areEmployeeAddressFieldsReadyForSubmit();
+
+  return (
+    hasRequiredValues &&
+    hasValidWorkEmail &&
+    hasValidPersonalEmail &&
+    hasValidExitDate &&
+    hasValidReportingLines &&
+    hasValidAddressFields
+  );
 }
 
 // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
@@ -11047,19 +11698,19 @@ ${preparedRow.employee_override_applied
 
   state.dom.batchPayrollReviewPanel?.classList.remove("d-none");
   // HRP-84 - BATCH PAYROLL EMPLOYEE CHECKBOXES - STEP 1I
-// When Batch Payroll Review is visible, hide the manual single-payroll form.
-// HR should either process the batch review or clear batch mode before manual entry.
-state.dom.payrollCreateForm?.classList.add("d-none");
-setPayrollRecordToolbarForBatchMode();
+  // When Batch Payroll Review is visible, hide the manual single-payroll form.
+  // HR should either process the batch review or clear batch mode before manual entry.
+  state.dom.payrollCreateForm?.classList.add("d-none");
+  setPayrollRecordToolbarForBatchMode();
 
-if (state.dom.payrollFormTitle) {
-  state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
-}
+  if (state.dom.payrollFormTitle) {
+    state.dom.payrollFormTitle.textContent = "Create Payroll Batch";
+  }
 
-if (state.dom.payrollFormSubtext) {
-  state.dom.payrollFormSubtext.textContent =
-    "Review selected employees in Batch Payroll Review before submitting payroll records.";
-}
+  if (state.dom.payrollFormSubtext) {
+    state.dom.payrollFormSubtext.textContent =
+      "Review selected employees in Batch Payroll Review before submitting payroll records.";
+  }
 
   if (state.dom.batchPayrollSetupWarning) {
     if (skippedRows.length) {
@@ -15678,6 +16329,32 @@ function resetEmployeeForm() {
 
     state.dom.lastName,
     state.dom.workEmail,
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 2F
+    // Clear validation styling from optional biodata fields on reset.
+    state.dom.personalEmail,
+    state.dom.dateOfBirth,
+    state.dom.gender,
+    state.dom.maritalStatus,
+    state.dom.nationality,
+    state.dom.exitDate,
+    state.dom.hmoProvider,
+    state.dom.hmoPlan,
+    state.dom.hmoNumber,
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 4H
+    // Address fields are optional, but they must refresh Save readiness when HR types.
+    state.dom.employeeCurrentAddressLine1,
+    state.dom.employeeCurrentCity,
+    state.dom.employeeCurrentStateRegion,
+    state.dom.employeeCurrentCountry,
+    state.dom.employeeCurrentPostalCode,
+    state.dom.employeePermanentAddressLine1,
+    state.dom.employeePermanentCity,
+    state.dom.employeePermanentStateRegion,
+    state.dom.employeePermanentCountry,
+    state.dom.employeePermanentPostalCode,
+
     state.dom.phoneNumber,
     state.dom.department,
     state.dom.jobTitle,
@@ -15716,6 +16393,14 @@ function resetEmployeeForm() {
   if (state.dom.assignedLineManagerEmployeeId) {
     state.dom.assignedLineManagerEmployeeId.value = "";
   }
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 3E
+  // Clear additional reporting manager rows when the employee form resets.
+  resetEmployeeReportingLineRows();
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 4E
+  // Clear Current/Permanent address fields when the employee form resets.
+  resetEmployeeAddressFields();
 
   if (state.dom.employeeDocumentsInput) state.dom.employeeDocumentsInput.value = "";
 
@@ -15777,6 +16462,19 @@ function enterEmployeeEditMode(employee) {
 
   if (state.dom.lastName) state.dom.lastName.value = employee.last_name || "";
   if (state.dom.workEmail) state.dom.workEmail.value = employee.work_email || "";
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 2E
+  // Load saved single-value biodata fields when HR edits an employee profile.
+  if (state.dom.personalEmail) state.dom.personalEmail.value = employee.personal_email || "";
+  if (state.dom.dateOfBirth) state.dom.dateOfBirth.value = employee.date_of_birth || "";
+  if (state.dom.gender) state.dom.gender.value = employee.gender || "";
+  if (state.dom.maritalStatus) state.dom.maritalStatus.value = employee.marital_status || "";
+  if (state.dom.nationality) state.dom.nationality.value = employee.nationality || "";
+  if (state.dom.exitDate) state.dom.exitDate.value = employee.exit_date || "";
+  if (state.dom.hmoProvider) state.dom.hmoProvider.value = employee.hmo_provider || "";
+  if (state.dom.hmoPlan) state.dom.hmoPlan.value = employee.hmo_plan || "";
+  if (state.dom.hmoNumber) state.dom.hmoNumber.value = employee.hmo_number || "";
+
   if (state.dom.phoneNumber) state.dom.phoneNumber.value = employee.phone_number || "";
 
   // ORGANIZATION HR SETUP VALUES - STEP 5A
@@ -15798,9 +16496,14 @@ function enterEmployeeEditMode(employee) {
   if (state.dom.approverEmail) state.dom.approverEmail.value = employee.approver_email || "";
 
   // ASSIGN LINE MANAGER - STEP 1
-  // In edit mode, select the matching manager in the new dropdown where possible.
+  // In edit mode, select the matching manager in the primary dropdown where possible.
   // Existing saved Line Manager and Approver Email values are still preserved.
   syncAssignedLineManagerFromSavedValues(employee);
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 3F
+  // Child-table reporting lines are loaded by startEmployeeEdit after the
+  // employee form has been populated.
+  resetEmployeeReportingLineRows();
 
   if (state.dom.employeeNumber) state.dom.employeeNumber.value = employee.employee_number || "";
 
@@ -15898,6 +16601,15 @@ function startEmployeeEdit(employeeId, options = {}) {
   clearPageAlert();
   enterEmployeeEditMode(employee);
 
+  // EMPLOYEE BIODATA COMPLETION - STEP 3K
+  // Reload saved primary/secondary reporting lines from employee_reporting_lines
+  // after the main employee form has been populated.
+  loadEmployeeReportingLinesForEdit(employee.id);
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 4F
+  // Load Current/Permanent address records from employee_addresses in edit mode.
+  loadEmployeeAddressesForEdit(employee.id);
+
   if (options.focusDocuments) {
     setTimeout(() => {
       state.dom.attachedDocumentsList?.scrollIntoView({
@@ -15967,6 +16679,30 @@ function validateEmployeeForm() {
     if (!firstInvalidField) firstInvalidField = state.dom.workEmail;
   }
 
+  // EMPLOYEE BIODATA COMPLETION - STEP 2F
+  // Personal email is optional, but must be valid if HR enters it.
+  if (!validateEmailField(state.dom.personalEmail, { required: false })) {
+    isValid = false;
+    if (!firstInvalidField) firstInvalidField = state.dom.personalEmail;
+  }
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 2F
+  // Exit Date must not be before Employment Date.
+  const employmentDateValue = String(state.dom.employmentDate?.value || "").trim();
+  const exitDateValue = String(state.dom.exitDate?.value || "").trim();
+
+  state.dom.exitDate?.classList.remove("is-invalid");
+
+  if (
+    employmentDateValue &&
+    exitDateValue &&
+    new Date(exitDateValue).getTime() < new Date(employmentDateValue).getTime()
+  ) {
+    state.dom.exitDate?.classList.add("is-invalid");
+    isValid = false;
+    if (!firstInvalidField) firstInvalidField = state.dom.exitDate;
+  }
+
   if (!validateEmailField(state.dom.approverEmail, { required: false })) {
     isValid = false;
     if (!firstInvalidField) firstInvalidField = state.dom.approverEmail;
@@ -15999,6 +16735,17 @@ function buildEmployeePayload() {
     work_email: String(state.dom.workEmail?.value || "")
       .trim()
       .toLowerCase(),
+
+    /* EMPLOYEE BIODATA COMPLETION - STEP 2D
+       Save optional personal/contact/biodata fields directly to employees.
+       Blank values are stored as null so the profile remains clean. */
+    personal_email:
+      String(state.dom.personalEmail?.value || "").trim().toLowerCase() || null,
+    date_of_birth: state.dom.dateOfBirth?.value || null,
+    gender: String(state.dom.gender?.value || "").trim() || null,
+    marital_status: String(state.dom.maritalStatus?.value || "").trim() || null,
+    nationality: String(state.dom.nationality?.value || "").trim() || null,
+
     phone_number: String(state.dom.phoneNumber?.value || "").trim() || null,
     department: String(state.dom.department?.value || "").trim(),
     job_title: String(state.dom.jobTitle?.value || "").trim(),
@@ -16007,6 +16754,14 @@ function buildEmployeePayload() {
     // Line Manager is optional, so save blank values as null.
     line_manager: String(state.dom.lineManager?.value || "").trim() || null,
     employment_date: state.dom.employmentDate?.value || null,
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 2D
+    // Exit and HMO details are part of the employee profile lifecycle/benefits data.
+    exit_date: state.dom.exitDate?.value || null,
+    hmo_provider: String(state.dom.hmoProvider?.value || "").trim() || null,
+    hmo_plan: String(state.dom.hmoPlan?.value || "").trim() || null,
+    hmo_number: String(state.dom.hmoNumber?.value || "").trim() || null,
+
     approver_email: approverEmail || null,
     employee_number:
       String(state.dom.employeeNumber?.value || "").trim() || null,
@@ -16580,11 +17335,30 @@ async function uploadPendingFilesForEmployee(employeeId) {
 async function handleEmployeeSave() {
   clearPageAlert();
 
+  // EMPLOYEE BIODATA COMPLETION - STEP 3G
+  // Keep the existing employee line_manager / approver_email snapshot aligned
+  // with the selected Primary Line Manager before validation and save.
+  syncPrimaryReportingLineSnapshotToEmployeeFields();
+
   if (!validateEmployeeForm()) {
     showPageAlert(
       "warning",
       "Please complete all required employee fields before saving.",
     );
+    return;
+  }
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 3G
+  // Additional reporting rows are optional, but any row HR adds must be complete
+  // and must not duplicate another manager on the same employee.
+  if (!validateEmployeeReportingLines()) {
+    return;
+  }
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 4G
+  // Address fields are optional, but if HR starts an address group,
+  // the main address line must be completed.
+  if (!validateEmployeeAddressFields()) {
     return;
   }
 
@@ -16685,6 +17459,20 @@ async function handleEmployeeSave() {
         data.employee_number || employeePayload.employee_number || "",
       ).trim();
     }
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 3G
+    // Save multiple reporting lines after the employee record exists.
+    // Create mode needs the newly returned employee id before child rows can be inserted.
+    await saveEmployeeReportingLinesForEmployee(savedEmployeeId);
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 3K
+    // Persist primary/secondary reporting lines before the form is reset.
+    // If this is not called here, secondary managers disappear after edit.
+    await saveEmployeeReportingLinesForEmployee(savedEmployeeId);
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 4G
+    // Save Current/Permanent address records after the employee record exists.
+    await saveEmployeeAddressesForEmployee(savedEmployeeId);
 
     if (state.pendingFiles.length) {
       await uploadPendingFilesForEmployee(savedEmployeeId);
@@ -19113,7 +19901,6 @@ function resetPayrollForm() {
     state.dom.payrollOtherDeductions,
     state.dom.payrollTotalDeductions,
     state.dom.payrollNetPay,
-    state.dom.payrollNotes,
     state.dom.regularIncrementAmount,
     state.dom.regularMeritIncrement,
     state.dom.regularNewBaseSalary,
