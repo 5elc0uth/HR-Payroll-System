@@ -1069,7 +1069,10 @@
                   </p>
                 </div>
 
-                <div class="col-md-6 col-xl-4">
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 6B-PREP
+     Cleaned Reporting Lines so the manager name is not shown twice.
+     The hidden lineManager field is kept because existing save/workflow logic stores it. -->
+                <div class="col-md-6">
                   <label for="assignedLineManagerEmployeeId" class="form-label fw-semibold">
                     Primary Line Manager
                   </label>
@@ -1077,19 +1080,13 @@
                     <option value="">Select primary line manager</option>
                   </select>
                   <div class="form-text">
-                    Primary manager is used for workflow routing and approval defaults.
+                    Select the employee’s main reporting manager.
                   </div>
                 </div>
 
-                <div class="col-md-6 col-xl-4">
-                  <label for="lineManager" class="form-label fw-semibold">
-                    Primary Manager Name
-                  </label>
-                  <input type="text" id="lineManager" class="form-control bg-light"
-                    placeholder="Auto-filled from selected manager" autocomplete="off" readonly />
-                </div>
+                <input type="hidden" id="lineManager" autocomplete="off" />
 
-                <div class="col-md-6 col-xl-4">
+                <div class="col-md-6">
                   <label for="approverEmail" class="form-label fw-semibold">
                     Primary Approver Email
                   </label>
@@ -1230,14 +1227,99 @@
                   <input type="text" id="hmoPlan" class="form-control" placeholder="Enter HMO plan" />
                 </div>
 
-                <div class="col-md-6 col-xl-4">
-                  <label for="hmoNumber" class="form-label fw-semibold">
-                    HMO Number
-                  </label>
-                  <input type="text" id="hmoNumber" class="form-control" placeholder="Enter HMO number" />
-                </div>
+<div class="col-md-6 col-xl-4">
+  <label for="hmoNumber" class="form-label fw-semibold">
+    HMO Number
+  </label>
+  <input type="text" id="hmoNumber" class="form-control" placeholder="Enter HMO number" />
+</div>
 
-                <!-- EMPLOYEE BIODATA COMPLETION - STEP 4B
+<!-- EMPLOYEE BIODATA COMPLETION - STEP 6D-1
+     Beneficiaries / Dependants are repeatable HR records.
+     They stay separate from the employee's own HMO provider/plan/number fields. -->
+<div class="col-12">
+  <h3 class="h6 fw-bold mb-2 mt-2">Beneficiaries / Dependants</h3>
+  <p class="text-secondary small mb-0">
+    Add people linked to the employee for HR benefits, HMO dependant tracking, or beneficiary records.
+  </p>
+</div>
+
+<div class="col-12">
+  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-6 col-xl-3">
+        <label for="employeeDependantFullName" class="form-label fw-semibold">
+          Full Name
+        </label>
+        <input type="text" id="employeeDependantFullName" class="form-control"
+          placeholder="Enter dependant or beneficiary name" />
+      </div>
+
+      <div class="col-md-6 col-xl-3">
+        <label for="employeeDependantRelationship" class="form-label fw-semibold">
+          Relationship
+        </label>
+        <select id="employeeDependantRelationship" class="form-select">
+          <option value="">Select relationship</option>
+          <option value="Spouse">Spouse</option>
+          <option value="Child">Child</option>
+          <option value="Parent">Parent</option>
+          <option value="Sibling">Sibling</option>
+          <option value="Relative">Relative</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="col-md-6 col-xl-3">
+        <label for="employeeDependantDateOfBirth" class="form-label fw-semibold">
+          Date of Birth
+        </label>
+        <input type="date" id="employeeDependantDateOfBirth" class="form-control" />
+      </div>
+
+      <div class="col-md-6 col-xl-3">
+        <label for="employeeDependantPhoneNumber" class="form-label fw-semibold">
+          Phone Number
+        </label>
+        <input type="tel" id="employeeDependantPhoneNumber" class="form-control"
+          placeholder="Optional phone number" />
+      </div>
+
+<!-- EMPLOYEE BIODATA COMPLETION - STEP 6D-1
+     Keep dependant/beneficiary classification simple.
+     Emergency contact is already covered by Next of Kin, so it is not duplicated here. -->
+<div class="col-md-6 col-xl-3">
+  <label for="employeeDependantCoverageType" class="form-label fw-semibold">
+    Type
+  </label>
+  <select id="employeeDependantCoverageType" class="form-select">
+    <option value="">Select type</option>
+    <option value="Beneficiary">Beneficiary</option>
+    <option value="HMO Dependant">HMO Dependant</option>
+  </select>
+</div>
+
+<div class="col-md-12 col-xl-9 d-flex justify-content-xl-end">
+        <button type="button" id="addEmployeeDependantRecordBtn"
+          class="btn btn-sm btn-outline-primary dashboard-action-btn">
+          <i class="bi bi-plus-circle me-1"></i>Add Beneficiary / Dependant
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <div class="fw-semibold mb-2">Saved Beneficiaries / Dependants</div>
+
+      <div id="employeeDependantsEmptyState" class="text-secondary small">
+        No beneficiaries or dependants saved for this employee yet.
+      </div>
+
+      <div id="employeeDependantsRecordsList" class="list-group d-none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EMPLOYEE BIODATA COMPLETION - STEP 4B
      Address Details are stored in employee_addresses, not flat employee columns.
      The biodata form shows the two standard HR address types: Current and Permanent. -->
                 <div class="col-12">
@@ -1349,107 +1431,360 @@
                   </div>
                 </div>
 
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 5B
+     Next of Kin is emergency contact data.
+     Keep this as one primary next of kin on the employee biodata form.
+     Beneficiaries/dependants will be handled separately because they serve a different HR purpose. -->
                 <div class="col-12">
-                  <h3 class="h6 fw-bold mb-3 mt-2">Supporting Documents</h3>
+                  <h3 class="h6 fw-bold mb-2 mt-2">Next of Kin</h3>
+                  <p class="text-secondary small mb-0">
+                    Capture the primary emergency contact for this employee.
+                  </p>
                 </div>
 
                 <div class="col-12">
-                  <div class="border rounded-4 p-3 p-lg-4">
-                    <!-- =========================================================
+                  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="row g-3">
+                      <div class="col-md-6 col-xl-4">
+                        <label for="employeeNextOfKinFullName" class="form-label fw-semibold">
+                          Full Name
+                        </label>
+                        <input type="text" id="employeeNextOfKinFullName" class="form-control"
+                          placeholder="Enter next of kin full name" autocomplete="off" />
+                        <div class="invalid-feedback">
+                          Full name is required if next of kin details are entered.
+                        </div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-4">
+                        <label for="employeeNextOfKinRelationship" class="form-label fw-semibold">
+                          Relationship
+                        </label>
+                        <select id="employeeNextOfKinRelationship" class="form-select">
+                          <option value="">Select relationship</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Parent">Parent</option>
+                          <option value="Sibling">Sibling</option>
+                          <option value="Child">Child</option>
+                          <option value="Guardian">Guardian</option>
+                          <option value="Relative">Relative</option>
+                          <option value="Friend">Friend</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <div class="invalid-feedback">
+                          Relationship is required if next of kin details are entered.
+                        </div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-4">
+                        <label for="employeeNextOfKinPhoneNumber" class="form-label fw-semibold">
+                          Phone Number
+                        </label>
+                        <input type="text" id="employeeNextOfKinPhoneNumber" class="form-control"
+                          placeholder="Enter phone number" autocomplete="off" />
+                        <div class="invalid-feedback">
+                          Phone number is required if next of kin details are entered.
+                        </div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-4">
+                        <label for="employeeNextOfKinEmail" class="form-label fw-semibold">
+                          Email
+                        </label>
+                        <input type="email" id="employeeNextOfKinEmail" class="form-control"
+                          placeholder="Optional email address" autocomplete="off" />
+                        <div class="invalid-feedback">
+                          Enter a valid next of kin email address.
+                        </div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-8">
+                        <label for="employeeNextOfKinAddress" class="form-label fw-semibold">
+                          Address
+                        </label>
+                        <input type="text" id="employeeNextOfKinAddress" class="form-control"
+                          placeholder="Optional contact address" autocomplete="new-password" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- EMPLOYEE BIODATA COMPLETION - STEP 6C-3C
+     Make it clear that Education is the structured qualification record,
+     while Supporting Documents below stores the evidence files. -->
+                <div class="col-12">
+                  <h3 class="h6 fw-bold mb-2 mt-2">Education / Academic Qualifications</h3>
+                  <p class="text-secondary small mb-0">
+                    Enter the employee’s qualification details here. Upload certificates, transcripts, or WAEC/NECO
+                    evidence under Supporting Documents below.
+                  </p>
+                </div>
+
+                <div class="col-12">
+                  <div class="border rounded-4 p-3 p-lg-4 bg-light-subtle">
+                    <div class="row g-3">
+                      <div class="col-md-6 col-xl-4">
+                        <label for="employeeEducationInstitutionName" class="form-label fw-semibold">
+                          School / Institution
+                        </label>
+                        <!-- EMPLOYEE BIODATA COMPLETION - STEP 6C-4D
+     School / Institution remains free text, but uses datalist suggestions.
+     This keeps HR flexible while reducing spelling variations. -->
+                        <input type="text" id="employeeEducationInstitutionName" class="form-control"
+                          list="employeeEducationInstitutionSuggestions" placeholder="Example: University of Lagos" />
+
+                        <datalist id="employeeEducationInstitutionSuggestions">
+                          <option value="University of Lagos"></option>
+                          <option value="Kaduna State University"></option>
+                          <option value="Federal University of Technology Minna"></option>
+                          <option value="Federal University of Technology Akure"></option>
+                          <option value="Ahmadu Bello University Zaria"></option>
+                          <option value="University of Ibadan"></option>
+                          <option value="Obafemi Awolowo University"></option>
+                          <option value="University of Illorin"></option>
+                          <option value="University of Nigeria Nsukka"></option>
+                          <option value="University of Benin"></option>
+                          <option value="Covenant University"></option>
+                          <option value="Landmark University"></option>
+                          <option value="Babcock University"></option>
+                          <option value="Nile University of Nigeria"></option>
+                          <option value="Baze University"></option>
+                          <option value="Yaba College of Technology"></option>
+                          <option value="Kaduna Polytechnic"></option>
+                          <option value="The Polytechnic Ibadan"></option>
+                        </datalist>
+                        <div class="invalid-feedback">
+                          School or institution is required if education details are entered.
+                        </div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-4">
+                        <label for="employeeEducationQualification" class="form-label fw-semibold">
+                          Qualification
+                        </label>
+                        <!-- EMPLOYEE BIODATA COMPLETION - STEP 6C-2
+     Qualification is a controlled HR value so reporting stays clean.
+     School and Course remain free text because their values vary widely. -->
+                        <select id="employeeEducationQualification" class="form-select">
+                          <option value="">Select qualification</option>
+                          <option value="WAEC / NECO">WAEC / NECO</option>
+                          <option value="OND">OND</option>
+                          <option value="HND">HND</option>
+                          <option value="BSc / BA / BEng / BTech">BSc / BA / BEng / BTech</option>
+                          <option value="MSc / MA / MBA / MTech">MSc / MA / MBA / MTech</option>
+                          <option value="PhD">PhD</option>
+                          <option value="Diploma">Diploma</option>
+                          <option value="Professional Certificate">Professional Certificate</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <div class="invalid-feedback">
+                          Qualification is required if education details are entered.
+                        </div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-4">
+                        <label for="employeeEducationFieldOfStudy" class="form-label fw-semibold">
+                          Course / Field of Study
+                        </label>
+                        <!-- EMPLOYEE BIODATA COMPLETION - STEP 6C-4D
+     Course / Field of Study remains free text, but uses datalist suggestions.
+     This avoids forcing every possible course into a controlled dropdown. -->
+                        <input type="text" id="employeeEducationFieldOfStudy" class="form-control"
+                          list="employeeEducationCourseSuggestions" placeholder="Example: Computer Science" />
+
+                        <datalist id="employeeEducationCourseSuggestions">
+                          <option value="Computer Science"></option>
+                          <option value="Software Engineering"></option>
+                          <option value="Information Technology"></option>
+                          <option value="Cyber Security"></option>
+                          <option value="Data Science"></option>
+                          <option value="Accounting"></option>
+                          <option value="Business Administration"></option>
+                          <option value="Economics"></option>
+                          <option value="Human Resource Management"></option>
+                          <option value="Public Administration"></option>
+                          <option value="Mass Communication"></option>
+                          <option value="Electrical / Electronics Engineering"></option>
+                          <option value="Mechanical Engineering"></option>
+                          <option value="Civil Engineering"></option>
+                          <option value="Law"></option>
+                          <option value="Nursing"></option>
+                          <option value="Public Health"></option>
+                          <option value="Project Management"></option>
+                        </datalist>
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeeEducationGraduationYear" class="form-label fw-semibold">
+                          Graduation Year
+                        </label>
+                        <input type="number" id="employeeEducationGraduationYear" class="form-control"
+                          placeholder="Example: 2020" min="1950" max="2100" autocomplete="off" />
+                        <div class="invalid-feedback">
+                          Enter a valid graduation year.
+                        </div>
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeeEducationStatus" class="form-label fw-semibold">
+                          Status
+                        </label>
+                        <select id="employeeEducationStatus" class="form-select">
+                          <option value="">Select status</option>
+                          <option value="Completed">Completed</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Deferred">Deferred</option>
+                          <option value="Not Completed">Not Completed</option>
+                        </select>
+                      </div>
+
+                      <div class="col-md-6 col-xl-3">
+                        <label for="employeeEducationHighestQualification" class="form-label fw-semibold">
+                          Highest Qualification
+                        </label>
+                        <select id="employeeEducationHighestQualification" class="form-select">
+                          <option value="false">No</option>
+                          <option value="true">Yes</option>
+                        </select>
+                      </div>
+
+                      <!-- EMPLOYEE BIODATA COMPLETION - STEP 6C-3C
+     Keep the Education form simple but guide HR to upload matching evidence below. -->
+                      <div class="col-md-6 col-xl-3 d-flex align-items-end">
+                        <div class="form-text">
+                          Evidence is uploaded separately below using the correct Document Type.
+                        </div>
+                      </div>
+
+                      <div class="mt-4">
+                        <!-- EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+     Allow HR to stage multiple education records before saving the employee profile. -->
+                        <div
+                          class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-2">
+                          <div class="fw-semibold">Saved Education Records</div>
+
+                          <button type="button" id="addEmployeeEducationRecordBtn"
+                            class="btn btn-sm btn-outline-primary dashboard-action-btn">
+                            <i class="bi bi-plus-circle me-1"></i>Add Education Record
+                          </button>
+                        </div>
+                        <div id="employeeEducationEmptyState" class="text-secondary small">
+                          No education records saved for this employee yet.
+                        </div>
+                        <div id="employeeEducationRecordsList" class="list-group d-none"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- EMPLOYEE BIODATA COMPLETION - STEP 6C-3C
+     Supporting Documents are employee evidence files.
+     The selected Document Type should match the uploaded file name. -->
+                  <div class="col-12">
+                    <h3 class="h6 fw-bold mb-2 mt-2">Supporting Documents</h3>
+                    <p class="text-secondary small mb-0">
+                      Upload employee evidence files here. Select the correct Document Type before choosing files, for
+                      example Degree Certificate, WAEC / NECO, CV / Resume, Birth Certificate, or National ID.
+                    </p>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="border rounded-4 p-3 p-lg-4">
+                      <!-- =========================================================
      UI POLISH
      Keep file input and Clear Pending Files button inline.
      Helper text now sits below both controls instead of
      pushing the button lower than the input row.
 ========================================================== -->
-                    <div class="row g-3 align-items-center">
-                      <!-- DESCRIPTION ITEM 10 - STEP 1
+                      <div class="row g-3 align-items-center">
+                        <!-- DESCRIPTION ITEM 10 - STEP 1
        Add a document type selector so HR can classify each upload
        before the file is submitted and saved. -->
-                      <div class="col-lg-5">
-                        <label for="employeeDocumentsInput" class="form-label fw-semibold">
-                          Attach Supporting Documents
-                        </label>
-                        <input type="file" id="employeeDocumentsInput" class="form-control" multiple
-                          accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
-                      </div>
+                        <div class="col-lg-5">
+                          <label for="employeeDocumentsInput" class="form-label fw-semibold">
+                            Attach Supporting Documents
+                          </label>
+                          <input type="file" id="employeeDocumentsInput" class="form-control" multiple
+                            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
+                        </div>
 
-                      <div class="col-lg-4">
-                        <label for="employeeDocumentType" class="form-label fw-semibold">
-                          Document Type
-                        </label>
-                        <select id="employeeDocumentType" class="form-select">
-                          <option value="">Select document type</option>
-                          <option value="Birth Certificate">Birth Certificate</option>
-                          <option value="State of Origin">State of Origin</option>
-                          <option value="WAEC / NECO">WAEC / NECO</option>
-                          <option value="NYSC Certificate">NYSC Certificate</option>
-                          <option value="Degree Certificate">Degree Certificate</option>
-                          <option value="CV / Resume">CV / Resume</option>
-                          <option value="National ID">National ID</option>
-                          <option value="International Passport">International Passport</option>
-                          <option value="Offer Letter">Offer Letter</option>
-                          <option value="Employment Contract">Employment Contract</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
+                        <div class="col-lg-4">
+                          <label for="employeeDocumentType" class="form-label fw-semibold">
+                            Document Type
+                          </label>
+                          <select id="employeeDocumentType" class="form-select">
+                            <option value="">Select document type</option>
+                            <option value="Birth Certificate">Birth Certificate</option>
+                            <option value="State of Origin">State of Origin</option>
+                            <option value="WAEC / NECO">WAEC / NECO</option>
+                            <option value="NYSC Certificate">NYSC Certificate</option>
+                            <option value="Degree Certificate">Degree Certificate</option>
+                            <option value="CV / Resume">CV / Resume</option>
+                            <option value="National ID">National ID</option>
+                            <option value="International Passport">International Passport</option>
+                            <option value="Offer Letter">Offer Letter</option>
+                            <option value="Employment Contract">Employment Contract</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
 
-                      <div class="col-lg-3">
-                        <label class="form-label fw-semibold d-block opacity-0">
-                          Action
-                        </label>
-                        <button type="button" id="clearPendingDocumentsBtn"
-                          class="btn btn-outline-secondary dashboard-action-btn w-100 text-nowrap">
-                          <i class="bi bi-trash me-2"></i>Clear Pending Files
-                        </button>
-                      </div>
+                        <div class="col-lg-3">
+                          <label class="form-label fw-semibold d-block opacity-0">
+                            Action
+                          </label>
+                          <button type="button" id="clearPendingDocumentsBtn"
+                            class="btn btn-outline-secondary dashboard-action-btn w-100 text-nowrap">
+                            <i class="bi bi-trash me-2"></i>Clear Pending Files
+                          </button>
+                        </div>
 
-                      <div class="col-12">
-                        <div class="form-text">
-                          Allowed: PDF, DOC, DOCX, PNG, JPG, JPEG. Maximum file size: 10MB per file.
+                        <div class="col-12">
+                          <div class="form-text">
+                            Allowed: PDF, DOC, DOCX, PNG, JPG, JPEG. Maximum file size: 10MB per file.
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div class="mt-4">
-                      <div class="fw-semibold mb-2">Pending Uploads</div>
-                      <div class="text-secondary small mb-2">
-                        Files selected here are not saved yet. Click
-                        <strong>Create Employee Profile</strong> or
-                        <strong>Update Employee Profile</strong> to upload them.
-                      </div>
-                      <div id="pendingDocumentsEmptyState" class="text-secondary small">
-                        No files selected yet.
-                      </div>
-                      <div id="pendingDocumentsList" class="list-group d-none"></div>
-
-                      <hr class="my-4" />
-
-                      <div>
-                        <div class="fw-semibold mb-2">Attached Documents (Saved)</div>
+                      <div class="mt-4">
+                        <div class="fw-semibold mb-2">Pending Uploads</div>
                         <div class="text-secondary small mb-2">
-                          Saved employee documents appear here after a successful create or update.
+                          Files selected here are not saved yet. Click
+                          <strong>Create Employee Profile</strong> or
+                          <strong>Update Employee Profile</strong> to upload them.
                         </div>
-                        <div id="attachedDocumentsEmptyState" class="text-secondary small">
-                          No uploaded documents saved for this employee yet.
+                        <div id="pendingDocumentsEmptyState" class="text-secondary small">
+                          No files selected yet.
                         </div>
-                        <div id="attachedDocumentsList" class="list-group d-none"></div>
+                        <div id="pendingDocumentsList" class="list-group d-none"></div>
+
+                        <hr class="my-4" />
+
+                        <div>
+                          <div class="fw-semibold mb-2">Attached Documents (Saved)</div>
+                          <div class="text-secondary small mb-2">
+                            Saved employee documents appear here after a successful create or update.
+                          </div>
+                          <div id="attachedDocumentsEmptyState" class="text-secondary small">
+                            No uploaded documents saved for this employee yet.
+                          </div>
+                          <div id="attachedDocumentsList" class="list-group d-none"></div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div class="col-12">
-                  <div class="d-flex flex-wrap gap-2 pt-2">
-                    <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+                  <div class="col-12">
+                    <div class="d-flex flex-wrap gap-2 pt-2">
+                      <!-- EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
      Employee create/update should stay disabled until required fields are complete.
      This keeps employee creation consistent with other HR/payroll forms. -->
-                    <button type="submit" id="saveEmployeeBtn" class="btn btn-secondary dashboard-action-btn" disabled>
-                      <i class="bi bi-person-plus me-2"></i>
-                      <span id="saveEmployeeBtnText">Create Employee Profile</span>
-                    </button>
+                      <button type="submit" id="saveEmployeeBtn" class="btn btn-secondary dashboard-action-btn"
+                        disabled>
+                        <i class="bi bi-person-plus me-2"></i>
+                        <span id="saveEmployeeBtnText">Create Employee Profile</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
             </form>
 
             <!-- DESCRIPTION ITEM 1 - BREAK FIX

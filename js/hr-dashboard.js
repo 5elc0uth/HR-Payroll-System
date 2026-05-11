@@ -154,11 +154,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     // DESCRIPTION ITEM 2
     // Initialise allowance workspace as part of HR payroll load.
     // =========================================================
-    await refreshEmployeeWorkspace();
+await refreshEmployeeWorkspace();
 
-    // MANAGE ORGANIZATION CARD - STEP 3
-    // Load the single organization settings record after HR access is confirmed.
-    await refreshOrganizationSettingsWorkspace();
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+// Load saved schools/courses into the Education datalists after HR access
+// is confirmed and Supabase is available.
+await refreshEducationSuggestionLists();
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+// Replace the browser-native datalist popup with a compact styled panel
+// so long school/course suggestion lists do not show a heavy scrollbar.
+bindEducationSuggestionPanels();
+
+// MANAGE ORGANIZATION CARD - STEP 3
+// Load the single organization settings record after HR access is confirmed.
+await refreshOrganizationSettingsWorkspace();
 
     // ORGANIZATION HR SETUP VALUES - STEP 3
     // Load HR-managed Departments and Job Titles before employee/payroll forms
@@ -205,9 +215,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       startEmployeeEdit(employeeId);
     };
 
-    window.hrViewEmployeeDocuments = (employeeId) => {
-      startEmployeeEdit(employeeId, { focusDocuments: true });
-    };
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4C
+// Expose staged education remove action for the Saved Education Records list.
+window.hrRemoveEmployeeEducationRecord = (recordIndex) => {
+  removeEmployeeEducationRecordAtIndex(recordIndex);
+};
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Expose staged beneficiary/dependant remove action for the list.
+window.hrRemoveEmployeeDependantRecord = (recordIndex) => {
+  removeEmployeeDependantRecordAtIndex(recordIndex);
+};
 
     // DESCRIPTION ITEM 9 - STEP 1
     // Expose payroll selection toggle for the checkbox column
@@ -503,7 +521,16 @@ const state = {
   // browser session so it can be shown first after refresh.
   lastSavedEmployeeBankDetailsKey: null,
 
-  pendingFiles: [],
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+// Holds education rows staged from the Education form before employee save.
+// This supports multiple qualifications per employee.
+pendingEmployeeEducationRecords: [],
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Holds beneficiary/dependant rows staged from the form before employee save.
+pendingEmployeeDependants: [],
+
+pendingFiles: [],
   attachedDocuments: [],
   allEmployeeDocuments: [],
   authProfiles: [],
@@ -767,11 +794,23 @@ function cacheDomElements() {
     maritalStatus: document.getElementById("maritalStatus"),
     nationality: document.getElementById("nationality"),
     exitDate: document.getElementById("exitDate"),
-    hmoProvider: document.getElementById("hmoProvider"),
-    hmoPlan: document.getElementById("hmoPlan"),
-    hmoNumber: document.getElementById("hmoNumber"),
+hmoProvider: document.getElementById("hmoProvider"),
+hmoPlan: document.getElementById("hmoPlan"),
+hmoNumber: document.getElementById("hmoNumber"),
 
-    // EMPLOYEE BIODATA COMPLETION - STEP 4C
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Beneficiaries / Dependants are repeatable in-page records.
+// They are staged first, then saved in a later step after employee save wiring is confirmed.
+employeeDependantFullName: document.getElementById("employeeDependantFullName"),
+employeeDependantRelationship: document.getElementById("employeeDependantRelationship"),
+employeeDependantDateOfBirth: document.getElementById("employeeDependantDateOfBirth"),
+employeeDependantPhoneNumber: document.getElementById("employeeDependantPhoneNumber"),
+employeeDependantCoverageType: document.getElementById("employeeDependantCoverageType"),
+addEmployeeDependantRecordBtn: document.getElementById("addEmployeeDependantRecordBtn"),
+employeeDependantsEmptyState: document.getElementById("employeeDependantsEmptyState"),
+employeeDependantsRecordsList: document.getElementById("employeeDependantsRecordsList"),
+
+// EMPLOYEE BIODATA COMPLETION - STEP 4C
     // Current/Permanent address fields are saved to employee_addresses.
     employeeCurrentAddressLine1: document.getElementById("employeeCurrentAddressLine1"),
     employeeCurrentCity: document.getElementById("employeeCurrentCity"),
@@ -782,9 +821,40 @@ function cacheDomElements() {
     employeePermanentCity: document.getElementById("employeePermanentCity"),
     employeePermanentStateRegion: document.getElementById("employeePermanentStateRegion"),
     employeePermanentCountry: document.getElementById("employeePermanentCountry"),
-    employeePermanentPostalCode: document.getElementById("employeePermanentPostalCode"),
+employeePermanentPostalCode: document.getElementById("employeePermanentPostalCode"),
 
-    phoneNumber: document.getElementById("phoneNumber"),
+// EMPLOYEE BIODATA COMPLETION - STEP 5C
+// Next of Kin is saved to employee_next_of_kin as the employee's primary emergency contact.
+employeeNextOfKinFullName: document.getElementById("employeeNextOfKinFullName"),
+employeeNextOfKinRelationship: document.getElementById("employeeNextOfKinRelationship"),
+employeeNextOfKinPhoneNumber: document.getElementById("employeeNextOfKinPhoneNumber"),
+employeeNextOfKinEmail: document.getElementById("employeeNextOfKinEmail"),
+employeeNextOfKinAddress: document.getElementById("employeeNextOfKinAddress"),
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+// Education / Academic Qualification fields are optional, but once HR starts them,
+// Institution and Qualification must be completed and Graduation Year must be valid.
+employeeEducationInstitutionName: document.getElementById("employeeEducationInstitutionName"),
+employeeEducationQualification: document.getElementById("employeeEducationQualification"),
+employeeEducationFieldOfStudy: document.getElementById("employeeEducationFieldOfStudy"),
+employeeEducationGraduationYear: document.getElementById("employeeEducationGraduationYear"),
+employeeEducationStatus: document.getElementById("employeeEducationStatus"),
+employeeEducationHighestQualification: document.getElementById("employeeEducationHighestQualification"),
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+// These datalists are rebuilt from saved education records, so HR does not
+// need developers to keep adding schools/courses directly into the HTML.
+employeeEducationInstitutionSuggestions: document.getElementById("employeeEducationInstitutionSuggestions"),
+employeeEducationCourseSuggestions: document.getElementById("employeeEducationCourseSuggestions"),
+
+employeeEducationEmptyState: document.getElementById("employeeEducationEmptyState"),
+employeeEducationRecordsList: document.getElementById("employeeEducationRecordsList"),
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+// Button used to stage more than one education record before employee save.
+addEmployeeEducationRecordBtn: document.getElementById("addEmployeeEducationRecordBtn"),
+
+phoneNumber: document.getElementById("phoneNumber"),
     department: document.getElementById("department"),
     jobTitle: document.getElementById("jobTitle"),
 
@@ -4313,7 +4383,21 @@ function bindEvents() {
     await handleEmployeeSave();
   });
 
-  state.dom.employeeSearchInput?.addEventListener("input", () => {
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+  // Stage the visible Education form as a saved education row in the page state.
+  // Supabase save wiring comes after this UI behaviour is confirmed.
+state.dom.addEmployeeEducationRecordBtn?.addEventListener("click", () => {
+  stageEmployeeEducationRecordFromForm();
+});
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Stage a beneficiary/dependant row from the visible form.
+// Database save wiring comes after this staging behaviour is confirmed.
+state.dom.addEmployeeDependantRecordBtn?.addEventListener("click", () => {
+  stageEmployeeDependantRecordFromForm();
+});
+
+state.dom.employeeSearchInput?.addEventListener("input", () => {
     applyEmployeeSearch();
   });
   // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1C
@@ -4347,46 +4431,89 @@ function bindEvents() {
     await handleBatchEmployeeSubmit();
   });
 
-  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
-  // Keep Create/Update Employee disabled until the required employee form
-  // fields are complete and the work email is valid.
-  [
-    state.dom.firstName,
-    state.dom.middleName,
-    state.dom.lastName,
-    state.dom.workEmail,
+// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+// Keep Create/Update Employee disabled until the required employee form
+// fields are complete and the work email is valid.
+[
+  state.dom.firstName,
+  state.dom.middleName,
+  state.dom.lastName,
+  state.dom.workEmail,
 
-    // EMPLOYEE BIODATA COMPLETION - STEP 2G
-    // Optional biodata fields should still refresh Save button readiness
-    // when HR enters invalid optional email or changes lifecycle details.
-    state.dom.personalEmail,
-    state.dom.dateOfBirth,
-    state.dom.gender,
-    state.dom.maritalStatus,
-    state.dom.nationality,
-    state.dom.exitDate,
-    state.dom.hmoProvider,
-    state.dom.hmoPlan,
-    state.dom.hmoNumber,
+  // EMPLOYEE BIODATA COMPLETION - STEP 2G
+  // Optional biodata fields should still refresh Save button readiness
+  // when HR enters invalid optional email or changes lifecycle details.
+  state.dom.personalEmail,
+  state.dom.dateOfBirth,
+  state.dom.gender,
+  state.dom.maritalStatus,
+  state.dom.nationality,
+  state.dom.exitDate,
+  state.dom.hmoProvider,
+  state.dom.hmoPlan,
+  state.dom.hmoNumber,
 
-    state.dom.phoneNumber,
-    state.dom.department,
-    state.dom.jobTitle,
-    state.dom.lineManager,
-    state.dom.employmentDate,
-    state.dom.approverEmail,
-    state.dom.employmentStatus,
-    state.dom.systemRole,
+  // EMPLOYEE BIODATA COMPLETION - STEP 5J
+  // Address fields are optional, but if HR starts entering address details,
+  // the Save button must immediately re-check the address validation rule.
+  state.dom.employeeCurrentAddressLine1,
+  state.dom.employeeCurrentCity,
+  state.dom.employeeCurrentStateRegion,
+  state.dom.employeeCurrentCountry,
+  state.dom.employeeCurrentPostalCode,
+  state.dom.employeePermanentAddressLine1,
+  state.dom.employeePermanentCity,
+  state.dom.employeePermanentStateRegion,
+  state.dom.employeePermanentCountry,
+  state.dom.employeePermanentPostalCode,
 
-    // DESCRIPTION ITEM 3 - STEP 2B CLEANUP
-    // Keep Custom System Role only once in this listener array.
-    // One listener is enough to refresh the Employee save button when HR types
-    // a custom role, and avoids duplicate event bindings.
-    state.dom.customSystemRole,
-  ].forEach((field) => {
-    field?.addEventListener("input", updateEmployeeSaveButtonState);
-    field?.addEventListener("change", updateEmployeeSaveButtonState);
-  });
+  // EMPLOYEE BIODATA COMPLETION - STEP 5J
+  // Next of Kin is optional, but once HR starts it, Full Name,
+  // Relationship, Phone Number, and optional Email format must be valid
+  // before Create/Update Employee can be submitted.
+  state.dom.employeeNextOfKinFullName,
+  state.dom.employeeNextOfKinRelationship,
+  state.dom.employeeNextOfKinPhoneNumber,
+  state.dom.employeeNextOfKinEmail,
+  state.dom.employeeNextOfKinAddress,
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+  // Education fields must refresh the Employee save button immediately.
+  // Without this, invalid education entries can leave the button blue.
+  state.dom.employeeEducationInstitutionName,
+  state.dom.employeeEducationQualification,
+  state.dom.employeeEducationFieldOfStudy,
+  state.dom.employeeEducationGraduationYear,
+  state.dom.employeeEducationStatus,
+  state.dom.employeeEducationHighestQualification,
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+  // Beneficiary/dependant fields are optional, but if HR starts one,
+  // Full Name, Relationship, and Type must be complete before Save turns blue.
+  state.dom.employeeDependantFullName,
+  state.dom.employeeDependantRelationship,
+  state.dom.employeeDependantDateOfBirth,
+  state.dom.employeeDependantPhoneNumber,
+  state.dom.employeeDependantCoverageType,
+
+  state.dom.phoneNumber,
+  state.dom.department,
+  state.dom.jobTitle,
+  state.dom.lineManager,
+  state.dom.employmentDate,
+  state.dom.approverEmail,
+  state.dom.employmentStatus,
+  state.dom.systemRole,
+
+  // DESCRIPTION ITEM 3 - STEP 2B CLEANUP
+  // Keep Custom System Role only once in this listener array.
+  // One listener is enough to refresh the Employee save button when HR types
+  // a custom role, and avoids duplicate event bindings.
+  state.dom.customSystemRole,
+].forEach((field) => {
+  field?.addEventListener("input", updateEmployeeSaveButtonState);
+  field?.addEventListener("change", updateEmployeeSaveButtonState);
+});
 
   // ASSIGN LINE MANAGER - STEP 1E
   // Show/hide the custom role input when HR selects Other.
@@ -6383,7 +6510,9 @@ function populateAssignedLineManagerOptions(preferredEmployeeId = "") {
   managerCandidates.forEach((employee) => {
     const option = document.createElement("option");
     option.value = employee.id;
-    option.textContent = `${getEmployeeManagerDisplayName(employee)} — ${employee.work_email || "--"}`;
+// EMPLOYEE BIODATA COMPLETION - STEP 6B-PREP
+// Keep the manager dropdown readable. Email is shown separately in Primary Approver Email.
+option.textContent = `${getEmployeeManagerDisplayName(employee)} — ${employee.job_title || "Manager"}`;
     option.dataset.managerName = getEmployeeManagerDisplayName(employee);
     option.dataset.managerEmail = String(employee.work_email || "").trim().toLowerCase();
     select.appendChild(option);
@@ -6402,7 +6531,9 @@ function populateAssignedLineManagerOptions(preferredEmployeeId = "") {
     if (!alreadyExists) {
       const option = document.createElement("option");
       option.value = savedManagerOption.id;
-      option.textContent = `${savedManagerOption.name} — ${savedManagerOption.email} (saved manager)`;
+// EMPLOYEE BIODATA COMPLETION - STEP 6B-PREP
+// Avoid repeating email in the dropdown because Approver Email is displayed separately.
+option.textContent = `${savedManagerOption.name} (saved manager)`;
       option.dataset.managerName = savedManagerOption.name;
       option.dataset.managerEmail = savedManagerOption.email;
       select.appendChild(option);
@@ -6900,7 +7031,10 @@ function getEmployeeAddressGroups() {
       city: state.dom.employeePermanentCity,
       stateRegion: state.dom.employeePermanentStateRegion,
       country: state.dom.employeePermanentCountry,
-      postalCode: state.dom.employeePermanentPostalCode,
+// EMPLOYEE BIODATA COMPLETION - STEP 5I
+// Keep the Permanent Address group clean.
+// Next of Kin listeners belong in bindEvents(), not inside this address config object.
+postalCode: state.dom.employeePermanentPostalCode,
     },
   ];
 }
@@ -7080,6 +7214,1393 @@ function areEmployeeAddressFieldsReadyForSubmit() {
   });
 }
 
+// EMPLOYEE BIODATA COMPLETION - STEP 5D
+// Next of Kin is optional at employee creation.
+// If HR starts it, Full Name, Relationship, and Phone Number must be completed.
+function getEmployeeNextOfKinFields() {
+  return {
+    fullName: state.dom.employeeNextOfKinFullName,
+    relationship: state.dom.employeeNextOfKinRelationship,
+    phoneNumber: state.dom.employeeNextOfKinPhoneNumber,
+    email: state.dom.employeeNextOfKinEmail,
+    address: state.dom.employeeNextOfKinAddress,
+  };
+}
+
+function isEmployeeNextOfKinStarted() {
+  const fields = getEmployeeNextOfKinFields();
+
+  return [
+    fields.fullName,
+    fields.relationship,
+    fields.phoneNumber,
+    fields.email,
+    fields.address,
+  ].some((field) => Boolean(String(field?.value || "").trim()));
+}
+
+function clearEmployeeNextOfKinValidationState() {
+  const fields = getEmployeeNextOfKinFields();
+
+  [
+    fields.fullName,
+    fields.relationship,
+    fields.phoneNumber,
+    fields.email,
+  ].forEach((field) => {
+    field?.classList.remove("is-invalid");
+  });
+}
+
+function validateEmployeeNextOfKinFields() {
+  clearEmployeeNextOfKinValidationState();
+
+  if (!isEmployeeNextOfKinStarted()) {
+    return true;
+  }
+
+  const fields = getEmployeeNextOfKinFields();
+  const issues = [];
+  let firstInvalidField = null;
+
+  const fullName = String(fields.fullName?.value || "").trim();
+  const relationship = String(fields.relationship?.value || "").trim();
+  const phoneNumber = String(fields.phoneNumber?.value || "").trim();
+
+  if (!fullName) {
+    issues.push("Enter the next of kin full name.");
+    fields.fullName?.classList.add("is-invalid");
+    firstInvalidField ||= fields.fullName;
+  }
+
+  if (!relationship) {
+    issues.push("Select the next of kin relationship.");
+    fields.relationship?.classList.add("is-invalid");
+    firstInvalidField ||= fields.relationship;
+  }
+
+  if (!phoneNumber) {
+    issues.push("Enter the next of kin phone number.");
+    fields.phoneNumber?.classList.add("is-invalid");
+    firstInvalidField ||= fields.phoneNumber;
+  }
+
+  if (!validateEmailField(fields.email, { required: false })) {
+    issues.push("Enter a valid next of kin email address.");
+    firstInvalidField ||= fields.email;
+  }
+
+  if (issues.length) {
+    showPageAlert(
+      "warning",
+      "Please complete the required next of kin details or clear the next of kin section.",
+    );
+
+    firstInvalidField?.focus?.();
+    return false;
+  }
+
+  return true;
+}
+
+function buildEmployeeNextOfKinRowsForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+
+  if (!employeeKey || !isEmployeeNextOfKinStarted()) {
+    return [];
+  }
+
+  const fields = getEmployeeNextOfKinFields();
+
+  return [
+    {
+      employee_id: employeeKey,
+      full_name: String(fields.fullName?.value || "").trim(),
+      relationship: String(fields.relationship?.value || "").trim(),
+      phone_number: String(fields.phoneNumber?.value || "").trim(),
+      email: String(fields.email?.value || "").trim().toLowerCase() || null,
+      address: String(fields.address?.value || "").trim() || null,
+      is_primary: true,
+      status: "Active",
+      created_by: state.currentUser?.id || null,
+      updated_by: state.currentUser?.id || null,
+    },
+  ];
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 5D
+// Save one primary next of kin snapshot for the employee.
+// This mirrors the address/reporting-line child-table pattern.
+async function saveEmployeeNextOfKinForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return;
+
+  const supabase = getSupabaseClient();
+  const nextOfKinRows = buildEmployeeNextOfKinRowsForEmployee(employeeKey);
+
+  const { error: deleteError } = await supabase
+    .from("employee_next_of_kin")
+    .delete()
+    .eq("employee_id", employeeKey);
+
+  if (deleteError) throw deleteError;
+
+  if (!nextOfKinRows.length) return;
+
+  const { error: insertError } = await supabase
+    .from("employee_next_of_kin")
+    .insert(nextOfKinRows);
+
+  if (insertError) throw insertError;
+}
+
+function resetEmployeeNextOfKinFields() {
+  const fields = getEmployeeNextOfKinFields();
+
+  [
+    fields.fullName,
+    fields.relationship,
+    fields.phoneNumber,
+    fields.email,
+    fields.address,
+  ].forEach((field) => {
+    if (!field) return;
+    field.value = "";
+    field.classList.remove("is-invalid");
+  });
+}
+
+function applyEmployeeNextOfKinRecordToFields(record = {}) {
+  const fields = getEmployeeNextOfKinFields();
+
+  if (fields.fullName) fields.fullName.value = record.full_name || "";
+  if (fields.relationship) fields.relationship.value = record.relationship || "";
+  if (fields.phoneNumber) fields.phoneNumber.value = record.phone_number || "";
+  if (fields.email) fields.email.value = record.email || "";
+  if (fields.address) fields.address.value = record.address || "";
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 5D
+// Load saved primary Next of Kin when HR edits an employee.
+async function loadEmployeeNextOfKinForEdit(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  resetEmployeeNextOfKinFields();
+
+  if (!employeeKey) return;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("employee_next_of_kin")
+      .select("*")
+      .eq("employee_id", employeeKey)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (error) throw error;
+
+    const record = Array.isArray(data) ? data[0] : null;
+
+    if (record) {
+      applyEmployeeNextOfKinRecordToFields(record);
+    }
+
+    updateEmployeeSaveButtonState();
+  } catch (error) {
+    console.error("Error loading employee next of kin:", error);
+
+    showPageAlert(
+      "warning",
+      "Employee profile opened, but saved next of kin details could not be loaded. Please refresh and try again.",
+    );
+  }
+}
+
+function areEmployeeNextOfKinFieldsReadyForSubmit() {
+  if (!isEmployeeNextOfKinStarted()) {
+    return true;
+  }
+
+  const fields = getEmployeeNextOfKinFields();
+
+  const hasRequiredFields = Boolean(
+    String(fields.fullName?.value || "").trim() &&
+    String(fields.relationship?.value || "").trim() &&
+    String(fields.phoneNumber?.value || "").trim(),
+  );
+
+  const emailValue = String(fields.email?.value || "").trim();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const hasValidEmail = !emailValue || emailPattern.test(emailValue);
+
+  return hasRequiredFields && hasValidEmail;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+// Education is optional at employee creation.
+// If HR starts it, Institution and Qualification must be completed.
+// Graduation Year is optional, but must be realistic when entered.
+function getEmployeeEducationFields() {
+  return {
+    institutionName: state.dom.employeeEducationInstitutionName,
+    qualification: state.dom.employeeEducationQualification,
+    fieldOfStudy: state.dom.employeeEducationFieldOfStudy,
+    graduationYear: state.dom.employeeEducationGraduationYear,
+    educationStatus: state.dom.employeeEducationStatus,
+    highestQualification: state.dom.employeeEducationHighestQualification,
+  };
+}
+
+function isEmployeeEducationStarted() {
+  const fields = getEmployeeEducationFields();
+
+  return [
+    fields.institutionName,
+    fields.qualification,
+    fields.fieldOfStudy,
+    fields.graduationYear,
+    fields.educationStatus,
+  ].some((field) => Boolean(String(field?.value || "").trim()));
+}
+
+function clearEmployeeEducationValidationState() {
+  const fields = getEmployeeEducationFields();
+
+  [
+    fields.institutionName,
+    fields.qualification,
+    fields.graduationYear,
+  ].forEach((field) => {
+    field?.classList.remove("is-invalid");
+  });
+}
+
+function isEmployeeGraduationYearValid() {
+  const fields = getEmployeeEducationFields();
+  const yearValue = String(fields.graduationYear?.value || "").trim();
+
+  if (!yearValue) return true;
+
+  const year = Number(yearValue);
+  const currentYear = new Date().getFullYear();
+
+  return Number.isInteger(year) && year >= 1950 && year <= currentYear + 10;
+}
+
+function validateEmployeeEducationFields() {
+  clearEmployeeEducationValidationState();
+
+  if (!isEmployeeEducationStarted()) {
+    return true;
+  }
+
+  const fields = getEmployeeEducationFields();
+  let firstInvalidField = null;
+
+  const institutionName = String(fields.institutionName?.value || "").trim();
+  const qualification = String(fields.qualification?.value || "").trim();
+
+  if (!institutionName) {
+    fields.institutionName?.classList.add("is-invalid");
+    firstInvalidField ||= fields.institutionName;
+  }
+
+  if (!qualification) {
+    fields.qualification?.classList.add("is-invalid");
+    firstInvalidField ||= fields.qualification;
+  }
+
+  if (!isEmployeeGraduationYearValid()) {
+    fields.graduationYear?.classList.add("is-invalid");
+    firstInvalidField ||= fields.graduationYear;
+  }
+
+  if (firstInvalidField) {
+    showPageAlert(
+      "warning",
+      "Please complete the required education details or clear the education section.",
+    );
+
+    firstInvalidField.focus?.();
+    return false;
+  }
+
+  return true;
+}
+
+function areEmployeeEducationFieldsReadyForSubmit() {
+  if (!isEmployeeEducationStarted()) {
+    return true;
+  }
+
+  const fields = getEmployeeEducationFields();
+
+  const hasRequiredFields = Boolean(
+    String(fields.institutionName?.value || "").trim() &&
+    String(fields.qualification?.value || "").trim(),
+  );
+
+  return hasRequiredFields && isEmployeeGraduationYearValid();
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4B
+// Normalise each staged education row before saving to Supabase.
+// This prevents display-only fields, old IDs, or loaded metadata from being reinserted.
+function normaliseEmployeeEducationRecordForSave(record = {}, employeeId = "") {
+  const employeeKey = String(employeeId || "").trim();
+
+  return {
+    employee_id: employeeKey,
+    institution_name: String(record.institution_name || "").trim(),
+    qualification: String(record.qualification || "").trim(),
+    field_of_study: String(record.field_of_study || "").trim() || null,
+    graduation_year: record.graduation_year ? Number(record.graduation_year) : null,
+    education_status: String(record.education_status || "").trim() || "Completed",
+    is_highest_qualification: Boolean(record.is_highest_qualification),
+    created_by: state.currentUser?.id || null,
+    updated_by: state.currentUser?.id || null,
+  };
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4B
+// Build all education rows for save.
+// Staged rows come from "Add Education Record".
+// A visible, un-staged row is also saved so HR does not lose a final entry.
+function buildEmployeeEducationRowsForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+
+  if (!employeeKey) {
+    return [];
+  }
+
+  const stagedRecords = Array.isArray(state.pendingEmployeeEducationRecords)
+    ? state.pendingEmployeeEducationRecords
+    : [];
+
+  const recordsToSave = [...stagedRecords];
+
+  if (isEmployeeEducationStarted()) {
+    recordsToSave.push(buildEmployeeEducationRecordFromCurrentFields());
+  }
+
+  return recordsToSave
+    .map((record) => normaliseEmployeeEducationRecordForSave(record, employeeKey))
+    .filter((record) => record.institution_name && record.qualification);
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+// Save the current visible Education section for the employee.
+// This mirrors the existing address/next-of-kin replace pattern.
+async function saveEmployeeEducationRecordsForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return;
+
+  const supabase = getSupabaseClient();
+  const educationRows = buildEmployeeEducationRowsForEmployee(employeeKey);
+
+  const { error: deleteError } = await supabase
+    .from("employee_education_records")
+    .delete()
+    .eq("employee_id", employeeKey);
+
+  if (deleteError) throw deleteError;
+
+  if (!educationRows.length) return;
+
+  const { error: insertError } = await supabase
+    .from("employee_education_records")
+    .insert(educationRows);
+
+  if (insertError) throw insertError;
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+// Build a clean, unique, alphabetical list of saved schools/courses.
+// Empty values are ignored so the datalist stays useful and not noisy.
+function getUniqueSortedEducationSuggestionValues(rows = [], columnName = "") {
+  const valuesByKey = new Map();
+
+  rows.forEach((row) => {
+    const value = String(row?.[columnName] || "").trim();
+    if (!value) return;
+
+    const key = value.toLowerCase().replace(/\s+/g, " ");
+
+    if (!valuesByKey.has(key)) {
+      valuesByKey.set(key, value);
+    }
+  });
+
+  return Array.from(valuesByKey.values()).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+// Replace the old static datalist options with values learned from saved
+// employee education records.
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1B
+// Keep the original hardcoded HTML suggestions as seed values, then merge
+// saved database values into the same datalist. This prevents useful default
+// suggestions from disappearing after dynamic suggestions load.
+function renderEducationDatalistOptions(datalist, values = []) {
+  if (!datalist) return;
+
+  if (!datalist.dataset.staticSuggestionValues) {
+    const staticValues = Array.from(datalist.options || [])
+      .map((option) => String(option.value || "").trim())
+      .filter(Boolean);
+
+    datalist.dataset.staticSuggestionValues = JSON.stringify(staticValues);
+  }
+
+  let staticValues = [];
+
+  try {
+    staticValues = JSON.parse(datalist.dataset.staticSuggestionValues || "[]");
+  } catch (error) {
+    staticValues = [];
+  }
+
+  const mergedValuesByKey = new Map();
+
+  [...staticValues, ...values].forEach((value) => {
+    const cleanValue = String(value || "").trim();
+    if (!cleanValue) return;
+
+    const key = cleanValue.toLowerCase().replace(/\s+/g, " ");
+
+    if (!mergedValuesByKey.has(key)) {
+      mergedValuesByKey.set(key, cleanValue);
+    }
+  });
+
+  const mergedValues = Array.from(mergedValuesByKey.values()).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+
+  datalist.innerHTML = "";
+
+  mergedValues.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    datalist.appendChild(option);
+  });
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+// Native browser datalist popups cannot be styled reliably.
+// Keep the datalist as the source of truth, but render a compact in-app
+// suggestion panel with a slimmer scrollbar for School and Course fields.
+function injectEducationSuggestionPanelStyles() {
+  if (document.getElementById("educationSuggestionPanelStyles")) return;
+
+  const style = document.createElement("style");
+  style.id = "educationSuggestionPanelStyles";
+
+  style.textContent = `
+    .education-suggestion-panel {
+      position: absolute;
+      top: calc(100% + 0.35rem);
+      left: 0;
+      right: 0;
+      z-index: 1080;
+      max-height: 13rem;
+      overflow-y: auto;
+      background: #ffffff;
+      border: 1px solid rgba(13, 110, 253, 0.18);
+      border-radius: 0.85rem;
+      box-shadow: 0 0.65rem 1.5rem rgba(15, 23, 42, 0.14);
+      padding: 0.35rem;
+    }
+
+    .education-suggestion-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .education-suggestion-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .education-suggestion-panel::-webkit-scrollbar-thumb {
+      background: rgba(15, 23, 42, 0.22);
+      border-radius: 999px;
+    }
+
+    .education-suggestion-panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(15, 23, 42, 0.34);
+    }
+
+    .education-suggestion-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      padding: 0.55rem 0.7rem;
+      border-radius: 0.65rem;
+      font-size: 0.92rem;
+      line-height: 1.25;
+      color: #0f172a;
+    }
+
+    .education-suggestion-item:hover,
+    .education-suggestion-item:focus {
+      background: rgba(13, 110, 253, 0.08);
+      outline: none;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+// Read the current merged datalist values. This supports both seeded
+// hardcoded suggestions and saved values learned from employee records.
+function getEducationSuggestionValuesFromDatalist(datalist) {
+  const valuesByKey = new Map();
+
+  Array.from(datalist?.options || []).forEach((option) => {
+    const value = String(option.value || "").trim();
+    if (!value) return;
+
+    const key = value.toLowerCase().replace(/\s+/g, " ");
+
+    if (!valuesByKey.has(key)) {
+      valuesByKey.set(key, value);
+    }
+  });
+
+  return Array.from(valuesByKey.values()).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+// Keep the popup compact. Matching starts-with values come first, then
+// contains matches. This avoids a tall, heavy dropdown.
+function getMatchingEducationSuggestionValues(values = [], searchText = "") {
+  const searchKey = String(searchText || "").trim().toLowerCase();
+
+  if (!searchKey) {
+    return values.slice(0, 10);
+  }
+
+  const startsWithMatches = values.filter((value) =>
+    value.toLowerCase().startsWith(searchKey),
+  );
+
+  const containsMatches = values.filter((value) => {
+    const lowerValue = value.toLowerCase();
+
+    return (
+      !lowerValue.startsWith(searchKey) &&
+      lowerValue.includes(searchKey)
+    );
+  });
+
+  return [...startsWithMatches, ...containsMatches].slice(0, 10);
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+// Render the compact custom suggestion panel for one Education input.
+function renderEducationSuggestionPanel(input, datalist, panel) {
+  if (!input || !datalist || !panel) return;
+
+  const values = getEducationSuggestionValuesFromDatalist(datalist);
+  const matches = getMatchingEducationSuggestionValues(values, input.value);
+
+  panel.innerHTML = "";
+
+  if (!matches.length) {
+    panel.classList.add("d-none");
+    return;
+  }
+
+  matches.forEach((value) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "education-suggestion-item";
+    button.textContent = value;
+
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+
+      input.value = value;
+      panel.classList.add("d-none");
+
+      // Keep existing employee save-button readiness in sync.
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    panel.appendChild(button);
+  });
+
+  panel.classList.remove("d-none");
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+// Bind one input to the compact suggestion panel and disable the native
+// datalist popup only for this app-controlled field.
+function bindEducationSuggestionField(input, datalist) {
+  if (!input || !datalist) return;
+  if (input.dataset.educationSuggestionPanelBound === "true") return;
+
+  input.dataset.educationSuggestionPanelBound = "true";
+  input.dataset.originalList = input.getAttribute("list") || "";
+
+  // Disable the native browser popup so the large black scrollbar disappears.
+  input.removeAttribute("list");
+
+  const fieldWrapper = input.parentElement;
+  if (!fieldWrapper) return;
+
+  fieldWrapper.classList.add("position-relative");
+
+  const panel = document.createElement("div");
+  panel.className = "education-suggestion-panel d-none";
+  panel.setAttribute("role", "listbox");
+
+  input.insertAdjacentElement("afterend", panel);
+
+  input.addEventListener("focus", () => {
+    renderEducationSuggestionPanel(input, datalist, panel);
+  });
+
+  input.addEventListener("input", () => {
+    renderEducationSuggestionPanel(input, datalist, panel);
+  });
+
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      panel.classList.add("d-none");
+    }, 150);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (fieldWrapper.contains(event.target)) return;
+    panel.classList.add("d-none");
+  });
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+// Apply compact suggestion panels to School / Institution and Course only.
+// This keeps the change focused and avoids touching unrelated dropdowns.
+function bindEducationSuggestionPanels() {
+  injectEducationSuggestionPanelStyles();
+
+  bindEducationSuggestionField(
+    state.dom.employeeEducationInstitutionName,
+    state.dom.employeeEducationInstitutionSuggestions,
+  );
+
+  bindEducationSuggestionField(
+    state.dom.employeeEducationFieldOfStudy,
+    state.dom.employeeEducationCourseSuggestions,
+  );
+}
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+// Load saved School / Institution and Course / Field of Study values from
+// employee_education_records and use them as live suggestions.
+async function refreshEducationSuggestionLists() {
+  const institutionList = state.dom.employeeEducationInstitutionSuggestions;
+  const courseList = state.dom.employeeEducationCourseSuggestions;
+
+  if (!institutionList && !courseList) return;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("employee_education_records")
+      .select("institution_name, field_of_study")
+      .limit(1000);
+
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+
+    renderEducationDatalistOptions(
+      institutionList,
+      getUniqueSortedEducationSuggestionValues(rows, "institution_name"),
+    );
+
+    renderEducationDatalistOptions(
+      courseList,
+      getUniqueSortedEducationSuggestionValues(rows, "field_of_study"),
+    );
+  } catch (error) {
+    // DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+    // Suggestions are helpful only; they must not block HR from creating
+    // or editing employee records if the suggestion query fails.
+    console.error("Error loading education suggestion lists:", error);
+  }
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Normalise staged beneficiary/dependant rows before saving to Supabase.
+// This keeps employee_dependants as the repeatable child table and avoids
+// reinserting display-only fields when HR edits an existing employee.
+function normaliseEmployeeDependantRecordForSave(record = {}, employeeId = "") {
+  const employeeKey = String(employeeId || "").trim();
+
+  return {
+    employee_id: employeeKey,
+    full_name: String(record.full_name || "").trim(),
+    relationship: String(record.relationship || "").trim(),
+    date_of_birth: record.date_of_birth || null,
+    phone_number: String(record.phone_number || "").trim() || null,
+    coverage_type: String(record.coverage_type || "").trim(),
+    status: "Active",
+    created_by: state.currentUser?.id || null,
+    updated_by: state.currentUser?.id || null,
+  };
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Build all beneficiary/dependant rows for save.
+// Staged rows come from Add Beneficiary / Dependant. A visible un-staged row
+// is also saved so HR does not lose the final entry before clicking Save.
+function buildEmployeeDependantRowsForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+
+  if (!employeeKey) {
+    return [];
+  }
+
+  const stagedRecords = Array.isArray(state.pendingEmployeeDependants)
+    ? state.pendingEmployeeDependants
+    : [];
+
+  const recordsToSave = [...stagedRecords];
+
+  if (isEmployeeDependantStarted()) {
+    recordsToSave.push(buildEmployeeDependantRecordFromCurrentFields());
+  }
+
+  return recordsToSave
+    .map((record) => normaliseEmployeeDependantRecordForSave(record, employeeKey))
+    .filter((record) => record.full_name && record.relationship && record.coverage_type);
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Save beneficiaries/dependants by replacing this employee's current child rows.
+// This mirrors Education, Address, and Next of Kin behaviour so removed rows
+// stay removed after HR saves and reopens the employee profile.
+async function saveEmployeeDependantRecordsForEmployee(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  if (!employeeKey) return;
+
+  const supabase = getSupabaseClient();
+  const dependantRows = buildEmployeeDependantRowsForEmployee(employeeKey);
+
+  const { error: deleteError } = await supabase
+    .from("employee_dependants")
+    .delete()
+    .eq("employee_id", employeeKey);
+
+  if (deleteError) throw deleteError;
+
+  if (!dependantRows.length) return;
+
+  const { error: insertError } = await supabase
+    .from("employee_dependants")
+    .insert(dependantRows);
+
+  if (insertError) throw insertError;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Clear dependant/beneficiary inputs and the saved-record display when the
+// employee form returns to create mode.
+function resetEmployeeDependantFields() {
+  clearEmployeeDependantInputFields();
+  clearEmployeeDependantValidationState();
+
+  state.pendingEmployeeDependants = [];
+  renderEmployeeDependantRecords([]);
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Load saved beneficiaries/dependants into the staged list when HR edits an
+// employee. The visible form remains blank so HR can add another clean row.
+async function loadEmployeeDependantRecordsForEdit(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  resetEmployeeDependantFields();
+
+  if (!employeeKey) return;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("employee_dependants")
+      .select("*")
+      .eq("employee_id", employeeKey)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    const records = Array.isArray(data)
+      ? data.map((record) => ({
+          full_name: record.full_name || "",
+          relationship: record.relationship || "",
+          date_of_birth: record.date_of_birth || null,
+          phone_number: record.phone_number || null,
+          coverage_type: record.coverage_type || "",
+        }))
+      : [];
+
+    state.pendingEmployeeDependants = records;
+
+    renderEmployeeDependantRecords(state.pendingEmployeeDependants);
+    clearEmployeeDependantValidationState();
+    updateEmployeeSaveButtonState();
+  } catch (error) {
+    console.error("Error loading employee beneficiaries/dependants:", error);
+
+    showPageAlert(
+      "warning",
+      "Employee profile opened, but saved beneficiaries/dependants could not be loaded. Please refresh and try again.",
+    );
+  }
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Keep Save button readiness aligned with optional beneficiary/dependant rows.
+// Empty is allowed, but a started row must have Full Name, Relationship, and Type.
+function areEmployeeDependantFieldsReadyForSubmit() {
+  if (!isEmployeeDependantStarted()) {
+    return true;
+  }
+
+  const fields = getEmployeeDependantFields();
+
+  return Boolean(
+    String(fields.fullName?.value || "").trim() &&
+    String(fields.relationship?.value || "").trim() &&
+    String(fields.coverageType?.value || "").trim(),
+  );
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Keep dependant/beneficiary field access in one place.
+function getEmployeeDependantFields() {
+  return {
+    fullName: state.dom.employeeDependantFullName,
+    relationship: state.dom.employeeDependantRelationship,
+    dateOfBirth: state.dom.employeeDependantDateOfBirth,
+    phoneNumber: state.dom.employeeDependantPhoneNumber,
+    coverageType: state.dom.employeeDependantCoverageType,
+  };
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Dependant/beneficiary records are optional.
+// If HR starts one, name, relationship, and type are required.
+function isEmployeeDependantStarted() {
+  const fields = getEmployeeDependantFields();
+
+  return [
+    fields.fullName,
+    fields.relationship,
+    fields.dateOfBirth,
+    fields.phoneNumber,
+    fields.coverageType,
+  ].some((field) => Boolean(String(field?.value || "").trim()));
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Clear validation styling from dependant/beneficiary fields.
+function clearEmployeeDependantValidationState() {
+  const fields = getEmployeeDependantFields();
+
+  [
+    fields.fullName,
+    fields.relationship,
+    fields.coverageType,
+  ].forEach((field) => {
+    field?.classList.remove("is-invalid");
+  });
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Validate the visible dependant/beneficiary entry before staging it.
+function validateEmployeeDependantFields() {
+  clearEmployeeDependantValidationState();
+
+  if (!isEmployeeDependantStarted()) {
+    showPageAlert(
+      "warning",
+      "Enter beneficiary or dependant details before adding the record.",
+    );
+    return false;
+  }
+
+  const fields = getEmployeeDependantFields();
+  let firstInvalidField = null;
+
+  if (!String(fields.fullName?.value || "").trim()) {
+    fields.fullName?.classList.add("is-invalid");
+    firstInvalidField ||= fields.fullName;
+  }
+
+  if (!String(fields.relationship?.value || "").trim()) {
+    fields.relationship?.classList.add("is-invalid");
+    firstInvalidField ||= fields.relationship;
+  }
+
+  if (!String(fields.coverageType?.value || "").trim()) {
+    fields.coverageType?.classList.add("is-invalid");
+    firstInvalidField ||= fields.coverageType;
+  }
+
+  if (firstInvalidField) {
+    showPageAlert(
+      "warning",
+      "Please complete Full Name, Relationship, and Type before adding the record.",
+    );
+    firstInvalidField.focus?.();
+    return false;
+  }
+
+  return true;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Build one staged dependant/beneficiary row from the visible form.
+function buildEmployeeDependantRecordFromCurrentFields() {
+  const fields = getEmployeeDependantFields();
+
+  return {
+    full_name: String(fields.fullName?.value || "").trim(),
+    relationship: String(fields.relationship?.value || "").trim(),
+    date_of_birth: String(fields.dateOfBirth?.value || "").trim() || null,
+    phone_number: String(fields.phoneNumber?.value || "").trim() || null,
+    coverage_type: String(fields.coverageType?.value || "").trim(),
+  };
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Render staged beneficiary/dependant records under the form.
+function renderEmployeeDependantRecords(records = []) {
+  const emptyState = state.dom.employeeDependantsEmptyState;
+  const list = state.dom.employeeDependantsRecordsList;
+
+  if (!emptyState || !list) return;
+
+  if (!records.length) {
+    emptyState.classList.remove("d-none");
+    list.classList.add("d-none");
+    list.innerHTML = "";
+    return;
+  }
+
+  emptyState.classList.add("d-none");
+  list.classList.remove("d-none");
+
+  list.innerHTML = records
+    .map((record, index) => {
+      const fullName = escapeHtml(record.full_name || "--");
+      const relationship = escapeHtml(record.relationship || "--");
+      const coverageType = escapeHtml(record.coverage_type || "--");
+      const dateOfBirth = record.date_of_birth
+        ? ` • DOB: ${escapeHtml(record.date_of_birth)}`
+        : "";
+      const phoneNumber = record.phone_number
+        ? ` • ${escapeHtml(record.phone_number)}`
+        : "";
+
+      return `
+        <div class="list-group-item">
+          <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+            <div>
+              <div class="fw-semibold">${fullName}</div>
+              <div class="small text-secondary">${relationship}${dateOfBirth}${phoneNumber}</div>
+            </div>
+
+            <div class="d-flex align-items-start gap-2 flex-wrap">
+              <span class="badge text-bg-light border">${coverageType}</span>
+
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                title="Remove beneficiary or dependant"
+                aria-label="Remove beneficiary or dependant"
+                onclick="window.hrRemoveEmployeeDependantRecord(${index})"
+              >
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Clear visible dependant/beneficiary input fields after staging.
+function clearEmployeeDependantInputFields() {
+  const fields = getEmployeeDependantFields();
+
+  [
+    fields.fullName,
+    fields.relationship,
+    fields.dateOfBirth,
+    fields.phoneNumber,
+    fields.coverageType,
+  ].forEach((field) => {
+    if (!field) return;
+    field.value = "";
+    field.classList.remove("is-invalid");
+  });
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Add the visible dependant/beneficiary form into the staged list.
+function stageEmployeeDependantRecordFromForm() {
+  if (!validateEmployeeDependantFields()) {
+    return;
+  }
+
+  const stagedRecord = buildEmployeeDependantRecordFromCurrentFields();
+
+  state.pendingEmployeeDependants = [
+    ...(state.pendingEmployeeDependants || []),
+    stagedRecord,
+  ];
+
+  clearEmployeeDependantInputFields();
+  renderEmployeeDependantRecords(state.pendingEmployeeDependants);
+  updateEmployeeSaveButtonState();
+
+  showDashboardToast(
+    "success",
+    "Beneficiary / dependant added",
+    "Save the employee profile to keep this record.",
+  );
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+// Remove one staged dependant/beneficiary record before employee save.
+function removeEmployeeDependantRecordAtIndex(recordIndex) {
+  const index = Number(recordIndex);
+
+  if (!Number.isInteger(index) || index < 0) {
+    showPageAlert("warning", "The selected beneficiary/dependant could not be removed.");
+    return;
+  }
+
+  const records = Array.isArray(state.pendingEmployeeDependants)
+    ? [...state.pendingEmployeeDependants]
+    : [];
+
+  if (!records[index]) {
+    showPageAlert("warning", "The selected beneficiary/dependant could not be found.");
+    return;
+  }
+
+  records.splice(index, 1);
+  state.pendingEmployeeDependants = records;
+
+  renderEmployeeDependantRecords(state.pendingEmployeeDependants);
+  updateEmployeeSaveButtonState();
+
+  showDashboardToast(
+    "success",
+    "Beneficiary / dependant removed",
+    "Save the employee profile to keep this change.",
+  );
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+// Reset Education fields and the Saved Education Records display.
+function resetEmployeeEducationFields() {
+  const fields = getEmployeeEducationFields();
+
+  [
+    fields.institutionName,
+    fields.qualification,
+    fields.fieldOfStudy,
+    fields.graduationYear,
+    fields.educationStatus,
+    fields.highestQualification,
+  ].forEach((field) => {
+    if (!field) return;
+    field.value = "";
+    field.classList.remove("is-invalid");
+  });
+
+  if (fields.highestQualification) {
+    fields.highestQualification.value = "false";
+  }
+
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-4B
+  // Reset staged education records when the employee form is cleared.
+  state.pendingEmployeeEducationRecords = [];
+
+  renderEmployeeEducationRecords([]);
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+// Load the first saved education record back into the visible form fields.
+function applyEmployeeEducationRecordToFields(record = {}) {
+  const fields = getEmployeeEducationFields();
+
+  if (fields.institutionName) {
+    fields.institutionName.value = record.institution_name || "";
+  }
+
+  if (fields.qualification) {
+    fields.qualification.value = record.qualification || "";
+  }
+
+  if (fields.fieldOfStudy) {
+    fields.fieldOfStudy.value = record.field_of_study || "";
+  }
+
+  if (fields.graduationYear) {
+    fields.graduationYear.value = record.graduation_year
+      ? String(record.graduation_year)
+      : "";
+  }
+
+  if (fields.educationStatus) {
+    fields.educationStatus.value = record.education_status || "";
+  }
+
+  if (fields.highestQualification) {
+    fields.highestQualification.value = String(Boolean(record.is_highest_qualification));
+  }
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+// Build one staged education row from the visible Education form.
+// This lets HR add several qualifications before saving the employee profile.
+function buildEmployeeEducationRecordFromCurrentFields() {
+  const fields = getEmployeeEducationFields();
+  const graduationYearValue = String(fields.graduationYear?.value || "").trim();
+
+  return {
+    institution_name: String(fields.institutionName?.value || "").trim(),
+    qualification: String(fields.qualification?.value || "").trim(),
+    field_of_study: String(fields.fieldOfStudy?.value || "").trim() || null,
+    graduation_year: graduationYearValue ? Number(graduationYearValue) : null,
+    education_status: String(fields.educationStatus?.value || "").trim() || "Completed",
+    is_highest_qualification:
+      String(fields.highestQualification?.value || "false") === "true",
+  };
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+// Add the current Education form values into the staged list, then clear
+// the visible fields so HR can add another qualification.
+function stageEmployeeEducationRecordFromForm() {
+  if (!validateEmployeeEducationFields()) {
+    updateEmployeeSaveButtonState();
+    return;
+  }
+
+  if (!isEmployeeEducationStarted()) {
+    showPageAlert(
+      "warning",
+      "Enter education details before adding an education record.",
+    );
+    return;
+  }
+
+  const stagedRecord = buildEmployeeEducationRecordFromCurrentFields();
+
+  state.pendingEmployeeEducationRecords = [
+    ...(state.pendingEmployeeEducationRecords || []),
+    stagedRecord,
+  ];
+
+  clearEmployeeEducationValidationState();
+
+  const fields = getEmployeeEducationFields();
+
+  [
+    fields.institutionName,
+    fields.qualification,
+    fields.fieldOfStudy,
+    fields.graduationYear,
+    fields.educationStatus,
+  ].forEach((field) => {
+    if (field) field.value = "";
+  });
+
+  if (fields.highestQualification) {
+    fields.highestQualification.value = "false";
+  }
+
+  renderEmployeeEducationRecords(state.pendingEmployeeEducationRecords);
+  updateEmployeeSaveButtonState();
+
+  showPageAlert(
+    "success",
+    "Education record added. Save the employee profile to keep the changes.",
+  );
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4C
+// Render staged/saved education records with a remove action.
+// HR can remove an incorrect qualification before saving the employee profile.
+function renderEmployeeEducationRecords(records = []) {
+  const emptyState = state.dom.employeeEducationEmptyState;
+  const list = state.dom.employeeEducationRecordsList;
+
+  if (!emptyState || !list) return;
+
+  if (!records.length) {
+    emptyState.classList.remove("d-none");
+    list.classList.add("d-none");
+    list.innerHTML = "";
+    return;
+  }
+
+  emptyState.classList.add("d-none");
+  list.classList.remove("d-none");
+
+  list.innerHTML = records
+    .map((record, index) => {
+      const institution = escapeHtml(record.institution_name || "--");
+      const qualification = escapeHtml(record.qualification || "--");
+      const fieldOfStudy = escapeHtml(record.field_of_study || "--");
+      const year = record.graduation_year
+        ? ` • ${escapeHtml(String(record.graduation_year))}`
+        : "";
+      const status = escapeHtml(record.education_status || "Completed");
+      const highestBadge = record.is_highest_qualification
+        ? `<span class="badge text-bg-primary ms-2">Highest</span>`
+        : "";
+
+      return `
+        <div class="list-group-item">
+          <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+            <div>
+              <div class="fw-semibold">${qualification}${highestBadge}</div>
+              <div class="small text-secondary">${institution}</div>
+              <div class="small text-secondary">${fieldOfStudy}${year}</div>
+            </div>
+
+            <div class="d-flex align-items-start gap-2 flex-wrap">
+              <span class="badge text-bg-light border">${status}</span>
+
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger"
+                title="Remove education record"
+                aria-label="Remove education record"
+                onclick="window.hrRemoveEmployeeEducationRecord(${index})"
+              >
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-4C
+// Remove one staged education record from the current employee edit session.
+// The actual database change is saved when HR clicks Update Employee Profile.
+function removeEmployeeEducationRecordAtIndex(recordIndex) {
+  const index = Number(recordIndex);
+
+  if (!Number.isInteger(index) || index < 0) {
+    showPageAlert("warning", "The selected education record could not be removed.");
+    return;
+  }
+
+  const records = Array.isArray(state.pendingEmployeeEducationRecords)
+    ? [...state.pendingEmployeeEducationRecords]
+    : [];
+
+  if (!records[index]) {
+    showPageAlert("warning", "The selected education record could not be found.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Remove this education record from the employee profile? Click Update Employee Profile afterwards to save the change.",
+  );
+
+  if (!confirmed) return;
+
+  records.splice(index, 1);
+  state.pendingEmployeeEducationRecords = records;
+
+  renderEmployeeEducationRecords(state.pendingEmployeeEducationRecords);
+  updateEmployeeSaveButtonState();
+
+  showPageAlert(
+    "success",
+    "Education record removed. Click Update Employee Profile to save the change.",
+  );
+
+  showDashboardToast(
+    "success",
+    "Education record removed",
+    "Click Update Employee Profile to save this change permanently.",
+  );
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+// Load saved education records when HR edits an employee.
+async function loadEmployeeEducationRecordsForEdit(employeeId) {
+  const employeeKey = String(employeeId || "").trim();
+  resetEmployeeEducationFields();
+
+  if (!employeeKey) return;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("employee_education_records")
+      .select("*")
+      .eq("employee_id", employeeKey)
+      .order("is_highest_qualification", { ascending: false })
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    // EMPLOYEE BIODATA COMPLETION - STEP 6C-4B
+    // Existing saved education records become the staged list for this edit session.
+    // The visible form stays empty so HR can add another qualification cleanly.
+    const records = Array.isArray(data)
+      ? data.map((record) => ({
+          institution_name: record.institution_name || "",
+          qualification: record.qualification || "",
+          field_of_study: record.field_of_study || null,
+          graduation_year: record.graduation_year || null,
+          education_status: record.education_status || "Completed",
+          is_highest_qualification: Boolean(record.is_highest_qualification),
+        }))
+      : [];
+
+    state.pendingEmployeeEducationRecords = records;
+
+    renderEmployeeEducationRecords(state.pendingEmployeeEducationRecords);
+    clearEmployeeEducationValidationState();
+    updateEmployeeSaveButtonState();
+  } catch (error) {
+    console.error("Error loading employee education records:", error);
+
+    showPageAlert(
+      "warning",
+      "Employee profile opened, but saved education records could not be loaded. Please refresh and try again.",
+    );
+  }
+}
+
 // ASSIGN LINE MANAGER - STEP 1E
 // Display labels for standard system roles.
 // Custom roles are displayed as typed by HR.
@@ -7226,16 +8747,34 @@ function isEmployeeFormReadyForSubmit() {
   // EMPLOYEE BIODATA COMPLETION - STEP 4H
   // Address groups are optional. If HR starts Current or Permanent Address,
   // the main address line must be present before Save turns blue.
-  const hasValidAddressFields = areEmployeeAddressFieldsReadyForSubmit();
+const hasValidAddressFields = areEmployeeAddressFieldsReadyForSubmit();
 
-  return (
-    hasRequiredValues &&
-    hasValidWorkEmail &&
-    hasValidPersonalEmail &&
-    hasValidExitDate &&
-    hasValidReportingLines &&
-    hasValidAddressFields
-  );
+// EMPLOYEE BIODATA COMPLETION - STEP 5H
+// Next of Kin is optional. If HR starts it, Full Name, Relationship,
+// Phone Number, and optional Email format must be valid before Save turns blue.
+const hasValidNextOfKinFields = areEmployeeNextOfKinFieldsReadyForSubmit();
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+// Education is optional. If HR starts it, Institution and Qualification
+// must be completed, and Graduation Year must be realistic.
+const hasValidEducationFields = areEmployeeEducationFieldsReadyForSubmit();
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Beneficiaries/dependants are optional. If HR starts a visible row,
+// it must be complete before Create/Update Employee is enabled.
+const hasValidDependantFields = areEmployeeDependantFieldsReadyForSubmit();
+
+return (
+  hasRequiredValues &&
+  hasValidWorkEmail &&
+  hasValidPersonalEmail &&
+  hasValidExitDate &&
+  hasValidReportingLines &&
+  hasValidAddressFields &&
+  hasValidNextOfKinFields &&
+  hasValidEducationFields &&
+  hasValidDependantFields
+);
 }
 
 // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
@@ -16338,24 +17877,48 @@ function resetEmployeeForm() {
     state.dom.maritalStatus,
     state.dom.nationality,
     state.dom.exitDate,
-    state.dom.hmoProvider,
-    state.dom.hmoPlan,
-    state.dom.hmoNumber,
+state.dom.hmoProvider,
+state.dom.hmoPlan,
+state.dom.hmoNumber,
 
-    // EMPLOYEE BIODATA COMPLETION - STEP 4H
-    // Address fields are optional, but they must refresh Save readiness when HR types.
-    state.dom.employeeCurrentAddressLine1,
-    state.dom.employeeCurrentCity,
-    state.dom.employeeCurrentStateRegion,
-    state.dom.employeeCurrentCountry,
-    state.dom.employeeCurrentPostalCode,
-    state.dom.employeePermanentAddressLine1,
-    state.dom.employeePermanentCity,
-    state.dom.employeePermanentStateRegion,
-    state.dom.employeePermanentCountry,
-    state.dom.employeePermanentPostalCode,
+// EMPLOYEE BIODATA COMPLETION - STEP 5I
+// Address and Next of Kin fields must refresh the employee Save button
+// when HR types into optional-but-validated biodata sections.
+state.dom.employeeCurrentAddressLine1,
+state.dom.employeeCurrentCity,
+state.dom.employeeCurrentStateRegion,
+state.dom.employeeCurrentCountry,
+state.dom.employeeCurrentPostalCode,
+state.dom.employeePermanentAddressLine1,
+state.dom.employeePermanentCity,
+state.dom.employeePermanentStateRegion,
+state.dom.employeePermanentCountry,
+state.dom.employeePermanentPostalCode,
+state.dom.employeeNextOfKinFullName,
+state.dom.employeeNextOfKinRelationship,
+state.dom.employeeNextOfKinPhoneNumber,
+state.dom.employeeNextOfKinEmail,
+state.dom.employeeNextOfKinAddress,
 
-    state.dom.phoneNumber,
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+// Education fields must refresh the Employee save button immediately.
+// Without this, invalid education entries can leave the button blue.
+state.dom.employeeEducationInstitutionName,
+state.dom.employeeEducationQualification,
+state.dom.employeeEducationFieldOfStudy,
+state.dom.employeeEducationGraduationYear,
+state.dom.employeeEducationStatus,
+state.dom.employeeEducationHighestQualification,
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Dependant fields must reset and refresh save readiness like other optional biodata child sections.
+state.dom.employeeDependantFullName,
+state.dom.employeeDependantRelationship,
+state.dom.employeeDependantDateOfBirth,
+state.dom.employeeDependantPhoneNumber,
+state.dom.employeeDependantCoverageType,
+
+state.dom.phoneNumber,
     state.dom.department,
     state.dom.jobTitle,
 
@@ -16400,9 +17963,21 @@ function resetEmployeeForm() {
 
   // EMPLOYEE BIODATA COMPLETION - STEP 4E
   // Clear Current/Permanent address fields when the employee form resets.
-  resetEmployeeAddressFields();
+resetEmployeeAddressFields();
 
-  if (state.dom.employeeDocumentsInput) state.dom.employeeDocumentsInput.value = "";
+// EMPLOYEE BIODATA COMPLETION - STEP 5E
+// Clear Next of Kin fields when the employee form resets.
+resetEmployeeNextOfKinFields();
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+// Clear Education fields and saved-record display when the employee form resets.
+resetEmployeeEducationFields();
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Clear Beneficiaries / Dependants when the employee form is reset.
+resetEmployeeDependantFields();
+
+if (state.dom.employeeDocumentsInput) state.dom.employeeDocumentsInput.value = "";
 
   // DESCRIPTION ITEM 10 - STEP 2
   // Reset the document type selector when returning the employee form to a clean state.
@@ -16608,9 +18183,21 @@ function startEmployeeEdit(employeeId, options = {}) {
 
   // EMPLOYEE BIODATA COMPLETION - STEP 4F
   // Load Current/Permanent address records from employee_addresses in edit mode.
-  loadEmployeeAddressesForEdit(employee.id);
+loadEmployeeAddressesForEdit(employee.id);
 
-  if (options.focusDocuments) {
+// EMPLOYEE BIODATA COMPLETION - STEP 5F
+// Load saved primary Next of Kin from employee_next_of_kin in edit mode.
+loadEmployeeNextOfKinForEdit(employee.id);
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+// Load saved Education / Academic Qualification records in edit mode.
+loadEmployeeEducationRecordsForEdit(employee.id);
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Load saved Beneficiaries / Dependants in edit mode.
+loadEmployeeDependantRecordsForEdit(employee.id);
+
+if (options.focusDocuments) {
     setTimeout(() => {
       state.dom.attachedDocumentsList?.scrollIntoView({
         behavior: "smooth",
@@ -16867,6 +18454,104 @@ function isAllowedDocumentType(file) {
   );
 }
 
+// EMPLOYEE BIODATA COMPLETION - STEP 6B
+// Frontend cannot read and prove the real content of a PDF/image.
+// This smart validation reduces obvious HR document mistakes by checking
+// the selected Document Type against the uploaded file name before upload.
+function normalizeEmployeeDocumentValidationText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[_\-./]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6B
+// Controlled document types use expected filename keywords.
+// "Other" is intentionally open because HR may upload non-standard evidence.
+function getEmployeeDocumentFilenameKeywords(documentType) {
+  const type = normalizeEmployeeDocumentValidationText(documentType);
+
+  const rules = {
+    "birth certificate": ["birth", "dob", "date of birth", "dateofbirth"],
+    "state of origin": ["origin", "state of origin", "indigene", "state"],
+    "waec neco": ["waec", "neco", "ssce", "gce", "o level", "olevel"],
+    "nysc certificate": ["nysc"],
+    "degree certificate": [
+      "degree",
+      "bsc",
+      "msc",
+      "phd",
+      "diploma",
+      "qualification",
+      "transcript",
+    ],
+    "cv resume": ["cv", "resume", "curriculum", "vitae"],
+    "national id": ["national id", "national", "nin", "identity", "id card", "idcard"],
+    "international passport": ["passport"],
+    "offer letter": ["offer", "appointment"],
+    "employment contract": ["contract", "agreement"],
+  };
+
+  return rules[type] || [];
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6B
+// Block vague filenames for controlled document types because they make
+// HR evidence hard to trust and audit later.
+function isGenericEmployeeDocumentFileName(fileName) {
+  const normalisedName = normalizeEmployeeDocumentValidationText(fileName);
+
+  return [
+    "document",
+    "scan",
+    "scanned document",
+    "image",
+    "photo",
+    "file",
+    "upload",
+    "untitled",
+    "new document",
+  ].includes(normalisedName);
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6B
+// Returns an error message when the selected Document Type and filename
+// clearly do not match. Returns an empty string when the file is acceptable.
+function getEmployeeDocumentTypeMismatchMessage(file, documentType) {
+  const selectedType = String(documentType || "").trim();
+  const fileName = String(file?.name || "").trim();
+
+  if (!selectedType || !fileName) return "";
+
+  if (normalizeEmployeeDocumentValidationText(selectedType) === "other") {
+    return "";
+  }
+
+  const expectedKeywords = getEmployeeDocumentFilenameKeywords(selectedType);
+
+  if (!expectedKeywords.length) {
+    return "";
+  }
+
+  const normalisedFileName = normalizeEmployeeDocumentValidationText(fileName);
+
+  if (isGenericEmployeeDocumentFileName(fileName)) {
+    return `${fileName} is too generic for ${selectedType}. Rename the file so it clearly matches the selected document type.`;
+  }
+
+  const hasExpectedKeyword = expectedKeywords.some((keyword) =>
+    normalisedFileName.includes(normalizeEmployeeDocumentValidationText(keyword)),
+  );
+
+  if (hasExpectedKeyword) {
+    return "";
+  }
+
+  return `${fileName} does not look like ${selectedType}. Please choose the correct document type or rename/upload the correct file.`;
+}
+
 function addPendingFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
@@ -16916,15 +18601,28 @@ function addPendingFiles(fileList) {
       return;
     }
 
-    if (file.size > maxFileSizeBytes) {
-      validationErrors.push(`${file.name} is larger than 10MB.`);
-      return;
-    }
+if (file.size > maxFileSizeBytes) {
+  validationErrors.push(`${file.name} is larger than 10MB.`);
+  return;
+}
 
-    state.pendingFiles.push({
-      file,
-      documentType: selectedDocumentType,
-    });
+// EMPLOYEE BIODATA COMPLETION - STEP 6B
+// Block obvious mismatch between selected HR document type and filename.
+// This prevents cases like selecting CV / Resume but attaching birth_certificate.pdf.
+const documentTypeMismatchMessage = getEmployeeDocumentTypeMismatchMessage(
+  file,
+  selectedDocumentType,
+);
+
+if (documentTypeMismatchMessage) {
+  validationErrors.push(documentTypeMismatchMessage);
+  return;
+}
+
+state.pendingFiles.push({
+  file,
+  documentType: selectedDocumentType,
+});
   });
 
   if (state.dom.employeeDocumentsInput) {
@@ -17361,7 +19059,28 @@ async function handleEmployeeSave() {
   if (!validateEmployeeAddressFields()) {
     return;
   }
+// EMPLOYEE BIODATA COMPLETION - STEP 5G
+// Next of Kin is optional, but if HR starts it, the required emergency contact
+// fields must be completed before save.
+if (!validateEmployeeNextOfKinFields()) {
+  return;
+}
 
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+// Final guard: Education is optional, but if HR starts it,
+// required education fields must be valid before save proceeds.
+if (!validateEmployeeEducationFields()) {
+  updateEmployeeSaveButtonState();
+  return;
+}
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Beneficiaries/dependants are optional, but any visible un-staged row must
+// be complete before saving it to employee_dependants.
+if (isEmployeeDependantStarted() && !validateEmployeeDependantFields()) {
+  updateEmployeeSaveButtonState();
+  return;
+}
   const employeePayload = buildEmployeePayload();
   const editingId = String(state.dom.editingEmployeeId?.value || "").trim();
   const isEditMode = Boolean(editingId);
@@ -17472,9 +19191,26 @@ async function handleEmployeeSave() {
 
     // EMPLOYEE BIODATA COMPLETION - STEP 4G
     // Save Current/Permanent address records after the employee record exists.
-    await saveEmployeeAddressesForEmployee(savedEmployeeId);
+await saveEmployeeAddressesForEmployee(savedEmployeeId);
 
-    if (state.pendingFiles.length) {
+// EMPLOYEE BIODATA COMPLETION - STEP 5G
+// Save primary Next of Kin after the employee record exists.
+await saveEmployeeNextOfKinForEmployee(savedEmployeeId);
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+// Save structured Education / Academic Qualification records after the employee exists.
+await saveEmployeeEducationRecordsForEmployee(savedEmployeeId);
+
+// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+// Refresh School / Institution and Course suggestions after save so newly
+// typed values become available for future employee records.
+await refreshEducationSuggestionLists();
+
+// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+// Save Beneficiaries / Dependants after the employee exists.
+await saveEmployeeDependantRecordsForEmployee(savedEmployeeId);
+
+if (state.pendingFiles.length) {
       await uploadPendingFilesForEmployee(savedEmployeeId);
     } else {
       await loadEmployeeDocuments(savedEmployeeId);
