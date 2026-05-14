@@ -154,21 +154,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     // DESCRIPTION ITEM 2
     // Initialise allowance workspace as part of HR payroll load.
     // =========================================================
-await refreshEmployeeWorkspace();
+    await refreshEmployeeWorkspace();
 
-// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
-// Load saved schools/courses into the Education datalists after HR access
-// is confirmed and Supabase is available.
-await refreshEducationSuggestionLists();
+    // DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+    // Load saved schools/courses into the Education datalists after HR access
+    // is confirmed and Supabase is available.
+    await refreshEducationSuggestionLists();
 
-// DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
-// Replace the browser-native datalist popup with a compact styled panel
-// so long school/course suggestion lists do not show a heavy scrollbar.
-bindEducationSuggestionPanels();
+    // DYNAMIC EDUCATION SUGGESTIONS - STEP 1C
+    // Replace the browser-native datalist popup with a compact styled panel
+    // so long school/course suggestion lists do not show a heavy scrollbar.
+    bindEducationSuggestionPanels();
 
-// MANAGE ORGANIZATION CARD - STEP 3
-// Load the single organization settings record after HR access is confirmed.
-await refreshOrganizationSettingsWorkspace();
+    // MANAGE ORGANIZATION CARD - STEP 3
+    // Load the single organization settings record after HR access is confirmed.
+    await refreshOrganizationSettingsWorkspace();
 
     // ORGANIZATION HR SETUP VALUES - STEP 3
     // Load HR-managed Departments and Job Titles before employee/payroll forms
@@ -215,17 +215,17 @@ await refreshOrganizationSettingsWorkspace();
       startEmployeeEdit(employeeId);
     };
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-4C
-// Expose staged education remove action for the Saved Education Records list.
-window.hrRemoveEmployeeEducationRecord = (recordIndex) => {
-  removeEmployeeEducationRecordAtIndex(recordIndex);
-};
+    // EMPLOYEE BIODATA COMPLETION - STEP 6C-4C
+    // Expose staged education remove action for the Saved Education Records list.
+    window.hrRemoveEmployeeEducationRecord = (recordIndex) => {
+      removeEmployeeEducationRecordAtIndex(recordIndex);
+    };
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
-// Expose staged beneficiary/dependant remove action for the list.
-window.hrRemoveEmployeeDependantRecord = (recordIndex) => {
-  removeEmployeeDependantRecordAtIndex(recordIndex);
-};
+    // EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+    // Expose staged beneficiary/dependant remove action for the list.
+    window.hrRemoveEmployeeDependantRecord = (recordIndex) => {
+      removeEmployeeDependantRecordAtIndex(recordIndex);
+    };
 
     // DESCRIPTION ITEM 9 - STEP 1
     // Expose payroll selection toggle for the checkbox column
@@ -327,6 +327,11 @@ window.hrRemoveEmployeeDependantRecord = (recordIndex) => {
 
 const EMPLOYEE_DOCUMENTS_BUCKET = "employee-documents";
 const PROFILE_IMAGES_BUCKET = "profile-images";
+
+// HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+// Tenant context is written by the login flow after Tenant ID validation.
+// HR-created employee records must inherit this tenant automatically.
+const TENANT_CONTEXT_STORAGE_KEY = "hrPayrollTenantContext";
 
 const state = {
   currentUser: null,
@@ -521,16 +526,16 @@ const state = {
   // browser session so it can be shown first after refresh.
   lastSavedEmployeeBankDetailsKey: null,
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
-// Holds education rows staged from the Education form before employee save.
-// This supports multiple qualifications per employee.
-pendingEmployeeEducationRecords: [],
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+  // Holds education rows staged from the Education form before employee save.
+  // This supports multiple qualifications per employee.
+  pendingEmployeeEducationRecords: [],
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
-// Holds beneficiary/dependant rows staged from the form before employee save.
-pendingEmployeeDependants: [],
+  // EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+  // Holds beneficiary/dependant rows staged from the form before employee save.
+  pendingEmployeeDependants: [],
 
-pendingFiles: [],
+  pendingFiles: [],
   attachedDocuments: [],
   allEmployeeDocuments: [],
   authProfiles: [],
@@ -647,6 +652,52 @@ function getSupabaseClient() {
     );
   }
   return window.supabaseClient;
+}
+
+// HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+// Read the logged-in user's validated tenant context from local storage.
+// This is intentionally read-only here; login remains responsible for validation.
+function getCurrentTenantContext() {
+  try {
+    const rawValue = localStorage.getItem(TENANT_CONTEXT_STORAGE_KEY);
+    if (!rawValue) return null;
+
+    const parsedValue = JSON.parse(rawValue);
+
+    if (!parsedValue?.tenantId || !parsedValue?.tenantCode) {
+      return null;
+    }
+
+    return parsedValue;
+  } catch (error) {
+    console.error("Invalid tenant context cache:", error);
+    return null;
+  }
+}
+
+// HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+// HR dashboard users are tenant-based users. They must have a validated
+// tenant context before creating or updating tenant-owned employee records.
+function getRequiredTenantIdForHrEmployeeData() {
+  const tenantContext = getCurrentTenantContext();
+  const tenantId = String(tenantContext?.tenantId || "").trim();
+
+  if (!tenantId) {
+    throw new Error(
+      "Tenant context was not found. Please log out and sign in again with the correct Company/Tenant ID.",
+    );
+  }
+
+  return tenantId;
+}
+
+// HRP-80 - TENANT DATA SEGMENTATION - STEP 7D
+// Apply the logged-in tenant filter to Supabase queries that read HR employee data.
+// This keeps HR users scoped to their own company workspace.
+function applyCurrentTenantFilter(query) {
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+
+  return query.eq("tenant_id", tenantId);
 }
 
 function cacheDomElements() {
@@ -794,23 +845,23 @@ function cacheDomElements() {
     maritalStatus: document.getElementById("maritalStatus"),
     nationality: document.getElementById("nationality"),
     exitDate: document.getElementById("exitDate"),
-hmoProvider: document.getElementById("hmoProvider"),
-hmoPlan: document.getElementById("hmoPlan"),
-hmoNumber: document.getElementById("hmoNumber"),
+    hmoProvider: document.getElementById("hmoProvider"),
+    hmoPlan: document.getElementById("hmoPlan"),
+    hmoNumber: document.getElementById("hmoNumber"),
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
-// Beneficiaries / Dependants are repeatable in-page records.
-// They are staged first, then saved in a later step after employee save wiring is confirmed.
-employeeDependantFullName: document.getElementById("employeeDependantFullName"),
-employeeDependantRelationship: document.getElementById("employeeDependantRelationship"),
-employeeDependantDateOfBirth: document.getElementById("employeeDependantDateOfBirth"),
-employeeDependantPhoneNumber: document.getElementById("employeeDependantPhoneNumber"),
-employeeDependantCoverageType: document.getElementById("employeeDependantCoverageType"),
-addEmployeeDependantRecordBtn: document.getElementById("addEmployeeDependantRecordBtn"),
-employeeDependantsEmptyState: document.getElementById("employeeDependantsEmptyState"),
-employeeDependantsRecordsList: document.getElementById("employeeDependantsRecordsList"),
+    // EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+    // Beneficiaries / Dependants are repeatable in-page records.
+    // They are staged first, then saved in a later step after employee save wiring is confirmed.
+    employeeDependantFullName: document.getElementById("employeeDependantFullName"),
+    employeeDependantRelationship: document.getElementById("employeeDependantRelationship"),
+    employeeDependantDateOfBirth: document.getElementById("employeeDependantDateOfBirth"),
+    employeeDependantPhoneNumber: document.getElementById("employeeDependantPhoneNumber"),
+    employeeDependantCoverageType: document.getElementById("employeeDependantCoverageType"),
+    addEmployeeDependantRecordBtn: document.getElementById("addEmployeeDependantRecordBtn"),
+    employeeDependantsEmptyState: document.getElementById("employeeDependantsEmptyState"),
+    employeeDependantsRecordsList: document.getElementById("employeeDependantsRecordsList"),
 
-// EMPLOYEE BIODATA COMPLETION - STEP 4C
+    // EMPLOYEE BIODATA COMPLETION - STEP 4C
     // Current/Permanent address fields are saved to employee_addresses.
     employeeCurrentAddressLine1: document.getElementById("employeeCurrentAddressLine1"),
     employeeCurrentCity: document.getElementById("employeeCurrentCity"),
@@ -821,40 +872,40 @@ employeeDependantsRecordsList: document.getElementById("employeeDependantsRecord
     employeePermanentCity: document.getElementById("employeePermanentCity"),
     employeePermanentStateRegion: document.getElementById("employeePermanentStateRegion"),
     employeePermanentCountry: document.getElementById("employeePermanentCountry"),
-employeePermanentPostalCode: document.getElementById("employeePermanentPostalCode"),
+    employeePermanentPostalCode: document.getElementById("employeePermanentPostalCode"),
 
-// EMPLOYEE BIODATA COMPLETION - STEP 5C
-// Next of Kin is saved to employee_next_of_kin as the employee's primary emergency contact.
-employeeNextOfKinFullName: document.getElementById("employeeNextOfKinFullName"),
-employeeNextOfKinRelationship: document.getElementById("employeeNextOfKinRelationship"),
-employeeNextOfKinPhoneNumber: document.getElementById("employeeNextOfKinPhoneNumber"),
-employeeNextOfKinEmail: document.getElementById("employeeNextOfKinEmail"),
-employeeNextOfKinAddress: document.getElementById("employeeNextOfKinAddress"),
+    // EMPLOYEE BIODATA COMPLETION - STEP 5C
+    // Next of Kin is saved to employee_next_of_kin as the employee's primary emergency contact.
+    employeeNextOfKinFullName: document.getElementById("employeeNextOfKinFullName"),
+    employeeNextOfKinRelationship: document.getElementById("employeeNextOfKinRelationship"),
+    employeeNextOfKinPhoneNumber: document.getElementById("employeeNextOfKinPhoneNumber"),
+    employeeNextOfKinEmail: document.getElementById("employeeNextOfKinEmail"),
+    employeeNextOfKinAddress: document.getElementById("employeeNextOfKinAddress"),
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
-// Education / Academic Qualification fields are optional, but once HR starts them,
-// Institution and Qualification must be completed and Graduation Year must be valid.
-employeeEducationInstitutionName: document.getElementById("employeeEducationInstitutionName"),
-employeeEducationQualification: document.getElementById("employeeEducationQualification"),
-employeeEducationFieldOfStudy: document.getElementById("employeeEducationFieldOfStudy"),
-employeeEducationGraduationYear: document.getElementById("employeeEducationGraduationYear"),
-employeeEducationStatus: document.getElementById("employeeEducationStatus"),
-employeeEducationHighestQualification: document.getElementById("employeeEducationHighestQualification"),
+    // EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+    // Education / Academic Qualification fields are optional, but once HR starts them,
+    // Institution and Qualification must be completed and Graduation Year must be valid.
+    employeeEducationInstitutionName: document.getElementById("employeeEducationInstitutionName"),
+    employeeEducationQualification: document.getElementById("employeeEducationQualification"),
+    employeeEducationFieldOfStudy: document.getElementById("employeeEducationFieldOfStudy"),
+    employeeEducationGraduationYear: document.getElementById("employeeEducationGraduationYear"),
+    employeeEducationStatus: document.getElementById("employeeEducationStatus"),
+    employeeEducationHighestQualification: document.getElementById("employeeEducationHighestQualification"),
 
-// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
-// These datalists are rebuilt from saved education records, so HR does not
-// need developers to keep adding schools/courses directly into the HTML.
-employeeEducationInstitutionSuggestions: document.getElementById("employeeEducationInstitutionSuggestions"),
-employeeEducationCourseSuggestions: document.getElementById("employeeEducationCourseSuggestions"),
+    // DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+    // These datalists are rebuilt from saved education records, so HR does not
+    // need developers to keep adding schools/courses directly into the HTML.
+    employeeEducationInstitutionSuggestions: document.getElementById("employeeEducationInstitutionSuggestions"),
+    employeeEducationCourseSuggestions: document.getElementById("employeeEducationCourseSuggestions"),
 
-employeeEducationEmptyState: document.getElementById("employeeEducationEmptyState"),
-employeeEducationRecordsList: document.getElementById("employeeEducationRecordsList"),
+    employeeEducationEmptyState: document.getElementById("employeeEducationEmptyState"),
+    employeeEducationRecordsList: document.getElementById("employeeEducationRecordsList"),
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
-// Button used to stage more than one education record before employee save.
-addEmployeeEducationRecordBtn: document.getElementById("addEmployeeEducationRecordBtn"),
+    // EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
+    // Button used to stage more than one education record before employee save.
+    addEmployeeEducationRecordBtn: document.getElementById("addEmployeeEducationRecordBtn"),
 
-phoneNumber: document.getElementById("phoneNumber"),
+    phoneNumber: document.getElementById("phoneNumber"),
     department: document.getElementById("department"),
     jobTitle: document.getElementById("jobTitle"),
 
@@ -4386,18 +4437,18 @@ function bindEvents() {
   // EMPLOYEE BIODATA COMPLETION - STEP 6C-4A
   // Stage the visible Education form as a saved education row in the page state.
   // Supabase save wiring comes after this UI behaviour is confirmed.
-state.dom.addEmployeeEducationRecordBtn?.addEventListener("click", () => {
-  stageEmployeeEducationRecordFromForm();
-});
+  state.dom.addEmployeeEducationRecordBtn?.addEventListener("click", () => {
+    stageEmployeeEducationRecordFromForm();
+  });
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-2
-// Stage a beneficiary/dependant row from the visible form.
-// Database save wiring comes after this staging behaviour is confirmed.
-state.dom.addEmployeeDependantRecordBtn?.addEventListener("click", () => {
-  stageEmployeeDependantRecordFromForm();
-});
+  // EMPLOYEE BIODATA COMPLETION - STEP 6D-2
+  // Stage a beneficiary/dependant row from the visible form.
+  // Database save wiring comes after this staging behaviour is confirmed.
+  state.dom.addEmployeeDependantRecordBtn?.addEventListener("click", () => {
+    stageEmployeeDependantRecordFromForm();
+  });
 
-state.dom.employeeSearchInput?.addEventListener("input", () => {
+  state.dom.employeeSearchInput?.addEventListener("input", () => {
     applyEmployeeSearch();
   });
   // HRP-78 - BATCH EMPLOYEE CSV IMPORT - STEP 1C
@@ -4431,89 +4482,89 @@ state.dom.employeeSearchInput?.addEventListener("input", () => {
     await handleBatchEmployeeSubmit();
   });
 
-// EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
-// Keep Create/Update Employee disabled until the required employee form
-// fields are complete and the work email is valid.
-[
-  state.dom.firstName,
-  state.dom.middleName,
-  state.dom.lastName,
-  state.dom.workEmail,
+  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
+  // Keep Create/Update Employee disabled until the required employee form
+  // fields are complete and the work email is valid.
+  [
+    state.dom.firstName,
+    state.dom.middleName,
+    state.dom.lastName,
+    state.dom.workEmail,
 
-  // EMPLOYEE BIODATA COMPLETION - STEP 2G
-  // Optional biodata fields should still refresh Save button readiness
-  // when HR enters invalid optional email or changes lifecycle details.
-  state.dom.personalEmail,
-  state.dom.dateOfBirth,
-  state.dom.gender,
-  state.dom.maritalStatus,
-  state.dom.nationality,
-  state.dom.exitDate,
-  state.dom.hmoProvider,
-  state.dom.hmoPlan,
-  state.dom.hmoNumber,
+    // EMPLOYEE BIODATA COMPLETION - STEP 2G
+    // Optional biodata fields should still refresh Save button readiness
+    // when HR enters invalid optional email or changes lifecycle details.
+    state.dom.personalEmail,
+    state.dom.dateOfBirth,
+    state.dom.gender,
+    state.dom.maritalStatus,
+    state.dom.nationality,
+    state.dom.exitDate,
+    state.dom.hmoProvider,
+    state.dom.hmoPlan,
+    state.dom.hmoNumber,
 
-  // EMPLOYEE BIODATA COMPLETION - STEP 5J
-  // Address fields are optional, but if HR starts entering address details,
-  // the Save button must immediately re-check the address validation rule.
-  state.dom.employeeCurrentAddressLine1,
-  state.dom.employeeCurrentCity,
-  state.dom.employeeCurrentStateRegion,
-  state.dom.employeeCurrentCountry,
-  state.dom.employeeCurrentPostalCode,
-  state.dom.employeePermanentAddressLine1,
-  state.dom.employeePermanentCity,
-  state.dom.employeePermanentStateRegion,
-  state.dom.employeePermanentCountry,
-  state.dom.employeePermanentPostalCode,
+    // EMPLOYEE BIODATA COMPLETION - STEP 5J
+    // Address fields are optional, but if HR starts entering address details,
+    // the Save button must immediately re-check the address validation rule.
+    state.dom.employeeCurrentAddressLine1,
+    state.dom.employeeCurrentCity,
+    state.dom.employeeCurrentStateRegion,
+    state.dom.employeeCurrentCountry,
+    state.dom.employeeCurrentPostalCode,
+    state.dom.employeePermanentAddressLine1,
+    state.dom.employeePermanentCity,
+    state.dom.employeePermanentStateRegion,
+    state.dom.employeePermanentCountry,
+    state.dom.employeePermanentPostalCode,
 
-  // EMPLOYEE BIODATA COMPLETION - STEP 5J
-  // Next of Kin is optional, but once HR starts it, Full Name,
-  // Relationship, Phone Number, and optional Email format must be valid
-  // before Create/Update Employee can be submitted.
-  state.dom.employeeNextOfKinFullName,
-  state.dom.employeeNextOfKinRelationship,
-  state.dom.employeeNextOfKinPhoneNumber,
-  state.dom.employeeNextOfKinEmail,
-  state.dom.employeeNextOfKinAddress,
+    // EMPLOYEE BIODATA COMPLETION - STEP 5J
+    // Next of Kin is optional, but once HR starts it, Full Name,
+    // Relationship, Phone Number, and optional Email format must be valid
+    // before Create/Update Employee can be submitted.
+    state.dom.employeeNextOfKinFullName,
+    state.dom.employeeNextOfKinRelationship,
+    state.dom.employeeNextOfKinPhoneNumber,
+    state.dom.employeeNextOfKinEmail,
+    state.dom.employeeNextOfKinAddress,
 
-  // EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
-  // Education fields must refresh the Employee save button immediately.
-  // Without this, invalid education entries can leave the button blue.
-  state.dom.employeeEducationInstitutionName,
-  state.dom.employeeEducationQualification,
-  state.dom.employeeEducationFieldOfStudy,
-  state.dom.employeeEducationGraduationYear,
-  state.dom.employeeEducationStatus,
-  state.dom.employeeEducationHighestQualification,
+    // EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+    // Education fields must refresh the Employee save button immediately.
+    // Without this, invalid education entries can leave the button blue.
+    state.dom.employeeEducationInstitutionName,
+    state.dom.employeeEducationQualification,
+    state.dom.employeeEducationFieldOfStudy,
+    state.dom.employeeEducationGraduationYear,
+    state.dom.employeeEducationStatus,
+    state.dom.employeeEducationHighestQualification,
 
-  // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
-  // Beneficiary/dependant fields are optional, but if HR starts one,
-  // Full Name, Relationship, and Type must be complete before Save turns blue.
-  state.dom.employeeDependantFullName,
-  state.dom.employeeDependantRelationship,
-  state.dom.employeeDependantDateOfBirth,
-  state.dom.employeeDependantPhoneNumber,
-  state.dom.employeeDependantCoverageType,
+    // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+    // Beneficiary/dependant fields are optional, but if HR starts one,
+    // Full Name, Relationship, and Type must be complete before Save turns blue.
+    state.dom.employeeDependantFullName,
+    state.dom.employeeDependantRelationship,
+    state.dom.employeeDependantDateOfBirth,
+    state.dom.employeeDependantPhoneNumber,
+    state.dom.employeeDependantCoverageType,
 
-  state.dom.phoneNumber,
-  state.dom.department,
-  state.dom.jobTitle,
-  state.dom.lineManager,
-  state.dom.employmentDate,
-  state.dom.approverEmail,
-  state.dom.employmentStatus,
-  state.dom.systemRole,
+    state.dom.phoneNumber,
+    state.dom.department,
+    state.dom.jobTitle,
+    state.dom.lineManager,
+    state.dom.employmentDate,
+    state.dom.approverEmail,
+    state.dom.employmentStatus,
+    state.dom.systemRole,
 
-  // DESCRIPTION ITEM 3 - STEP 2B CLEANUP
-  // Keep Custom System Role only once in this listener array.
-  // One listener is enough to refresh the Employee save button when HR types
-  // a custom role, and avoids duplicate event bindings.
-  state.dom.customSystemRole,
-].forEach((field) => {
-  field?.addEventListener("input", updateEmployeeSaveButtonState);
-  field?.addEventListener("change", updateEmployeeSaveButtonState);
-});
+    // DESCRIPTION ITEM 3 - STEP 2B CLEANUP
+    // Keep Custom System Role only once in this listener array.
+    // One listener is enough to refresh the Employee save button when HR types
+    // a custom role, and avoids duplicate event bindings.
+    state.dom.customSystemRole,
+  ].forEach((field) => {
+    field?.addEventListener("input", updateEmployeeSaveButtonState);
+    field?.addEventListener("change", updateEmployeeSaveButtonState);
+  });
 
   // ASSIGN LINE MANAGER - STEP 1E
   // Show/hide the custom role input when HR selects Other.
@@ -6510,9 +6561,9 @@ function populateAssignedLineManagerOptions(preferredEmployeeId = "") {
   managerCandidates.forEach((employee) => {
     const option = document.createElement("option");
     option.value = employee.id;
-// EMPLOYEE BIODATA COMPLETION - STEP 6B-PREP
-// Keep the manager dropdown readable. Email is shown separately in Primary Approver Email.
-option.textContent = `${getEmployeeManagerDisplayName(employee)} — ${employee.job_title || "Manager"}`;
+    // EMPLOYEE BIODATA COMPLETION - STEP 6B-PREP
+    // Keep the manager dropdown readable. Email is shown separately in Primary Approver Email.
+    option.textContent = `${getEmployeeManagerDisplayName(employee)} — ${employee.job_title || "Manager"}`;
     option.dataset.managerName = getEmployeeManagerDisplayName(employee);
     option.dataset.managerEmail = String(employee.work_email || "").trim().toLowerCase();
     select.appendChild(option);
@@ -6531,9 +6582,9 @@ option.textContent = `${getEmployeeManagerDisplayName(employee)} — ${employee.
     if (!alreadyExists) {
       const option = document.createElement("option");
       option.value = savedManagerOption.id;
-// EMPLOYEE BIODATA COMPLETION - STEP 6B-PREP
-// Avoid repeating email in the dropdown because Approver Email is displayed separately.
-option.textContent = `${savedManagerOption.name} (saved manager)`;
+      // EMPLOYEE BIODATA COMPLETION - STEP 6B-PREP
+      // Avoid repeating email in the dropdown because Approver Email is displayed separately.
+      option.textContent = `${savedManagerOption.name} (saved manager)`;
       option.dataset.managerName = savedManagerOption.name;
       option.dataset.managerEmail = savedManagerOption.email;
       select.appendChild(option);
@@ -6923,10 +6974,16 @@ async function saveEmployeeReportingLinesForEmployee(employeeId) {
   if (!employeeKey) return;
 
   const supabase = getSupabaseClient();
+
+  // HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+  // Reporting line child rows inherit the same tenant as the employee record.
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+
   const reportingRows = getEmployeeReportingLinesFromForm()
     .filter((row) => row.managerEmployeeId)
     .map((row) => ({
       employee_id: employeeKey,
+      tenant_id: tenantId,
       manager_employee_id: row.managerEmployeeId,
       manager_type: row.managerType || "Secondary",
       effective_date: row.effectiveDate || null,
@@ -7031,10 +7088,10 @@ function getEmployeeAddressGroups() {
       city: state.dom.employeePermanentCity,
       stateRegion: state.dom.employeePermanentStateRegion,
       country: state.dom.employeePermanentCountry,
-// EMPLOYEE BIODATA COMPLETION - STEP 5I
-// Keep the Permanent Address group clean.
-// Next of Kin listeners belong in bindEvents(), not inside this address config object.
-postalCode: state.dom.employeePermanentPostalCode,
+      // EMPLOYEE BIODATA COMPLETION - STEP 5I
+      // Keep the Permanent Address group clean.
+      // Next of Kin listeners belong in bindEvents(), not inside this address config object.
+      postalCode: state.dom.employeePermanentPostalCode,
     },
   ];
 }
@@ -7094,10 +7151,15 @@ function buildEmployeeAddressRowsForEmployee(employeeId) {
   const employeeKey = String(employeeId || "").trim();
   if (!employeeKey) return [];
 
+  // HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+  // Address child rows inherit the logged-in HR user's tenant.
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+
   return getEmployeeAddressGroups()
     .filter((group) => isEmployeeAddressGroupStarted(group))
     .map((group) => ({
       employee_id: employeeKey,
+      tenant_id: tenantId,
       address_type: group.type,
       address_line_1: String(group.addressLine1?.value || "").trim(),
       address_line_2: null,
@@ -7310,11 +7372,16 @@ function buildEmployeeNextOfKinRowsForEmployee(employeeId) {
     return [];
   }
 
+  // HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+  // Next of Kin child rows inherit the logged-in HR user's tenant.
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+
   const fields = getEmployeeNextOfKinFields();
 
   return [
     {
       employee_id: employeeKey,
+      tenant_id: tenantId,
       full_name: String(fields.fullName?.value || "").trim(),
       relationship: String(fields.relationship?.value || "").trim(),
       phone_number: String(fields.phoneNumber?.value || "").trim(),
@@ -7551,8 +7618,13 @@ function areEmployeeEducationFieldsReadyForSubmit() {
 function normaliseEmployeeEducationRecordForSave(record = {}, employeeId = "") {
   const employeeKey = String(employeeId || "").trim();
 
+  // HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+  // Education child rows inherit the logged-in HR user's tenant.
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+
   return {
     employee_id: employeeKey,
+    tenant_id: tenantId,
     institution_name: String(record.institution_name || "").trim(),
     qualification: String(record.qualification || "").trim(),
     field_of_study: String(record.field_of_study || "").trim() || null,
@@ -7947,8 +8019,13 @@ async function refreshEducationSuggestionLists() {
 function normaliseEmployeeDependantRecordForSave(record = {}, employeeId = "") {
   const employeeKey = String(employeeId || "").trim();
 
+  // HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+  // Beneficiary/dependant child rows inherit the logged-in HR user's tenant.
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+
   return {
     employee_id: employeeKey,
+    tenant_id: tenantId,
     full_name: String(record.full_name || "").trim(),
     relationship: String(record.relationship || "").trim(),
     date_of_birth: record.date_of_birth || null,
@@ -8046,12 +8123,12 @@ async function loadEmployeeDependantRecordsForEdit(employeeId) {
 
     const records = Array.isArray(data)
       ? data.map((record) => ({
-          full_name: record.full_name || "",
-          relationship: record.relationship || "",
-          date_of_birth: record.date_of_birth || null,
-          phone_number: record.phone_number || null,
-          coverage_type: record.coverage_type || "",
-        }))
+        full_name: record.full_name || "",
+        relationship: record.relationship || "",
+        date_of_birth: record.date_of_birth || null,
+        phone_number: record.phone_number || null,
+        coverage_type: record.coverage_type || "",
+      }))
       : [];
 
     state.pendingEmployeeDependants = records;
@@ -8577,13 +8654,13 @@ async function loadEmployeeEducationRecordsForEdit(employeeId) {
     // The visible form stays empty so HR can add another qualification cleanly.
     const records = Array.isArray(data)
       ? data.map((record) => ({
-          institution_name: record.institution_name || "",
-          qualification: record.qualification || "",
-          field_of_study: record.field_of_study || null,
-          graduation_year: record.graduation_year || null,
-          education_status: record.education_status || "Completed",
-          is_highest_qualification: Boolean(record.is_highest_qualification),
-        }))
+        institution_name: record.institution_name || "",
+        qualification: record.qualification || "",
+        field_of_study: record.field_of_study || null,
+        graduation_year: record.graduation_year || null,
+        education_status: record.education_status || "Completed",
+        is_highest_qualification: Boolean(record.is_highest_qualification),
+      }))
       : [];
 
     state.pendingEmployeeEducationRecords = records;
@@ -8747,34 +8824,34 @@ function isEmployeeFormReadyForSubmit() {
   // EMPLOYEE BIODATA COMPLETION - STEP 4H
   // Address groups are optional. If HR starts Current or Permanent Address,
   // the main address line must be present before Save turns blue.
-const hasValidAddressFields = areEmployeeAddressFieldsReadyForSubmit();
+  const hasValidAddressFields = areEmployeeAddressFieldsReadyForSubmit();
 
-// EMPLOYEE BIODATA COMPLETION - STEP 5H
-// Next of Kin is optional. If HR starts it, Full Name, Relationship,
-// Phone Number, and optional Email format must be valid before Save turns blue.
-const hasValidNextOfKinFields = areEmployeeNextOfKinFieldsReadyForSubmit();
+  // EMPLOYEE BIODATA COMPLETION - STEP 5H
+  // Next of Kin is optional. If HR starts it, Full Name, Relationship,
+  // Phone Number, and optional Email format must be valid before Save turns blue.
+  const hasValidNextOfKinFields = areEmployeeNextOfKinFieldsReadyForSubmit();
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
-// Education is optional. If HR starts it, Institution and Qualification
-// must be completed, and Graduation Year must be realistic.
-const hasValidEducationFields = areEmployeeEducationFieldsReadyForSubmit();
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+  // Education is optional. If HR starts it, Institution and Qualification
+  // must be completed, and Graduation Year must be realistic.
+  const hasValidEducationFields = areEmployeeEducationFieldsReadyForSubmit();
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
-// Beneficiaries/dependants are optional. If HR starts a visible row,
-// it must be complete before Create/Update Employee is enabled.
-const hasValidDependantFields = areEmployeeDependantFieldsReadyForSubmit();
+  // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+  // Beneficiaries/dependants are optional. If HR starts a visible row,
+  // it must be complete before Create/Update Employee is enabled.
+  const hasValidDependantFields = areEmployeeDependantFieldsReadyForSubmit();
 
-return (
-  hasRequiredValues &&
-  hasValidWorkEmail &&
-  hasValidPersonalEmail &&
-  hasValidExitDate &&
-  hasValidReportingLines &&
-  hasValidAddressFields &&
-  hasValidNextOfKinFields &&
-  hasValidEducationFields &&
-  hasValidDependantFields
-);
+  return (
+    hasRequiredValues &&
+    hasValidWorkEmail &&
+    hasValidPersonalEmail &&
+    hasValidExitDate &&
+    hasValidReportingLines &&
+    hasValidAddressFields &&
+    hasValidNextOfKinFields &&
+    hasValidEducationFields &&
+    hasValidDependantFields
+  );
 }
 
 // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1D FIX
@@ -15991,10 +16068,13 @@ async function loadAllEmployeeDocuments() {
   const supabase = getSupabaseClient();
 
   try {
-    const { data, error } = await supabase
-      .from("employee_documents")
-      .select("id, employee_id, file_name, uploaded_at")
-      .order("uploaded_at", { ascending: false });
+    // HRP-80 - TENANT DATA SEGMENTATION - STEP 7D
+    // Load document indicators only for the logged-in tenant's employee records.
+    const { data, error } = await applyCurrentTenantFilter(
+      supabase
+        .from("employee_documents")
+        .select("id, employee_id, file_name, uploaded_at"),
+    ).order("uploaded_at", { ascending: false });
 
     if (error) throw error;
     state.allEmployeeDocuments = Array.isArray(data) ? data : [];
@@ -16024,10 +16104,13 @@ async function loadEmployees() {
   const supabase = getSupabaseClient();
 
   try {
-    const { data, error } = await supabase
-      .from("employees")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // HRP-80 - TENANT DATA SEGMENTATION - STEP 7D
+    // HR users should only load employees that belong to their logged-in tenant.
+    const { data, error } = await applyCurrentTenantFilter(
+      supabase
+        .from("employees")
+        .select("*"),
+    ).order("created_at", { ascending: false });
 
     if (error) throw error;
 
@@ -17877,48 +17960,48 @@ function resetEmployeeForm() {
     state.dom.maritalStatus,
     state.dom.nationality,
     state.dom.exitDate,
-state.dom.hmoProvider,
-state.dom.hmoPlan,
-state.dom.hmoNumber,
+    state.dom.hmoProvider,
+    state.dom.hmoPlan,
+    state.dom.hmoNumber,
 
-// EMPLOYEE BIODATA COMPLETION - STEP 5I
-// Address and Next of Kin fields must refresh the employee Save button
-// when HR types into optional-but-validated biodata sections.
-state.dom.employeeCurrentAddressLine1,
-state.dom.employeeCurrentCity,
-state.dom.employeeCurrentStateRegion,
-state.dom.employeeCurrentCountry,
-state.dom.employeeCurrentPostalCode,
-state.dom.employeePermanentAddressLine1,
-state.dom.employeePermanentCity,
-state.dom.employeePermanentStateRegion,
-state.dom.employeePermanentCountry,
-state.dom.employeePermanentPostalCode,
-state.dom.employeeNextOfKinFullName,
-state.dom.employeeNextOfKinRelationship,
-state.dom.employeeNextOfKinPhoneNumber,
-state.dom.employeeNextOfKinEmail,
-state.dom.employeeNextOfKinAddress,
+    // EMPLOYEE BIODATA COMPLETION - STEP 5I
+    // Address and Next of Kin fields must refresh the employee Save button
+    // when HR types into optional-but-validated biodata sections.
+    state.dom.employeeCurrentAddressLine1,
+    state.dom.employeeCurrentCity,
+    state.dom.employeeCurrentStateRegion,
+    state.dom.employeeCurrentCountry,
+    state.dom.employeeCurrentPostalCode,
+    state.dom.employeePermanentAddressLine1,
+    state.dom.employeePermanentCity,
+    state.dom.employeePermanentStateRegion,
+    state.dom.employeePermanentCountry,
+    state.dom.employeePermanentPostalCode,
+    state.dom.employeeNextOfKinFullName,
+    state.dom.employeeNextOfKinRelationship,
+    state.dom.employeeNextOfKinPhoneNumber,
+    state.dom.employeeNextOfKinEmail,
+    state.dom.employeeNextOfKinAddress,
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
-// Education fields must refresh the Employee save button immediately.
-// Without this, invalid education entries can leave the button blue.
-state.dom.employeeEducationInstitutionName,
-state.dom.employeeEducationQualification,
-state.dom.employeeEducationFieldOfStudy,
-state.dom.employeeEducationGraduationYear,
-state.dom.employeeEducationStatus,
-state.dom.employeeEducationHighestQualification,
+    // EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+    // Education fields must refresh the Employee save button immediately.
+    // Without this, invalid education entries can leave the button blue.
+    state.dom.employeeEducationInstitutionName,
+    state.dom.employeeEducationQualification,
+    state.dom.employeeEducationFieldOfStudy,
+    state.dom.employeeEducationGraduationYear,
+    state.dom.employeeEducationStatus,
+    state.dom.employeeEducationHighestQualification,
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
-// Dependant fields must reset and refresh save readiness like other optional biodata child sections.
-state.dom.employeeDependantFullName,
-state.dom.employeeDependantRelationship,
-state.dom.employeeDependantDateOfBirth,
-state.dom.employeeDependantPhoneNumber,
-state.dom.employeeDependantCoverageType,
+    // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+    // Dependant fields must reset and refresh save readiness like other optional biodata child sections.
+    state.dom.employeeDependantFullName,
+    state.dom.employeeDependantRelationship,
+    state.dom.employeeDependantDateOfBirth,
+    state.dom.employeeDependantPhoneNumber,
+    state.dom.employeeDependantCoverageType,
 
-state.dom.phoneNumber,
+    state.dom.phoneNumber,
     state.dom.department,
     state.dom.jobTitle,
 
@@ -17963,21 +18046,21 @@ state.dom.phoneNumber,
 
   // EMPLOYEE BIODATA COMPLETION - STEP 4E
   // Clear Current/Permanent address fields when the employee form resets.
-resetEmployeeAddressFields();
+  resetEmployeeAddressFields();
 
-// EMPLOYEE BIODATA COMPLETION - STEP 5E
-// Clear Next of Kin fields when the employee form resets.
-resetEmployeeNextOfKinFields();
+  // EMPLOYEE BIODATA COMPLETION - STEP 5E
+  // Clear Next of Kin fields when the employee form resets.
+  resetEmployeeNextOfKinFields();
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
-// Clear Education fields and saved-record display when the employee form resets.
-resetEmployeeEducationFields();
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+  // Clear Education fields and saved-record display when the employee form resets.
+  resetEmployeeEducationFields();
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
-// Clear Beneficiaries / Dependants when the employee form is reset.
-resetEmployeeDependantFields();
+  // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+  // Clear Beneficiaries / Dependants when the employee form is reset.
+  resetEmployeeDependantFields();
 
-if (state.dom.employeeDocumentsInput) state.dom.employeeDocumentsInput.value = "";
+  if (state.dom.employeeDocumentsInput) state.dom.employeeDocumentsInput.value = "";
 
   // DESCRIPTION ITEM 10 - STEP 2
   // Reset the document type selector when returning the employee form to a clean state.
@@ -18183,21 +18266,21 @@ function startEmployeeEdit(employeeId, options = {}) {
 
   // EMPLOYEE BIODATA COMPLETION - STEP 4F
   // Load Current/Permanent address records from employee_addresses in edit mode.
-loadEmployeeAddressesForEdit(employee.id);
+  loadEmployeeAddressesForEdit(employee.id);
 
-// EMPLOYEE BIODATA COMPLETION - STEP 5F
-// Load saved primary Next of Kin from employee_next_of_kin in edit mode.
-loadEmployeeNextOfKinForEdit(employee.id);
+  // EMPLOYEE BIODATA COMPLETION - STEP 5F
+  // Load saved primary Next of Kin from employee_next_of_kin in edit mode.
+  loadEmployeeNextOfKinForEdit(employee.id);
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
-// Load saved Education / Academic Qualification records in edit mode.
-loadEmployeeEducationRecordsForEdit(employee.id);
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+  // Load saved Education / Academic Qualification records in edit mode.
+  loadEmployeeEducationRecordsForEdit(employee.id);
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
-// Load saved Beneficiaries / Dependants in edit mode.
-loadEmployeeDependantRecordsForEdit(employee.id);
+  // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+  // Load saved Beneficiaries / Dependants in edit mode.
+  loadEmployeeDependantRecordsForEdit(employee.id);
 
-if (options.focusDocuments) {
+  if (options.focusDocuments) {
     setTimeout(() => {
       state.dom.attachedDocumentsList?.scrollIntoView({
         behavior: "smooth",
@@ -18354,6 +18437,11 @@ function buildEmployeePayload() {
       String(state.dom.employeeNumber?.value || "").trim() || null,
     status: normalizeText(rawStatus) || "active",
 
+    // HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+    // New and updated employee records inherit the logged-in HR user's tenant.
+    // HR should not manually choose this on the employee form.
+    tenant_id: getRequiredTenantIdForHrEmployeeData(),
+
     // ASSIGN LINE MANAGER - STEP 1E
     // Save System Role so the Full Employee List can show clear role labels
     // and Assign Line Manager can identify real manager-level employees.
@@ -18418,10 +18506,15 @@ async function generateNextEmployeeCustomId() {
 async function checkDuplicateEmployee(workEmail, currentEmployeeId = null) {
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase
-    .from("employees")
-    .select("id, work_email")
-    .eq("work_email", workEmail);
+  // HRP-80 - TENANT DATA SEGMENTATION - STEP 7D
+  // Duplicate checks should be tenant-scoped, so one company's employee data
+  // does not block another company from maintaining its own records.
+  const { data, error } = await applyCurrentTenantFilter(
+    supabase
+      .from("employees")
+      .select("id, work_email")
+      .eq("work_email", workEmail),
+  );
 
   if (error) throw error;
 
@@ -18601,28 +18694,28 @@ function addPendingFiles(fileList) {
       return;
     }
 
-if (file.size > maxFileSizeBytes) {
-  validationErrors.push(`${file.name} is larger than 10MB.`);
-  return;
-}
+    if (file.size > maxFileSizeBytes) {
+      validationErrors.push(`${file.name} is larger than 10MB.`);
+      return;
+    }
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6B
-// Block obvious mismatch between selected HR document type and filename.
-// This prevents cases like selecting CV / Resume but attaching birth_certificate.pdf.
-const documentTypeMismatchMessage = getEmployeeDocumentTypeMismatchMessage(
-  file,
-  selectedDocumentType,
-);
+    // EMPLOYEE BIODATA COMPLETION - STEP 6B
+    // Block obvious mismatch between selected HR document type and filename.
+    // This prevents cases like selecting CV / Resume but attaching birth_certificate.pdf.
+    const documentTypeMismatchMessage = getEmployeeDocumentTypeMismatchMessage(
+      file,
+      selectedDocumentType,
+    );
 
-if (documentTypeMismatchMessage) {
-  validationErrors.push(documentTypeMismatchMessage);
-  return;
-}
+    if (documentTypeMismatchMessage) {
+      validationErrors.push(documentTypeMismatchMessage);
+      return;
+    }
 
-state.pendingFiles.push({
-  file,
-  documentType: selectedDocumentType,
-});
+    state.pendingFiles.push({
+      file,
+      documentType: selectedDocumentType,
+    });
   });
 
   if (state.dom.employeeDocumentsInput) {
@@ -18718,11 +18811,14 @@ async function loadEmployeeDocuments(employeeId) {
   const supabase = getSupabaseClient();
 
   try {
-    const { data, error } = await supabase
-      .from("employee_documents")
-      .select("*")
-      .eq("employee_id", employeeId)
-      .order("uploaded_at", { ascending: false });
+    // HRP-80 - TENANT DATA SEGMENTATION - STEP 7D
+    // When editing one employee, only load documents from the same logged-in tenant.
+    const { data, error } = await applyCurrentTenantFilter(
+      supabase
+        .from("employee_documents")
+        .select("*")
+        .eq("employee_id", employeeId),
+    ).order("uploaded_at", { ascending: false });
 
     if (error) throw error;
 
@@ -18738,6 +18834,28 @@ async function loadEmployeeDocuments(employeeId) {
     state.attachedDocuments = [];
     renderAttachedDocuments();
   }
+}
+
+// HRP-80 - SUPPORTING DOCUMENTS OPEN/DOWNLOAD FIX - DOC-1
+// Browsers can preview PDFs/images, but Word documents usually cannot render
+// reliably from signed storage URLs. DOC/DOCX should download instead of opening
+// a dead blank page.
+function isBrowserPreviewableEmployeeDocument(documentRow = {}) {
+  const mimeType = String(documentRow.mime_type || "").toLowerCase();
+  const fileName = String(documentRow.file_name || "").toLowerCase();
+
+  return (
+    mimeType === "application/pdf" ||
+    mimeType.startsWith("image/") ||
+    fileName.endsWith(".pdf") ||
+    fileName.endsWith(".png") ||
+    fileName.endsWith(".jpg") ||
+    fileName.endsWith(".jpeg")
+  );
+}
+
+function getEmployeeDocumentActionLabel(documentRow = {}) {
+  return isBrowserPreviewableEmployeeDocument(documentRow) ? "Open" : "Download";
 }
 
 function renderAttachedDocuments() {
@@ -18777,12 +18895,15 @@ function renderAttachedDocuments() {
            Saved document buttons are wired through one delegated click handler
            in bindEvents(), so they still work after the list re-renders. -->
       <div class="d-inline-flex align-items-center gap-2 flex-wrap">
+        <!-- HRP-80 - SUPPORTING DOCUMENTS OPEN/DOWNLOAD FIX - DOC-1
+             Preview browser-friendly documents, but download DOC/DOCX files
+             so HR does not land on a dead blank browser page. -->
         <button
           type="button"
           class="btn btn-sm btn-outline-primary"
           data-open-document-id="${escapeHtml(documentRow.id)}"
         >
-          Open
+          ${escapeHtml(getEmployeeDocumentActionLabel(documentRow))}
         </button>
 
         <button
@@ -18807,11 +18928,6 @@ async function openEmployeeDocument(documentId) {
     return;
   }
 
-  // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H FIX
-  // Open a blank tab immediately during the user click.
-  // This avoids browser popup blocking while Supabase creates the signed URL.
-  const documentWindow = window.open("about:blank", "_blank");
-
   try {
     const supabase = getSupabaseClient();
 
@@ -18821,11 +18937,6 @@ async function openEmployeeDocument(documentId) {
 
     if (!documentRow?.file_path) {
       throw new Error("The selected document could not be resolved.");
-    }
-
-    if (documentWindow) {
-      documentWindow.document.write("Opening document...");
-      documentWindow.opener = null;
     }
 
     const { data, error } = await supabase.storage
@@ -18838,16 +18949,28 @@ async function openEmployeeDocument(documentId) {
       throw new Error("A secure document link could not be generated.");
     }
 
-    if (documentWindow) {
-      documentWindow.location.href = data.signedUrl;
-    } else {
-      window.open(data.signedUrl, "_blank");
-    }
-  } catch (error) {
-    if (documentWindow) {
-      documentWindow.close();
+    // HRP-80 - SUPPORTING DOCUMENTS OPEN/DOWNLOAD FIX - DOC-1
+    // PDF/images can be previewed in a new tab. DOC/DOCX files should download
+    // because browsers often cannot render them from signed storage URLs.
+    if (isBrowserPreviewableEmployeeDocument(documentRow)) {
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      return;
     }
 
+    const downloadLink = document.createElement("a");
+    downloadLink.href = data.signedUrl;
+    downloadLink.download = documentRow.file_name || "employee-document";
+    downloadLink.rel = "noopener noreferrer";
+
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+
+    showPageAlert(
+      "info",
+      `Document <strong>${escapeHtml(documentRow.file_name || "file")}</strong> has been downloaded.`,
+    );
+  } catch (error) {
     console.error("Error opening employee document:", error);
     showPageAlert(
       "warning",
@@ -18894,15 +19017,14 @@ async function removeEmployeeDocument(documentId) {
     const supabase = getSupabaseClient();
     const filePath = String(documentRow.file_path || "").trim();
 
-    // EMPLOYEE CUSTOM ID AUTO GENERATION - STEP 1H RECOVERY
-    // Delete the metadata row first and request the deleted row back.
-    // If RLS or permissions block the delete, Supabase may return no deleted row
-    // without throwing an error, so we must check the returned data.
-    const { data: deletedRows, error: deleteError } = await supabase
-      .from("employee_documents")
-      .delete()
-      .eq("id", documentKey)
-      .select("id");
+    // HRP-80 - TENANT DATA SEGMENTATION - STEP 7D
+    // Only remove document metadata from the logged-in tenant's records.
+    const { data: deletedRows, error: deleteError } = await applyCurrentTenantFilter(
+      supabase
+        .from("employee_documents")
+        .delete()
+        .eq("id", documentKey),
+    ).select("id");
 
     if (deleteError) throw deleteError;
 
@@ -18964,6 +19086,11 @@ async function uploadPendingFilesForEmployee(employeeId) {
   }
 
   const supabase = getSupabaseClient();
+
+  // HRP-80 - TENANT DATA SEGMENTATION - STEP 7C
+  // Supporting document metadata inherits the logged-in HR user's tenant.
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+
   const uploadedMetadataRows = [];
 
   for (const pendingItem of state.pendingFiles) {
@@ -18988,6 +19115,7 @@ async function uploadPendingFilesForEmployee(employeeId) {
 
     uploadedMetadataRows.push({
       employee_id: employeeId,
+      tenant_id: tenantId,
 
       // DESCRIPTION ITEM 10 - STEP 2
       // Persist the chosen HR document classification with each file.
@@ -19059,28 +19187,28 @@ async function handleEmployeeSave() {
   if (!validateEmployeeAddressFields()) {
     return;
   }
-// EMPLOYEE BIODATA COMPLETION - STEP 5G
-// Next of Kin is optional, but if HR starts it, the required emergency contact
-// fields must be completed before save.
-if (!validateEmployeeNextOfKinFields()) {
-  return;
-}
+  // EMPLOYEE BIODATA COMPLETION - STEP 5G
+  // Next of Kin is optional, but if HR starts it, the required emergency contact
+  // fields must be completed before save.
+  if (!validateEmployeeNextOfKinFields()) {
+    return;
+  }
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
-// Final guard: Education is optional, but if HR starts it,
-// required education fields must be valid before save proceeds.
-if (!validateEmployeeEducationFields()) {
-  updateEmployeeSaveButtonState();
-  return;
-}
+  // EMPLOYEE BIODATA COMPLETION - STEP 6C-3A
+  // Final guard: Education is optional, but if HR starts it,
+  // required education fields must be valid before save proceeds.
+  if (!validateEmployeeEducationFields()) {
+    updateEmployeeSaveButtonState();
+    return;
+  }
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
-// Beneficiaries/dependants are optional, but any visible un-staged row must
-// be complete before saving it to employee_dependants.
-if (isEmployeeDependantStarted() && !validateEmployeeDependantFields()) {
-  updateEmployeeSaveButtonState();
-  return;
-}
+  // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+  // Beneficiaries/dependants are optional, but any visible un-staged row must
+  // be complete before saving it to employee_dependants.
+  if (isEmployeeDependantStarted() && !validateEmployeeDependantFields()) {
+    updateEmployeeSaveButtonState();
+    return;
+  }
   const employeePayload = buildEmployeePayload();
   const editingId = String(state.dom.editingEmployeeId?.value || "").trim();
   const isEditMode = Boolean(editingId);
@@ -19191,26 +19319,26 @@ if (isEmployeeDependantStarted() && !validateEmployeeDependantFields()) {
 
     // EMPLOYEE BIODATA COMPLETION - STEP 4G
     // Save Current/Permanent address records after the employee record exists.
-await saveEmployeeAddressesForEmployee(savedEmployeeId);
+    await saveEmployeeAddressesForEmployee(savedEmployeeId);
 
-// EMPLOYEE BIODATA COMPLETION - STEP 5G
-// Save primary Next of Kin after the employee record exists.
-await saveEmployeeNextOfKinForEmployee(savedEmployeeId);
+    // EMPLOYEE BIODATA COMPLETION - STEP 5G
+    // Save primary Next of Kin after the employee record exists.
+    await saveEmployeeNextOfKinForEmployee(savedEmployeeId);
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
-// Save structured Education / Academic Qualification records after the employee exists.
-await saveEmployeeEducationRecordsForEmployee(savedEmployeeId);
+    // EMPLOYEE BIODATA COMPLETION - STEP 6C-3B
+    // Save structured Education / Academic Qualification records after the employee exists.
+    await saveEmployeeEducationRecordsForEmployee(savedEmployeeId);
 
-// DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
-// Refresh School / Institution and Course suggestions after save so newly
-// typed values become available for future employee records.
-await refreshEducationSuggestionLists();
+    // DYNAMIC EDUCATION SUGGESTIONS - STEP 1A
+    // Refresh School / Institution and Course suggestions after save so newly
+    // typed values become available for future employee records.
+    await refreshEducationSuggestionLists();
 
-// EMPLOYEE BIODATA COMPLETION - STEP 6D-3
-// Save Beneficiaries / Dependants after the employee exists.
-await saveEmployeeDependantRecordsForEmployee(savedEmployeeId);
+    // EMPLOYEE BIODATA COMPLETION - STEP 6D-3
+    // Save Beneficiaries / Dependants after the employee exists.
+    await saveEmployeeDependantRecordsForEmployee(savedEmployeeId);
 
-if (state.pendingFiles.length) {
+    if (state.pendingFiles.length) {
       await uploadPendingFilesForEmployee(savedEmployeeId);
     } else {
       await loadEmployeeDocuments(savedEmployeeId);

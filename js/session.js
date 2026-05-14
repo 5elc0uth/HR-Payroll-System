@@ -3,6 +3,12 @@
 (function () {
   const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-5
+  // Central storage keys used by login and dashboard session handling.
+  // Tenant context must be cleared whenever the user logs out or the session ends.
+  const APP_SESSION_STORAGE_KEY = "hrPayrollSession";
+  const TENANT_CONTEXT_STORAGE_KEY = "hrPayrollTenantContext";
+
   let idleTimer = null;
   let activityListenersAttached = false;
   let authListenerAttached = false;
@@ -61,6 +67,15 @@
     return data;
   }
 
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-5
+  // Clear local browser session data, including the validated tenant/company
+  // context. This prevents the next user from inheriting the previous user's
+  // Company/Tenant ID after logout, timeout, expiry, or unauthorised redirect.
+  function clearLocalSessionContext() {
+    localStorage.removeItem(APP_SESSION_STORAGE_KEY);
+    localStorage.removeItem(TENANT_CONTEXT_STORAGE_KEY);
+  }
+
   async function logoutUser(reason = "logout") {
     const supabase = getSupabaseClient();
 
@@ -71,6 +86,8 @@
     } catch (error) {
       console.error("Error during logout:", error);
     }
+
+    clearLocalSessionContext();
 
     if (reason === "timeout") {
       window.location.href = "index.html?message=session-timeout";

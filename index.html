@@ -450,14 +450,40 @@
                   For now it validates the UI cleanly and simulates login behavior.
                 -->
                 <form id="loginForm" novalidate>
+                  <!-- HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-2
+       Company/Tenant ID is entered before email/password so the app can later
+       validate the signed-in user against the correct company workspace. -->
                   <div class="mb-3">
-                    <label for="email" class="form-label fw-semibold">Email Address</label>
+                    <label for="loginTenantCode" class="form-label fw-semibold">
+                      Company / Tenant ID
+                    </label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-building"></i>
+                      </span>
+                      <input type="text" class="form-control border-start-0" id="loginTenantCode"
+                        placeholder="Enter your Company ID" autocomplete="organization" required />
+                    </div>
+                    <div class="form-text">
+                      Enter the Company/Tenant ID provided by your administrator.
+                    </div>
+                    <div class="invalid-feedback">
+                      Please enter your Company/Tenant ID.
+                    </div>
+                  </div>
+
+                  <!-- HRP-80 - LOGIN FORM REQUIREMENT - STEP 2A
+     The requirement says username and password. The current auth uses email,
+     so we label this as Username / Email Address without changing the working
+     Supabase email/password login flow. -->
+                  <div class="mb-3">
+                    <label for="email" class="form-label fw-semibold">Username / Email Address</label>
                     <div class="input-group">
                       <span class="input-group-text bg-white border-end-0">
                         <i class="bi bi-envelope"></i>
                       </span>
-                      <input type="email" class="form-control border-start-0" id="email" placeholder="Enter your email"
-                        required />
+                      <input type="email" class="form-control border-start-0" id="email"
+                        placeholder="Enter your username/email" autocomplete="email" required />
                     </div>
                     <div class="invalid-feedback">
                       Please enter your email address.

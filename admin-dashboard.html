@@ -1,298 +1,459 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Dashboard | HR & Payroll System</title>
 
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-    />
-    <link rel="stylesheet" href="css/styles.css" />
-    <link rel="icon" type="image/x-icon" href="assets/favicon.png" />
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard | HR & Payroll System</title>
 
-  <body class="dashboard-page">
-    <main class="container py-4 py-lg-5">
-      <!-- =========================================================
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" type="image/x-icon" href="assets/favicon.png" />
+</head>
+
+<body class="dashboard-page">
+  <main class="container py-4 py-lg-5">
+    <!-- =========================================================
            HERO
            ========================================================= -->
-      <section class="dashboard-hero mb-4">
-        <div
-          class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-4"
-        >
+    <section class="dashboard-hero mb-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-4">
+        <div>
+          <div class="hero-badge">
+            <i class="bi bi-shield-lock"></i>
+            Admin Workspace
+          </div>
+          <h1 class="display-6 fw-bold mb-2">Admin Dashboard</h1>
+          <p class="mb-0" style="max-width: 760px">
+            Manage platform oversight, access control visibility, and your own
+            administrator profile details.
+          </p>
+        </div>
+
+        <div class="d-flex flex-column align-items-lg-end gap-2">
+          <div class="dashboard-avatar" id="adminInitials">AD</div>
+          <button id="logoutBtn" class="btn btn-light dashboard-action-btn">
+            <i class="bi bi-box-arrow-right me-2"></i>Logout
+          </button>
+        </div>
+      </div>
+
+      <div class="hero-meta-grid">
+        <div class="hero-meta-card">
+          <div class="hero-meta-label">Signed in as</div>
+          <div class="hero-meta-value text-break" id="adminEmail">
+            Loading.
+          </div>
+        </div>
+
+        <div class="hero-meta-card">
+          <div class="hero-meta-label">Role</div>
+          <div class="hero-meta-value" id="adminRole">admin</div>
+        </div>
+
+        <div class="hero-meta-card">
+          <div class="hero-meta-label">Current Workspace</div>
+          <div class="hero-meta-value" id="adminModuleValue">Profile</div>
+        </div>
+      </div>
+    </section>
+
+    <div id="pageAlert" class="alert d-none mb-4" role="alert"></div>
+
+    <!-- =========================================================
+           WORKSPACE NAV
+           ========================================================= -->
+    <section class="card dashboard-section-card mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
           <div>
-            <div class="hero-badge">
-              <i class="bi bi-shield-lock"></i>
-              Admin Workspace
-            </div>
-            <h1 class="display-6 fw-bold mb-2">Admin Dashboard</h1>
-            <p class="mb-0" style="max-width: 760px">
-              Manage platform oversight, access control visibility, and your own
-              administrator profile details.
+            <h2 class="section-heading h4 mb-1">Admin Workspace</h2>
+            <p class="section-subtext mb-0">
+              Switch between your profile and administrator session overview.
             </p>
           </div>
 
-          <div class="d-flex flex-column align-items-lg-end gap-2">
-            <div class="dashboard-avatar" id="adminInitials">AD</div>
-            <button id="logoutBtn" class="btn btn-light dashboard-action-btn">
-              <i class="bi bi-box-arrow-right me-2"></i>Logout
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary dashboard-action-btn" id="adminTabProfileBtn">
+              <i class="bi bi-person-circle me-2"></i>Profile
+            </button>
+
+            <button type="button" class="btn btn-outline-primary dashboard-action-btn" id="adminTabOverviewBtn">
+              <i class="bi bi-grid me-2"></i>Administrative Overview
+            </button>
+            <!-- HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1C
+     Admin can create and maintain tenant/company records before tenant-based login is wired. -->
+            <button type="button" class="btn btn-outline-primary dashboard-action-btn" id="adminTabTenantsBtn">
+              <i class="bi bi-building me-2"></i>Tenants
             </button>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="hero-meta-grid">
-          <div class="hero-meta-card">
-            <div class="hero-meta-label">Signed in as</div>
-            <div class="hero-meta-value text-break" id="adminEmail">
-              Loading.
-            </div>
-          </div>
-
-          <div class="hero-meta-card">
-            <div class="hero-meta-label">Role</div>
-            <div class="hero-meta-value" id="adminRole">admin</div>
-          </div>
-
-          <div class="hero-meta-card">
-            <div class="hero-meta-label">Current Workspace</div>
-            <div class="hero-meta-value" id="adminModuleValue">Profile</div>
-          </div>
-        </div>
-      </section>
-
-      <div id="pageAlert" class="alert d-none mb-4" role="alert"></div>
-
-      <!-- =========================================================
-           WORKSPACE NAV
-           ========================================================= -->
-      <section class="card dashboard-section-card mb-4">
-        <div class="card-body p-4">
-          <div
-            class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3"
-          >
-            <div>
-              <h2 class="section-heading h4 mb-1">Admin Workspace</h2>
-              <p class="section-subtext mb-0">
-                Switch between your profile and administrator session overview.
-              </p>
-            </div>
-
-            <div class="d-flex flex-wrap gap-2">
-              <button
-                type="button"
-                class="btn btn-primary dashboard-action-btn"
-                id="adminTabProfileBtn"
-              >
-                <i class="bi bi-person-circle me-2"></i>Profile
-              </button>
-
-              <button
-                type="button"
-                class="btn btn-outline-primary dashboard-action-btn"
-                id="adminTabOverviewBtn"
-              >
-                <i class="bi bi-grid me-2"></i>Administrative Overview
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- =========================================================
+    <!-- =========================================================
            PROFILE SECTION
            ========================================================= -->
-      <section id="adminProfileSection" class="workspace-section">
-        <section class="card dashboard-section-card mb-4">
-          <div class="card-body p-4 p-lg-5">
-            <div class="mb-4">
-              <h2 class="section-heading h4 mb-1">My Profile</h2>
+    <section id="adminProfileSection" class="workspace-section">
+      <section class="card dashboard-section-card mb-4">
+        <div class="card-body p-4 p-lg-5">
+          <div class="mb-4">
+            <h2 class="section-heading h4 mb-1">My Profile</h2>
+            <p class="section-subtext mb-0">
+              View and update your own administrator profile details.
+            </p>
+          </div>
+
+          <div class="row g-4 align-items-start">
+            <div class="col-lg-4">
+              <div class="border rounded-4 p-4 h-100 text-center">
+                <div class="dashboard-avatar mx-auto mb-3" id="adminProfileAvatar">
+                  AD
+                </div>
+                <h3 class="h5 mb-1" id="adminProfileCardName">
+                  Administrator
+                </h3>
+                <p class="text-secondary mb-3 text-break" id="adminProfileCardEmail">
+                  --
+                </p>
+
+                <div class="small text-secondary mb-2">Profile Photo</div>
+                <div class="border rounded-4 p-3 bg-light-subtle">
+                  <div class="fw-semibold mb-1">Upload coming next step</div>
+                  <div class="text-secondary small">
+                    Profile photo upload will be added in the next safe step.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-8">
+              <form id="adminProfileForm" novalidate>
+                <div class="row g-4">
+                  <div class="col-md-6">
+                    <label for="adminProfileFullName" class="form-label fw-semibold">
+                      Full Name <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" id="adminProfileFullName" class="form-control" placeholder="Enter your full name"
+                      required />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="adminProfileEmail" class="form-label fw-semibold">
+                      Email
+                    </label>
+                    <input type="email" id="adminProfileEmail" class="form-control" readonly />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="adminProfileRole" class="form-label fw-semibold">
+                      Role
+                    </label>
+                    <input type="text" id="adminProfileRole" class="form-control" readonly />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="adminProfileDepartment" class="form-label fw-semibold">
+                      Department
+                    </label>
+                    <input type="text" id="adminProfileDepartment" class="form-control"
+                      placeholder="Enter department" />
+                  </div>
+
+                  <div class="col-12">
+                    <button type="submit" id="saveAdminProfileBtn" class="btn btn-primary dashboard-action-btn">
+                      <i class="bi bi-save me-2"></i>
+                      <span id="saveAdminProfileBtnText">
+                        Save Profile Changes
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- =========================================================
+           OVERVIEW SECTION
+           ========================================================= -->
+    <section id="adminOverviewSection" class="workspace-section d-none">
+      <section class="card dashboard-section-card mb-4 shadow-sm">
+        <div class="card-body p-4 p-lg-5">
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+              <h2 class="section-heading h4 mb-1">Signed-in User</h2>
               <p class="section-subtext mb-0">
-                View and update your own administrator profile details.
+                Current admin session details loaded from your authenticated
+                profile.
               </p>
             </div>
 
-            <div class="row g-4 align-items-start">
-              <div class="col-lg-4">
-                <div class="border rounded-4 p-4 h-100 text-center">
-                  <div
-                    class="dashboard-avatar mx-auto mb-3"
-                    id="adminProfileAvatar"
-                  >
-                    AD
-                  </div>
-                  <h3 class="h5 mb-1" id="adminProfileCardName">
-                    Administrator
-                  </h3>
-                  <p
-                    class="text-secondary mb-3 text-break"
-                    id="adminProfileCardEmail"
-                  >
-                    --
-                  </p>
+            <span class="badge rounded-pill text-bg-light border px-3 py-2">
+              Live Session
+            </span>
+          </div>
 
-                  <div class="small text-secondary mb-2">Profile Photo</div>
-                  <div class="border rounded-4 p-3 bg-light-subtle">
-                    <div class="fw-semibold mb-1">Upload coming next step</div>
-                    <div class="text-secondary small">
-                      Profile photo upload will be added in the next safe step.
-                    </div>
-                  </div>
+          <div class="row g-4 mt-1">
+            <div class="col-md-6 col-xl-3">
+              <div class="info-tile">
+                <div class="info-tile-label">Full Name</div>
+                <div class="info-tile-value text-break" id="adminFullName">
+                  Loading.
                 </div>
               </div>
+            </div>
 
-              <div class="col-lg-8">
-                <form id="adminProfileForm" novalidate>
-                  <div class="row g-4">
-                    <div class="col-md-6">
-                      <label
-                        for="adminProfileFullName"
-                        class="form-label fw-semibold"
-                      >
-                        Full Name <span class="text-danger">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        id="adminProfileFullName"
-                        class="form-control"
-                        placeholder="Enter your full name"
-                        required
-                      />
-                    </div>
+            <div class="col-md-6 col-xl-3">
+              <div class="info-tile">
+                <div class="info-tile-label">Email</div>
+                <div class="info-tile-value text-break" id="adminEmailTile">
+                  Loading.
+                </div>
+              </div>
+            </div>
 
-                    <div class="col-md-6">
-                      <label
-                        for="adminProfileEmail"
-                        class="form-label fw-semibold"
-                      >
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        id="adminProfileEmail"
-                        class="form-control"
-                        readonly
-                      />
-                    </div>
+            <div class="col-md-6 col-xl-3">
+              <div class="info-tile">
+                <div class="info-tile-label">Role</div>
+                <div class="info-tile-value" id="adminRoleTile">Loading.</div>
+              </div>
+            </div>
 
-                    <div class="col-md-6">
-                      <label
-                        for="adminProfileRole"
-                        class="form-label fw-semibold"
-                      >
-                        Role
-                      </label>
-                      <input
-                        type="text"
-                        id="adminProfileRole"
-                        class="form-control"
-                        readonly
-                      />
-                    </div>
-
-                    <div class="col-md-6">
-                      <label
-                        for="adminProfileDepartment"
-                        class="form-label fw-semibold"
-                      >
-                        Department
-                      </label>
-                      <input
-                        type="text"
-                        id="adminProfileDepartment"
-                        class="form-control"
-                        placeholder="Enter department"
-                      />
-                    </div>
-
-                    <div class="col-12">
-                      <button
-                        type="submit"
-                        id="saveAdminProfileBtn"
-                        class="btn btn-primary dashboard-action-btn"
-                      >
-                        <i class="bi bi-save me-2"></i>
-                        <span id="saveAdminProfileBtnText">
-                          Save Profile Changes
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </form>
+            <div class="col-md-6 col-xl-3">
+              <div class="info-tile">
+                <div class="info-tile-label">Department</div>
+                <div class="info-tile-value" id="adminDepartment">--</div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </section>
+    </section>
 
-      <!-- =========================================================
-           OVERVIEW SECTION
+    <!-- =========================================================
+           HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1C
+           Tenant / Company management is controlled by Admin.
+           This creates the company/workspace record used later by login.
            ========================================================= -->
-      <section id="adminOverviewSection" class="workspace-section d-none">
-        <section class="card dashboard-section-card mb-4 shadow-sm">
-          <div class="card-body p-4 p-lg-5">
-            <div
-              class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3"
-            >
+    <section id="adminTenantsSection" class="workspace-section d-none">
+      <section class="card dashboard-section-card mb-4 shadow-sm">
+        <div class="card-body p-4 p-lg-5">
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+            <div>
+              <h2 class="section-heading h4 mb-1">Tenant / Company Setup</h2>
+              <p class="section-subtext mb-0">
+                Create company workspaces that users will later use during login with their Company/Tenant ID.
+              </p>
+            </div>
+
+            <span class="badge rounded-pill text-bg-light border px-3 py-2">
+              Admin controlled
+            </span>
+          </div>
+
+          <form id="tenantCreateForm" novalidate>
+            <input type="hidden" id="editingTenantId" />
+
+            <!-- HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1D ALIGNMENT FIX
+     Align tenant setup fields from the top so helper text under Tenant ID
+     does not push Company Name and Status lower on the row. -->
+            <div class="row g-4 align-items-start">
+              <!-- HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1D ALIGNMENT
+     Keep the tenant setup fields in one clean row on large screens.
+     This mirrors the cleaner HR dashboard form layout and removes the awkward
+     empty space caused by the removed Notes field. -->
+              <div class="col-lg-5">
+                <label for="tenantCompanyName" class="form-label fw-semibold">
+                  Company Name <span class="text-danger">*</span>
+                </label>
+                <input type="text" id="tenantCompanyName" class="form-control" placeholder="Example: Alpatech Limited"
+                  required />
+                <div class="invalid-feedback">Company name is required.</div>
+              </div>
+
+              <div class="col-lg-4">
+                <label for="tenantCode" class="form-label fw-semibold">
+                  Tenant ID / Company ID <span class="text-danger">*</span>
+                </label>
+                <input type="text" id="tenantCode" class="form-control" placeholder="Example: ALPATECH"
+                  autocomplete="off" required />
+                <div class="form-text">
+                  Use letters, numbers, hyphen, or underscore only. This will be used during login.
+                </div>
+                <div class="invalid-feedback">Tenant ID / Company ID is required.</div>
+              </div>
+
+              <div class="col-lg-3">
+                <label for="tenantStatus" class="form-label fw-semibold">
+                  Status <span class="text-danger">*</span>
+                </label>
+                <select id="tenantStatus" class="form-select" required>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div class="col-12">
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="submit" id="saveTenantBtn" class="btn btn-secondary dashboard-action-btn" disabled>
+                    <i class="bi bi-save me-2"></i>
+                    <span id="saveTenantBtnText">Create Tenant</span>
+                  </button>
+
+                  <button type="button" id="cancelTenantEditBtn"
+                    class="btn btn-outline-secondary dashboard-action-btn d-none">
+                    <i class="bi bi-x-circle me-2"></i>
+                    Cancel Edit
+                  </button>
+
+                  <button type="button" id="refreshTenantsBtn" class="btn btn-outline-primary dashboard-action-btn">
+                    <i class="bi bi-arrow-clockwise me-2"></i>
+                    Refresh Tenants
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <hr class="my-5" />
+
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+            <div>
+              <h3 class="h5 fw-bold mb-1" id="tenantRecordsHeader">Tenant Records</h3>
+              <p class="text-secondary small mb-0">
+                Saved tenants/companies will be used later for tenant-based login and data segmentation.
+              </p>
+            </div>
+          </div>
+
+          <div id="tenantRecordsEmptyState" class="alert alert-light border mb-0">
+            No tenant/company records have been created yet.
+          </div>
+
+          <div id="tenantRecordsTableWrapper" class="table-responsive d-none">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Tenant ID</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th class="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="tenantRecordsTableBody"></tbody>
+            </table>
+          </div>
+          <!-- HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1E-2
+     Link existing user profiles to a tenant/company before tenant-based
+     login validation is wired. This keeps the setup flow Admin-controlled. -->
+          <hr class="my-5" />
+
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+            <div>
+              <h3 class="section-heading h5 mb-1">User Tenant Assignment</h3>
+              <p class="section-subtext mb-0">
+                Link a user profile to the company workspace they should belong to during login.
+              </p>
+            </div>
+
+            <span class="badge rounded-pill text-bg-light border px-3 py-2">
+              Profile linking
+            </span>
+          </div>
+
+          <form id="profileTenantLinkForm" novalidate>
+            <input type="hidden" id="editingProfileTenantLinkProfileId" />
+
+            <div class="row g-4 align-items-start">
+              <div class="col-lg-6">
+                <label for="profileTenantProfileId" class="form-label fw-semibold">
+                  User / Profile <span class="text-danger">*</span>
+                </label>
+                <select id="profileTenantProfileId" class="form-select" required>
+                  <option value="">Select user/profile</option>
+                </select>
+                <div class="invalid-feedback">Select a user/profile.</div>
+              </div>
+
+              <div class="col-lg-6">
+                <label for="profileTenantTenantId" class="form-label fw-semibold">
+                  Tenant / Company <span class="text-danger">*</span>
+                </label>
+                <select id="profileTenantTenantId" class="form-select" required>
+                  <option value="">Select tenant/company</option>
+                </select>
+                <div class="invalid-feedback">Select a tenant/company.</div>
+              </div>
+
+              <div class="col-12">
+                <div class="d-flex flex-wrap gap-2">
+                  <button type="submit" id="saveProfileTenantLinkBtn" class="btn btn-secondary dashboard-action-btn"
+                    disabled>
+                    <i class="bi bi-link-45deg me-2"></i>
+                    <span id="saveProfileTenantLinkBtnText">Save Tenant Link</span>
+                  </button>
+
+                  <button type="button" id="cancelProfileTenantLinkEditBtn"
+                    class="btn btn-outline-secondary dashboard-action-btn d-none">
+                    <i class="bi bi-x-circle me-2"></i>
+                    Cancel Edit
+                  </button>
+
+                  <button type="button" id="refreshProfileTenantLinksBtn"
+                    class="btn btn-outline-primary dashboard-action-btn">
+                    <i class="bi bi-arrow-clockwise me-2"></i>
+                    Refresh Links
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <div class="mt-5">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
               <div>
-                <h2 class="section-heading h4 mb-1">Signed-in User</h2>
-                <p class="section-subtext mb-0">
-                  Current admin session details loaded from your authenticated
-                  profile.
+                <h4 class="h6 fw-semibold mb-1" id="profileTenantLinksHeader">
+                  User Tenant Links
+                </h4>
+                <p class="text-secondary small mb-0">
+                  Shows which tenant/company each user profile is currently linked to.
                 </p>
               </div>
-
-              <span class="badge rounded-pill text-bg-light border px-3 py-2">
-                Live Session
-              </span>
             </div>
 
-            <div class="row g-4 mt-1">
-              <div class="col-md-6 col-xl-3">
-                <div class="info-tile">
-                  <div class="info-tile-label">Full Name</div>
-                  <div class="info-tile-value text-break" id="adminFullName">
-                    Loading.
-                  </div>
-                </div>
-              </div>
+            <div id="profileTenantLinksEmptyState" class="alert alert-light border mb-0">
+              No user profiles are available for tenant assignment.
+            </div>
 
-              <div class="col-md-6 col-xl-3">
-                <div class="info-tile">
-                  <div class="info-tile-label">Email</div>
-                  <div class="info-tile-value text-break" id="adminEmailTile">
-                    Loading.
-                  </div>
-                </div>
-              </div>
-
-              <div class="col-md-6 col-xl-3">
-                <div class="info-tile">
-                  <div class="info-tile-label">Role</div>
-                  <div class="info-tile-value" id="adminRoleTile">Loading.</div>
-                </div>
-              </div>
-
-              <div class="col-md-6 col-xl-3">
-                <div class="info-tile">
-                  <div class="info-tile-label">Department</div>
-                  <div class="info-tile-value" id="adminDepartment">--</div>
-                </div>
-              </div>
+            <div id="profileTenantLinksTableWrapper" class="table-responsive d-none">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Tenant / Company</th>
+                    <th>Tenant ID</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="profileTenantLinksTableBody"></tbody>
+              </table>
             </div>
           </div>
-        </section>
+        </div>
       </section>
-    </main>
+    </section>
+  </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/app.js"></script>
-    <script src="js/session.js"></script>
-    <script src="js/admin-dashboard.js"></script>
-  </body>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/admin-dashboard.js"></script>
+</body>
+
 </html>

@@ -1,5 +1,11 @@
 document.addEventListener("DOMContentLoaded", function () {
   const loginForm = document.getElementById("loginForm");
+
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-2
+  // Company/Tenant ID is collected during login before tenant validation
+  // is wired in the next step.
+  const loginTenantCodeInput = document.getElementById("loginTenantCode");
+
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
   const alertContainer = document.getElementById("loginAlertContainer");
@@ -17,9 +23,13 @@ document.addEventListener("DOMContentLoaded", function () {
   );
 
   window.SUPABASE_URL = "https://zoeglonuxkiwnaabzjqo.supabase.co";
-window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
+  window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
 
   const supabaseClient = window.supabaseClient;
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-4
+  // Dedicated browser cache key for the validated tenant/company context.
+  // This allows dashboards to know which company workspace the signed-in user belongs to.
+  const TENANT_CONTEXT_STORAGE_KEY = "hrPayrollTenantContext";
 
   function showAlert(message, type) {
     if (!alertContainer) return;
@@ -33,6 +43,10 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
   }
 
   function clearValidationStates() {
+    // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-2
+    // Clear Tenant ID validation together with existing login fields.
+    if (loginTenantCodeInput) loginTenantCodeInput.classList.remove("is-invalid");
+
     if (emailInput) emailInput.classList.remove("is-invalid");
     if (passwordInput) passwordInput.classList.remove("is-invalid");
   }
@@ -59,6 +73,96 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
     };
 
     return roleRoutes[role] || "/index.html";
+  }
+
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-3
+  // Validate the entered Company/Tenant ID after Supabase email/password
+  // authentication succeeds. This uses the safe database function created in
+  // Step 1F-1 and does not directly query or update tenant/profile tables here.
+  async function validateTenantLoginForSignedInUser(loginTenantCode = "") {
+    const cleanTenantCode = String(loginTenantCode || "").trim().toUpperCase();
+
+    const { data, error } = await supabaseClient.rpc(
+      "validate_current_user_tenant_login",
+      {
+        input_tenant_code: cleanTenantCode,
+      },
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    const validationResult = Array.isArray(data) ? data[0] : data;
+
+    return {
+      isValid: Boolean(validationResult?.is_valid),
+      tenantId: validationResult?.tenant_id || null,
+      tenantCode: validationResult?.tenant_code || cleanTenantCode,
+      companyName: validationResult?.company_name || "",
+      reason:
+        validationResult?.reason ||
+        "Tenant login validation failed. Please check your Company/Tenant ID.",
+    };
+  }
+
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-4
+  // Store the validated tenant context after login succeeds.
+  // This is only written after the database confirms the user belongs to
+  // the entered Company/Tenant ID.
+  function cacheValidatedTenantContext({
+    userId = "",
+    tenantId = "",
+    tenantCode = "",
+    companyName = "",
+  } = {}) {
+    const tenantContext = {
+      userId,
+      tenantId,
+      tenantCode: String(tenantCode || "").trim().toUpperCase(),
+      companyName: String(companyName || "").trim(),
+      cachedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(
+      TENANT_CONTEXT_STORAGE_KEY,
+      JSON.stringify(tenantContext),
+    );
+
+    return tenantContext;
+  }
+
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-4
+  // Read the cached tenant context safely.
+  // If the cache is missing or corrupted, return null and let login continue normally.
+  function getCachedTenantContext() {
+    try {
+      const rawValue = localStorage.getItem(TENANT_CONTEXT_STORAGE_KEY);
+      if (!rawValue) return null;
+
+      const parsedValue = JSON.parse(rawValue);
+
+      if (!parsedValue?.tenantCode) {
+        return null;
+      }
+
+      return parsedValue;
+    } catch (error) {
+      localStorage.removeItem(TENANT_CONTEXT_STORAGE_KEY);
+      return null;
+    }
+  }
+
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-4
+  // If a tenant was validated earlier and the cache still exists, prefill the
+  // Company/Tenant ID field so the user does not need to retype it.
+  function prefillTenantCodeFromCache() {
+    if (!loginTenantCodeInput || loginTenantCodeInput.value) return;
+
+    const cachedTenant = getCachedTenantContext();
+    if (!cachedTenant?.tenantCode) return;
+
+    loginTenantCodeInput.value = cachedTenant.tenantCode;
   }
 
   async function handleForgotPassword(event) {
@@ -171,11 +275,22 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
       clearValidationStates();
       alertContainer.innerHTML = "";
 
+      // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-2
+      // Capture Company/Tenant ID from the login form.
+      // Full Supabase tenant validation is added in the next step.
+      const loginTenantCode = String(loginTenantCodeInput?.value || "")
+        .trim()
+        .toUpperCase();
+
       const email = emailInput.value.trim().toLowerCase();
       const password = passwordInput.value;
 
       let isValid = true;
 
+      // HRP-80 - ADMIN TENANT LOGIN EXEMPTION - STEP 4B
+      // Do not block blank Tenant ID at this early stage.
+      // We must first sign in and read the profile role, because Admin/System Admin
+      // can log in without Tenant ID while other roles still require it later.
       if (!email) {
         emailInput.classList.add("is-invalid");
         isValid = false;
@@ -187,7 +302,13 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
       }
 
       if (!isValid) {
-        showAlert("Please enter both email and password.", "warning");
+        // HRP-80 - ADMIN TENANT LOGIN EXEMPTION - STEP 4B
+        // Tenant ID is role-dependent. Admin can skip it, but username/email
+        // and password are always required for Supabase authentication.
+        showAlert(
+          "Please enter username/email and password.",
+          "warning",
+        );
         return;
       }
 
@@ -254,6 +375,104 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
           return;
         }
 
+        // HRP-80 - ADMIN TENANT LOGIN EXEMPTION - STEP 4B
+        // Admin/System Admin are platform-level owners. They can log in without a
+        // Company/Tenant ID so they can create tenants and assign users.
+        // Tenant validation remains mandatory for HR, managers, employees, payroll,
+        // and other non-admin roles.
+        const userRole = String(profile.role || "").trim().toLowerCase();
+        const isPlatformAdmin = ["admin", "system_admin"].includes(userRole);
+
+        if (!isPlatformAdmin && !loginTenantCode) {
+          localStorage.removeItem("hrPayrollSession");
+          localStorage.removeItem("hrPayrollTenantContext");
+
+          await supabaseClient.auth.signOut();
+
+          loginTenantCodeInput?.classList.add("is-invalid");
+
+          showAlert(
+            "Company/Tenant ID is required for this user role.",
+            "warning",
+          );
+
+          return;
+        }
+
+        // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-3
+        // Email/password sign-in succeeded. Non-admin users must belong to the
+        // entered Company/Tenant ID before the app creates a local session or redirects.
+        let tenantValidation;
+
+        try {
+          // HRP-80 - ADMIN TENANT LOGIN EXEMPTION - STEP 4B
+          // Platform Admin bypasses tenant validation. Other roles still use the
+          // tenant validation RPC exactly as before.
+          tenantValidation = isPlatformAdmin
+            ? {
+              isValid: true,
+              tenantId: null,
+              tenantCode: "",
+              companyName: "Platform Admin",
+              reason: "Admin tenant validation bypassed.",
+            }
+            : await validateTenantLoginForSignedInUser(loginTenantCode);
+        } catch (tenantValidationError) {
+          console.error("Tenant login validation error:", tenantValidationError);
+
+          localStorage.removeItem("hrPayrollSession");
+
+          // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-5
+          // Clear any previous tenant context if tenant validation fails.
+          localStorage.removeItem("hrPayrollTenantContext");
+
+          await supabaseClient.auth.signOut();
+
+          showAlert(
+            "Tenant validation could not be completed. Please try again or contact support.",
+            "danger",
+          );
+
+          return;
+        }
+
+        if (!tenantValidation.isValid) {
+          localStorage.removeItem("hrPayrollSession");
+
+          // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-5
+          // Wrong tenant login must not leave an old tenant/company cached locally.
+          localStorage.removeItem("hrPayrollTenantContext");
+
+          await supabaseClient.auth.signOut();
+
+          loginTenantCodeInput?.classList.add("is-invalid");
+
+          showAlert(
+            tenantValidation.reason ||
+            "The entered Company/Tenant ID is not linked to this user profile.",
+            "warning",
+          );
+
+          return;
+        }
+
+        // HRP-80 - ADMIN TENANT LOGIN EXEMPTION - STEP 4B
+        // Cache tenant context only for tenant-based users.
+        // Platform Admin does not belong to one tenant and should not inherit a stale
+        // tenant cache from a previous login.
+        let cachedTenantContext = null;
+
+        if (isPlatformAdmin) {
+          localStorage.removeItem("hrPayrollTenantContext");
+        } else {
+          cachedTenantContext = cacheValidatedTenantContext({
+            userId: authData.user.id,
+            tenantId: tenantValidation.tenantId,
+            tenantCode: tenantValidation.tenantCode,
+            companyName: tenantValidation.companyName,
+          });
+        }
+
         localStorage.setItem(
           "hrPayrollSession",
           JSON.stringify({
@@ -262,6 +481,13 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
             fullName: profile.full_name || "",
             role: profile.role,
             department: profile.department || "",
+
+            // HRP-80 - ADMIN TENANT LOGIN EXEMPTION - STEP 4B
+            // Admin is platform-level. Other roles retain tenant context.
+            tenantId: cachedTenantContext?.tenantId || null,
+            tenantCode: cachedTenantContext?.tenantCode || "",
+            companyName: cachedTenantContext?.companyName || "Platform Admin",
+
             loginTime: new Date().toISOString(),
           }),
         );
@@ -312,7 +538,7 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
         const redirectTarget = getDashboardByRole(profile.role);
 
         showAlert(
-          `Sign-in successful. Welcome <strong>${profile.full_name || authData.user.email}</strong>. Role detected: <strong>${profile.role}</strong>. Redirecting...`,
+          `Sign-in successful. Welcome <strong>${profile.full_name || authData.user.email}</strong>. Company: <strong>${tenantValidation.companyName || tenantValidation.tenantCode}</strong>. Redirecting...`,
           "success",
         );
 
@@ -336,6 +562,10 @@ window.SUPABASE_ANON_KEY = "sb_publishable_zNz3vsLoaw9ul1UmwEDAMg_YX-MxMG_";
       }
     });
   }
+
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-4
+  // Prefill Company/Tenant ID if a valid tenant context is already cached.
+  prefillTenantCodeFromCache();
 
   showMessageFromQueryString();
 });
