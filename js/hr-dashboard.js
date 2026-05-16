@@ -1118,6 +1118,12 @@ function cacheDomElements() {
 
     employeeNumber: document.getElementById("employeeNumber"),
 
+    // EMPLOYEE STATUS SAVE FIX - QUICK FIX
+    // The Employment Status dropdown exists in the employee form, but it was
+    // not cached here. Without this, buildEmployeePayload() falls back to
+    // "active", so Inactive/Pending/Exited selections are not saved.
+    employmentStatus: document.getElementById("employmentStatus"),
+
     // ASSIGN LINE MANAGER - STEP 1E
     // System Role is saved on employee records and displayed in the employee list.
     // Custom System Role allows HR to add a new role label without changing HTML again.
