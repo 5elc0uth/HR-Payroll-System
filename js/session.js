@@ -9,6 +9,11 @@
   const APP_SESSION_STORAGE_KEY = "hrPayrollSession";
   const TENANT_CONTEXT_STORAGE_KEY = "hrPayrollTenantContext";
 
+  // PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+  // Stores a safe post-login destination when an employee opens a protected
+  // payroll notification link while signed out.
+  const POST_LOGIN_REDIRECT_STORAGE_KEY = "hrPayrollPostLoginRedirect";
+
   let idleTimer = null;
   let activityListenersAttached = false;
   let authListenerAttached = false;
@@ -67,10 +72,41 @@
     return data;
   }
 
-  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-5
+  // PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+  // Preserve only the safe employee payroll landing path before redirecting
+  // unauthenticated users to login. Do not store payroll IDs, salary values,
+  // bank details, or arbitrary URLs.
+  function cacheSafePostLoginRedirect() {
+    try {
+      const currentPath = window.location.pathname || "";
+      const currentParams = new URLSearchParams(window.location.search || "");
+      const requestedSection = String(currentParams.get("section") || "")
+        .trim()
+        .toLowerCase();
+
+      const isEmployeeDashboard =
+        currentPath.endsWith("/employee-dashboard.html") ||
+        currentPath.endsWith("employee-dashboard.html");
+
+      if (isEmployeeDashboard && requestedSection === "payroll") {
+        sessionStorage.setItem(
+          POST_LOGIN_REDIRECT_STORAGE_KEY,
+          "/employee-dashboard.html?section=payroll",
+        );
+      }
+    } catch (error) {
+      console.warn("Safe post-login redirect could not be cached:", error);
+    }
+  }
+
+  // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - RECOVERY PATCH
   // Clear local browser session data, including the validated tenant/company
-  // context. This prevents the next user from inheriting the previous user's
-  // Company/Tenant ID after logout, timeout, expiry, or unauthorised redirect.
+  // context. This must exist because logoutUser calls it on logout, timeout,
+  // expiry, and unauthorised redirects.
+  //
+  // PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+  // Do not clear sessionStorage here because the safe payroll post-login
+  // redirect is temporarily stored there while the user signs back in.
   function clearLocalSessionContext() {
     localStorage.removeItem(APP_SESSION_STORAGE_KEY);
     localStorage.removeItem(TENANT_CONTEXT_STORAGE_KEY);
@@ -182,6 +218,11 @@
     const session = await getSession();
 
     if (!session) {
+      // PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+      // If the employee opened a safe payroll notification link while signed out,
+      // preserve the payroll section destination before redirecting to login.
+      cacheSafePostLoginRedirect();
+
       await logoutUser("expired");
       return null;
     }

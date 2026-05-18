@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "bi bi-bank",
       );
 
-            // HRP-85 - STEP 1E
+      // HRP-85 - STEP 1E
       // Email integration configuration belongs under Setup, not Payroll operations.
       // HRP-85 - STEP 1E CLEANUP
       // Keep the Jira reference internal. The visible Setup group should use
@@ -111,7 +111,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.dom.employeeBankDetailsCardCollapse?.closest(".dashboard-section-card"),
       ].filter(Boolean);
 
-            // HRP-85 - STEP 1E
+      // HRP-85 - STEP 1E
       // Keep the Email Integration card in the final Setup group.
       const communicationSetupCards = [
         state.dom.hrp85EmailIntegrationCard,
@@ -221,6 +221,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await refreshPayrollWorkspace();
 
+    // PAYROLL EMAIL STATUS - STEP 2F-2B
+    // Load payslip email status as part of Payroll workspace startup.
+    // This fixes the parked issue where the badges stayed at 0 until HR
+    // manually clicked Refresh Status.
+    await refreshPayslipEmailLogs();
+
     // BANK DIRECTORY - STEP 7A
     // Load saved banks from Supabase so Bank Directory records survive page refresh.
     await refreshBankDirectoryWorkspace();
@@ -231,7 +237,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // when HR opens the payroll workspace.
     await refreshEmployeeBankDetailsWorkspace();
 
-        // HRP-85 - STEP 1E
+    // HRP-85 - STEP 1E
     // Load approved Bex recipients and recent delivery logs for the
     // Email / Communication Setup card. This does not send payslips and
     // does not load salary, deduction, or bank data.
@@ -279,6 +285,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     // This only opens a review modal for finalised payroll records.
     window.hrPreviewPayslipRecord = async (payrollId) => {
       await openPayslipPreview(payrollId);
+    };
+
+    // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+    // Expose row checkbox selection for Payroll Records.
+    // This lets HR send payslips only for deliberately selected records.
+    window.hrTogglePayslipEmailPayrollRecordSelection = (payrollRecordId, isChecked) => {
+      togglePayslipEmailPayrollRecordSelection(payrollRecordId, isChecked);
     };
 
     // =========================================================
@@ -445,6 +458,17 @@ const state = {
   // Pending to Sent/Failed when real email delivery is configured.
   payslipEmailLogs: [],
   filteredPayslipEmailLogs: [],
+
+  // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+  // Holds the finalised payroll records HR deliberately selected for
+  // payslip email delivery in this page session.
+  selectedPayrollRecordIdsForPayslipEmail: new Set(),
+
+  // PAYROLL EMAIL DELIVERY - STEP 2F-2A
+  // Stores the latest Send Payslips backend summary for this page session.
+  // This lets the Payslip Email Status panel explain when duplicate resend
+  // attempts were blocked instead of making it look like emails were resent.
+  lastPayslipEmailRunSummary: null,
 
   // HRP-85 - STEP 1E
   // Holds approved Bex test recipients and delivery logs for the
@@ -975,7 +999,7 @@ function cacheDomElements() {
     hrp85EmailIntegrationCardCollapse: document.getElementById("hrp85EmailIntegrationCardCollapse"),
     hrp85RecipientCountValue: document.getElementById("hrp85RecipientCountValue"),
     hrp85DeliveryLogCountValue: document.getElementById("hrp85DeliveryLogCountValue"),
-        // HRP-85 - STEP 1E CLEANUP
+    // HRP-85 - STEP 1E CLEANUP
     // Professional summary value for the latest email validation outcome.
     hrp85LastResultValue: document.getElementById("hrp85LastResultValue"),
     hrp85SentLogCountValue: document.getElementById("hrp85SentLogCountValue"),
@@ -1306,6 +1330,10 @@ function cacheDomElements() {
     // Cache export pay cycle selector and CSV button.
     exportPayrollPayCycle: document.getElementById("exportPayrollPayCycle"),
     exportPayrollCsvBtn: document.getElementById("exportPayrollCsvBtn"),
+
+    // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+    // Shows how many payroll records HR has selected for payslip sending.
+    selectedPayslipRecordsSummary: document.getElementById("selectedPayslipRecordsSummary"),
 
     // DESCRIPTION ITEM 4 - STEP 3
     // Cache Send Payslips button so it can be enabled only when
@@ -2156,35 +2184,35 @@ async function refreshHrp85TestRecipients(options = {}) {
 
     if (error) throw error;
 
-// HRP-80 - SETUP TENANT SAFETY FIX
-// Hide global/untagged validation recipients from this company workspace.
-// Proper long-term ownership should also be enforced by tenant_id + RLS.
-const tenantScopedRows = (Array.isArray(data) ? data : [])
-  .filter(isHrp85RecordForCurrentTenant);
+    // HRP-80 - SETUP TENANT SAFETY FIX
+    // Hide global/untagged validation recipients from this company workspace.
+    // Proper long-term ownership should also be enforced by tenant_id + RLS.
+    const tenantScopedRows = (Array.isArray(data) ? data : [])
+      .filter(isHrp85RecordForCurrentTenant);
 
-state.hrp85TestRecipients = tenantScopedRows
-  .map(mapHrp85TestRecipient)
-  .filter((recipient) => recipient.recipientEmail)
-  .sort((a, b) => a.recipientName.localeCompare(b.recipientName));
+    state.hrp85TestRecipients = tenantScopedRows
+      .map(mapHrp85TestRecipient)
+      .filter((recipient) => recipient.recipientEmail)
+      .sort((a, b) => a.recipientName.localeCompare(b.recipientName));
 
-renderHrp85TestRecipients();
+    renderHrp85TestRecipients();
 
-const message = `${state.hrp85TestRecipients.length} approved validation recipient(s) loaded for this company workspace.`;
-setHrp85EmailIntegrationStatus(
-  state.hrp85TestRecipients.length ? "success" : "warning",
-  state.hrp85TestRecipients.length
-    ? message
-    : "No approved validation recipients are configured for this company workspace.",
-);
+    const message = `${state.hrp85TestRecipients.length} approved validation recipient(s) loaded for this company workspace.`;
+    setHrp85EmailIntegrationStatus(
+      state.hrp85TestRecipients.length ? "success" : "warning",
+      state.hrp85TestRecipients.length
+        ? message
+        : "No approved validation recipients are configured for this company workspace.",
+    );
 
-if (showAlert) {
-  showPageAlert(
-    state.hrp85TestRecipients.length ? "success" : "warning",
-    state.hrp85TestRecipients.length
-      ? message
-      : "No approved validation recipients are configured for this company workspace.",
-  );
-}
+    if (showAlert) {
+      showPageAlert(
+        state.hrp85TestRecipients.length ? "success" : "warning",
+        state.hrp85TestRecipients.length
+          ? message
+          : "No approved validation recipients are configured for this company workspace.",
+      );
+    }
   } catch (error) {
     console.error("Error loading HRP-85 test recipients:", error);
 
@@ -2410,17 +2438,17 @@ async function refreshHrp85DeliveryLogs(options = {}) {
 
     if (error) throw error;
 
-// HRP-80 - SETUP TENANT SAFETY FIX
-// Hide delivery logs that are not explicitly tagged to the current company workspace.
-state.hrp85DeliveryLogs = (Array.isArray(data) ? data : [])
-  .filter(isHrp85RecordForCurrentTenant);
+    // HRP-80 - SETUP TENANT SAFETY FIX
+    // Hide delivery logs that are not explicitly tagged to the current company workspace.
+    state.hrp85DeliveryLogs = (Array.isArray(data) ? data : [])
+      .filter(isHrp85RecordForCurrentTenant);
 
-renderHrp85DeliveryLogs(state.hrp85DeliveryLogs);
+    renderHrp85DeliveryLogs(state.hrp85DeliveryLogs);
 
     if (showAlert) {
       showPageAlert(
         "success",
-`${state.hrp85DeliveryLogs.length} validation delivery log(s) loaded for this company workspace.`
+        `${state.hrp85DeliveryLogs.length} validation delivery log(s) loaded for this company workspace.`
       );
     }
   } catch (error) {
@@ -2531,18 +2559,18 @@ async function handleHrp85EmailIntegrationSubmit() {
     recipientEmail,
   ).trim();
 
-const subject = String(state.dom.hrp85TestSubject?.value || "").trim();
-// HRP-85 - STEP 1E CLEANUP
-// Message body is fixed to prevent payroll/salary/bank content being typed
-// into an email validation test.
-const message = HRP85_STANDARD_VALIDATION_MESSAGE;
+  const subject = String(state.dom.hrp85TestSubject?.value || "").trim();
+  // HRP-85 - STEP 1E CLEANUP
+  // Message body is fixed to prevent payroll/salary/bank content being typed
+  // into an email validation test.
+  const message = HRP85_STANDARD_VALIDATION_MESSAGE;
 
-// HRP-85 - TENANT OWNERSHIP FIX
-// Send the active company workspace context to the secure Edge Function.
-// The Edge Function must also validate and persist this server-side.
-const tenantContext = getCurrentTenantContext();
-const tenantId = getRequiredTenantIdForHrEmployeeData();
-const tenantCode = String(tenantContext?.tenantCode || "").trim();
+  // HRP-85 - TENANT OWNERSHIP FIX
+  // Send the active company workspace context to the secure Edge Function.
+  // The Edge Function must also validate and persist this server-side.
+  const tenantContext = getCurrentTenantContext();
+  const tenantId = getRequiredTenantIdForHrEmployeeData();
+  const tenantCode = String(tenantContext?.tenantCode || "").trim();
 
   try {
     setHrp85SendTestEmailLoading(true);
@@ -2553,23 +2581,23 @@ const tenantCode = String(tenantContext?.tenantCode || "").trim();
     const { data, error } = await supabase.functions.invoke(
       "hrp85-send-test-email",
       {
-body: {
-  recipientId,
-  recipient_id: recipientId,
-  recipientEmail,
-  recipient_email: recipientEmail,
-  recipientName,
-  recipient_name: recipientName,
-  subject,
-  message,
+        body: {
+          recipientId,
+          recipient_id: recipientId,
+          recipientEmail,
+          recipient_email: recipientEmail,
+          recipientName,
+          recipient_name: recipientName,
+          subject,
+          message,
 
-  // HRP-85 - TENANT OWNERSHIP FIX
-  // Keep validation recipients/logs tied to the active company workspace.
-  tenantId,
-  tenant_id: tenantId,
-  tenantCode,
-  tenant_code: tenantCode,
-},
+          // HRP-85 - TENANT OWNERSHIP FIX
+          // Keep validation recipients/logs tied to the active company workspace.
+          tenantId,
+          tenant_id: tenantId,
+          tenantCode,
+          tenant_code: tenantCode,
+        },
       },
     );
 
@@ -2583,7 +2611,7 @@ body: {
 
     setHrp85EmailIntegrationStatus(
       "success",
-`Validation email sent successfully to ${recipientEmail}. Check that mailbox, including Spam/Junk. Status: ${sentStatus}.`,
+      `Validation email sent successfully to ${recipientEmail}. Check that mailbox, including Spam/Junk. Status: ${sentStatus}.`,
     );
 
     showDashboardToast(
@@ -3292,12 +3320,12 @@ async function loadPayrollOtherDeductions() {
 
     state.payrollOtherDeductions = Array.isArray(data)
       ? data.filter((record) => {
-          const payrollMasterId = String(
-            record.payroll_master_record_id || "",
-          ).trim();
+        const payrollMasterId = String(
+          record.payroll_master_record_id || "",
+        ).trim();
 
-          return currentTenantPayrollMasterIdSet.has(payrollMasterId);
-        })
+        return currentTenantPayrollMasterIdSet.has(payrollMasterId);
+      })
       : [];
 
     applyPayrollOtherDeductionSearch();
@@ -4395,12 +4423,12 @@ async function loadPayrollEmployeeOverrides() {
 
     state.payrollEmployeeOverrides = Array.isArray(data)
       ? data.filter((record) => {
-          const payrollMasterId = String(
-            record.payroll_master_record_id || "",
-          ).trim();
+        const payrollMasterId = String(
+          record.payroll_master_record_id || "",
+        ).trim();
 
-          return currentTenantPayrollMasterIdSet.has(payrollMasterId);
-        })
+        return currentTenantPayrollMasterIdSet.has(payrollMasterId);
+      })
       : [];
 
     applyPayrollEmployeeOverrideSearch();
@@ -5261,7 +5289,7 @@ function bindEvents() {
     hideDashboardToast();
   });
 
-    // HRP-85 - STEP 1E
+  // HRP-85 - STEP 1E
   // Bind Email / Communication Setup controls.
   // This is a setup feature and remains separate from Send Payslips.
   bindCardCollapseToggle(
@@ -6180,6 +6208,10 @@ function bindEvents() {
   // When HR changes the payroll action cycle, keep Payroll Records and
   // Payslip Email Status aligned to the same selected cycle.
   state.dom.exportPayrollPayCycle?.addEventListener("change", async () => {
+    // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+    // Changing the action cycle means HR must deliberately select again.
+    state.selectedPayrollRecordIdsForPayslipEmail.clear();
+
     applyPayrollSearch();
     updateSendPayslipsButtonState();
     await refreshPayslipEmailLogs();
@@ -6192,6 +6224,18 @@ function bindEvents() {
     state.dom.togglePayslipEmailLogsBtn,
     state.dom.payslipEmailLogsCollapse,
   );
+
+  // PAYROLL EMAIL STATUS - STEP 2F-2B
+  // Expanding the status panel should load the latest logs automatically.
+  // HR should not need to expand first, see 0 counts, then click Refresh Status.
+  state.dom.togglePayslipEmailLogsBtn?.addEventListener("click", async () => {
+    const isExpanded =
+      !state.dom.payslipEmailLogsCollapse?.classList.contains("d-none");
+
+    if (!isExpanded) return;
+
+    await refreshPayslipEmailLogs();
+  });
 
   // DESCRIPTION ITEM 4 - STEP 6
   // Refresh the Payslip Email Status panel from Supabase.
@@ -21856,6 +21900,11 @@ function applyPayrollSearch() {
 
   state.filteredPayrollRecords = rows;
   renderPayrollSummary(rows);
+
+  // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+  // Keep selected payslip records aligned whenever HR filters the table.
+  syncSelectedPayslipEmailPayrollRecords();
+
   renderPayrollRecords(rows);
 
   // DESCRIPTION ITEM 4 - STEP 3A
@@ -21904,6 +21953,136 @@ function populateExportPayrollPayCycleOptions(records = []) {
   updateSendPayslipsButtonState();
 }
 
+// PAYROLL EMAIL DELIVERY - STEP 2F-2E
+// Find the current payslip email log for a payroll record.
+// This is used only to make the UI clearer; the backend still enforces
+// resend protection and tenant checks.
+function getPayslipEmailLogForPayrollRecord(payrollRecordId = "") {
+  const id = String(payrollRecordId || "").trim();
+
+  if (!id) return null;
+
+  return (state.payslipEmailLogs || []).find((log) => {
+    return String(log.payroll_record_id || "").trim() === id;
+  }) || null;
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2F-2E
+// Sent records should not be selectable from the UI.
+// The backend also protects this, but HR should see the intended behaviour
+// before clicking Send Selected Payslips.
+function isPayslipEmailAlreadySentForPayrollRecord(payrollRecordId = "") {
+  const log = getPayslipEmailLogForPayrollRecord(payrollRecordId);
+
+  return normalizeText(log?.status || "") === "sent";
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2F-2E
+// A payroll record can be selected for payslip email only when it is finalised
+// and not already marked Sent in the loaded Payslip Email Status logs.
+function canSelectPayrollRecordForPayslipEmail(record = {}) {
+  const payrollRecordId = String(record.id || "").trim();
+
+  return Boolean(
+    payrollRecordId &&
+    record.is_finalised &&
+    !isPayslipEmailAlreadySentForPayrollRecord(payrollRecordId),
+  );
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2F-2E
+// Remove stale or no-longer-eligible selections after filters/status refresh.
+// This prevents HR from sending records that are no longer in the selected
+// action cycle or have already become Sent.
+function syncSelectedPayslipEmailPayrollRecords() {
+  const eligibleIds = new Set(
+    getFinalisedPayrollRecordsForSelectedActionCycle()
+      .filter(canSelectPayrollRecordForPayslipEmail)
+      .map((record) => String(record.id || "").trim())
+      .filter(Boolean),
+  );
+
+  state.selectedPayrollRecordIdsForPayslipEmail = new Set(
+    Array.from(state.selectedPayrollRecordIdsForPayslipEmail || [])
+      .map((id) => String(id || "").trim())
+      .filter((id) => eligibleIds.has(id)),
+  );
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2F-2E
+// Return the payroll records HR selected for payslip email delivery.
+// The secure Edge Function still reloads the records server-side by ID.
+function getSelectedPayrollRecordsForPayslipEmail() {
+  const selectedIds = new Set(
+    Array.from(state.selectedPayrollRecordIdsForPayslipEmail || [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  );
+
+  return getFinalisedPayrollRecordsForSelectedActionCycle().filter((record) => {
+    const payrollRecordId = String(record.id || "").trim();
+
+    return (
+      payrollRecordId &&
+      selectedIds.has(payrollRecordId) &&
+      canSelectPayrollRecordForPayslipEmail(record)
+    );
+  });
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2F-2E
+// Update the HR-facing selected count under the Payroll Records action bar.
+function updateSelectedPayslipRecordsSummary() {
+  const summary = state.dom.selectedPayslipRecordsSummary;
+  if (!summary) return;
+
+  const selectedCount = getSelectedPayrollRecordsForPayslipEmail().length;
+  const finalisedCount = getFinalisedPayrollRecordsForSelectedActionCycle().length;
+
+  if (selectedCount > 0) {
+    summary.textContent =
+      `${selectedCount} selected for payslip delivery out of ${finalisedCount} finalised payroll record(s).`;
+    return;
+  }
+
+  summary.textContent =
+    finalisedCount > 0
+      ? "Select finalised payroll record(s) below before sending payslips."
+      : "No finalised payroll records are available for payslip sending in this action cycle.";
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2F-2E
+// Row checkbox handler for selecting or clearing one payroll record.
+function togglePayslipEmailPayrollRecordSelection(payrollRecordId, isChecked) {
+  const id = String(payrollRecordId || "").trim();
+
+  if (!id) return;
+
+  const record = (state.payrollRecords || []).find(
+    (item) => String(item.id || "").trim() === id,
+  );
+
+  if (isChecked && !canSelectPayrollRecordForPayslipEmail(record)) {
+    state.selectedPayrollRecordIdsForPayslipEmail.delete(id);
+    applyPayrollSearch();
+    showDashboardToast(
+      "warning",
+      "Payslip selection unavailable",
+      "Only finalised payroll records that are not already Sent can be selected.",
+    );
+    return;
+  }
+
+  if (isChecked) {
+    state.selectedPayrollRecordIdsForPayslipEmail.add(id);
+  } else {
+    state.selectedPayrollRecordIdsForPayslipEmail.delete(id);
+  }
+
+  updateSelectedPayslipRecordsSummary();
+  updateSendPayslipsButtonState();
+}
+
 // DESCRIPTION ITEM 4 - STEP 3
 // Return finalised payroll records for the currently selected payroll action cycle.
 // This mirrors the CSV export cycle behaviour but does not send anything yet.
@@ -21948,17 +22127,25 @@ function updateSendPayslipsButtonState() {
   const button = state.dom.sendPayslipsEmailBtn;
   if (!button) return;
 
+  syncSelectedPayslipEmailPayrollRecords();
+
+  const selectedRecords = getSelectedPayrollRecordsForPayslipEmail();
   const finalisedRecords = getFinalisedPayrollRecordsForSelectedActionCycle();
-  const canSend = finalisedRecords.length > 0;
+
+  const canSend = selectedRecords.length > 0;
 
   button.disabled = !canSend;
 
   button.title = canSend
-    ? `${finalisedRecords.length} finalised payroll record(s) available for payslip email.`
-    : "No finalised payroll records are available for the selected action cycle.";
+    ? `${selectedRecords.length} selected payroll record(s) ready for payslip email delivery.`
+    : finalisedRecords.length
+      ? "Select one or more finalised payroll records before sending payslips."
+      : "No finalised payroll records are available for the selected action cycle.";
 
   button.classList.toggle("btn-outline-success", canSend);
   button.classList.toggle("btn-secondary", !canSend);
+
+  updateSelectedPayslipRecordsSummary();
 
   // PAYROLL CSV EXPORT FIX - STEP 2
   // Keep Export CSV state updated wherever the existing Send Payslips
@@ -21980,7 +22167,7 @@ function setSendPayslipsEmailLoading(isLoading) {
     button.disabled = true;
     button.innerHTML = `
       <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-      Preparing Payslips...
+            Sending Selected Payslips...
     `;
     return;
   }
@@ -22078,6 +22265,63 @@ function updatePayslipEmailStatusCounts(records = []) {
   }
 }
 
+// PAYROLL EMAIL DELIVERY - STEP 2F-2B
+// Keep delivery notes short and HR-readable.
+// Detailed duplicate evidence is shown once above the table, not repeated
+// loudly on every successful row.
+function getPayslipEmailLogDisplayNote(record = {}) {
+  const status = normalizeText(record.status || "");
+  const errorMessage = String(record.error_message || "").trim();
+
+  if (status === "sent") {
+    return "Delivered. Resend protected.";
+  }
+
+  if (status === "failed") {
+    return errorMessage || "Delivery failed. Review the email provider result before retrying.";
+  }
+
+  if (status === "pending") {
+    return "Awaiting delivery result. Refresh status if this remains pending.";
+  }
+
+  return errorMessage || "--";
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2F-2B
+// Show one compact duplicate-protection note for the latest Send Payslips run.
+// This avoids making the table look like repeated emails were sent randomly.
+function renderPayslipDuplicateProtectionNotice(tbody) {
+  if (!tbody) return;
+
+  const summary = state.lastPayslipEmailRunSummary || {};
+  const alreadySentCount = Number(summary.alreadySent || 0);
+  const finalisedCount = Number(summary.finalisedRecords || 0);
+
+  if (!alreadySentCount) return;
+
+  const row = document.createElement("tr");
+  row.className = "table-light";
+
+  row.innerHTML = `
+    <td colspan="5">
+      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
+        <span class="badge text-bg-warning">
+          Resend protected
+        </span>
+
+        <span class="small text-secondary">
+${alreadySentCount} already-sent payslip email(s) were protected from resend.
+No duplicate email was sent.
+          ${finalisedCount ? `${finalisedCount} finalised payroll record(s) were checked.` : ""}
+        </span>
+      </div>
+    </td>
+  `;
+
+  tbody.appendChild(row);
+}
+
 // DESCRIPTION ITEM 4 - STEP 6
 // Render payslip email audit rows in the compact status panel.
 function renderPayslipEmailLogs(records = []) {
@@ -22096,6 +22340,11 @@ function renderPayslipEmailLogs(records = []) {
 
   state.dom.payslipEmailLogsEmptyState?.classList.add("d-none");
   state.dom.payslipEmailLogsTableWrapper?.classList.remove("d-none");
+
+  // PAYROLL EMAIL DELIVERY - STEP 2F-2A
+  // If the last Send Payslips run skipped already-sent records, show that
+  // evidence above the audit rows so HR understands duplicates were blocked.
+  renderPayslipDuplicateProtectionNotice(tbody);
 
   records.forEach((record) => {
     const employee = record.employees || {};
@@ -22125,8 +22374,8 @@ function renderPayslipEmailLogs(records = []) {
 
       <td>${record.sent_at ? formatDate(record.sent_at) : "--"}</td>
 
-      <td class="text-break">
-        ${escapeHtml(record.error_message || "--")}
+      <td class="text-break small">
+        ${escapeHtml(getPayslipEmailLogDisplayNote(record))}
       </td>
     `;
 
@@ -22196,6 +22445,13 @@ async function refreshPayslipEmailLogs(options = {}) {
     state.filteredPayslipEmailLogs = [...state.payslipEmailLogs];
 
     renderPayslipEmailLogs(state.filteredPayslipEmailLogs);
+
+    // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+    // If a selected record is now Sent, remove it from selection and
+    // re-render the Payroll Records checkboxes as resend-protected.
+    syncSelectedPayslipEmailPayrollRecords();
+    renderPayrollRecords(state.filteredPayrollRecords || []);
+    updateSendPayslipsButtonState();
 
     if (showAlert) {
       showPageAlert(
@@ -22311,14 +22567,21 @@ async function getPayslipEmailFunctionErrorMessage(error, fallbackMessage) {
 async function handleSendPayslipsEmailRequest() {
   clearPageAlert();
 
-  const finalisedRecords = getFinalisedPayrollRecordsForSelectedActionCycle();
+  const finalisedRecords = getSelectedPayrollRecordsForPayslipEmail();
   const selectedPayCycle = String(state.dom.exportPayrollPayCycle?.value || "").trim();
 
   if (!finalisedRecords.length) {
     showPageAlert(
       "warning",
-      "No finalised payroll records are available for the selected payroll action cycle.",
+      "Select one or more finalised payroll record(s) before sending payslips.",
     );
+
+    showDashboardToast(
+      "warning",
+      "No payslips selected",
+      "Tick the payroll record(s) you want to send, then click Send Selected Payslips.",
+    );
+
     return;
   }
 
@@ -22363,10 +22626,10 @@ async function handleSendPayslipsEmailRequest() {
     payroll_record_ids: payrollRecordIds,
   };
 
-  // PAYROLL EMAIL DELIVERY - STEP 2C
-  // If HR selects a specific cycle, pass it to the backend.
-  // If HR selects All cycles, use the selected finalised payroll IDs only.
-  // This keeps All cycles supported without sending salary data from the browser.
+  // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+  // Send only the payroll record IDs HR selected.
+  // The backend still reloads finalised records, checks tenant ownership,
+  // and protects already-sent records from resend.
   if (selectedPayCycle) {
     requestBody.payCycle = selectedPayCycle;
     requestBody.pay_cycle = selectedPayCycle;
@@ -22404,9 +22667,24 @@ async function handleSendPayslipsEmailRequest() {
 
     const summary = data?.summary || {};
     const preparedCount = Number(summary.prepared || 0);
+    const sentCount = Number(summary.sent || 0);
+    const failedCount = Number(summary.failed || 0);
     const alreadyPendingCount = Number(summary.alreadyPending || 0);
     const alreadySentCount = Number(summary.alreadySent || 0);
     const finalisedCount = Number(summary.finalisedRecords || finalisedRecords.length || 0);
+
+    // PAYROLL EMAIL DELIVERY - STEP 2F-2A
+    // Keep the latest backend run summary in page state so the Payslip Email
+    // Status panel can clearly show when duplicate resend attempts were blocked.
+    state.lastPayslipEmailRunSummary = {
+      prepared: preparedCount,
+      sent: sentCount,
+      failed: failedCount,
+      alreadyPending: alreadyPendingCount,
+      alreadySent: alreadySentCount,
+      finalisedRecords: finalisedCount,
+      actionedAt: new Date().toISOString(),
+    };
 
     if (data?.status === "NoRecords") {
       showPageAlert(
@@ -22425,15 +22703,23 @@ async function handleSendPayslipsEmailRequest() {
       return;
     }
 
+    // PAYROLL EMAIL DELIVERY - STEP 2E-B
+    // The backend now sends controlled payslip notification emails through EmailJS.
+    // Show the real delivery result instead of the old preparation-only wording.
+    const deliveryAlertType = failedCount > 0 ? "warning" : "success";
+    const deliveryToastTitle = failedCount > 0
+      ? "Payslip delivery completed with issues"
+      : "Payslip delivery complete";
+
     showPageAlert(
-      "success",
-      `Payslip email preparation completed securely. <strong>${preparedCount}</strong> record(s) prepared, <strong>${alreadyPendingCount}</strong> already pending, and <strong>${alreadySentCount}</strong> already sent out of <strong>${finalisedCount}</strong> finalised payroll record(s). No real payslip emails were sent in this step.`,
+      deliveryAlertType,
+      `Payslip email delivery completed securely. <strong>${sentCount}</strong> email(s) sent, <strong>${failedCount}</strong> failed, <strong>${preparedCount}</strong> log record(s) prepared, and <strong>${alreadySentCount}</strong> already-sent record(s) protected from resend out of <strong>${finalisedCount}</strong> finalised payroll record(s).`,
     );
 
     showDashboardToast(
-      "success",
-      "Payslip preparation complete",
-      `${preparedCount} new payslip email record(s) prepared. ${alreadyPendingCount} already pending. No real emails were sent yet.`,
+      deliveryAlertType,
+      deliveryToastTitle,
+      `${sentCount} payslip email(s) sent. ${failedCount} failed. ${alreadySentCount} already-sent record(s) protected from resend.`,
     );
 
     // PAYROLL EMAIL DELIVERY - STEP 2C UI POLISH
@@ -22452,6 +22738,13 @@ async function handleSendPayslipsEmailRequest() {
     // Refresh until the expected prepared logs are visible, so HR does not
     // need to click Refresh Status after pressing Send Payslips.
     await refreshPayslipEmailLogsAfterPreparation(finalisedCount);
+
+    // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+    // Remove any records that are now Sent from the selected set.
+    // Failed records remain selectable after refresh so HR can retry deliberately.
+    syncSelectedPayslipEmailPayrollRecords();
+    applyPayrollSearch();
+    updateSendPayslipsButtonState();
 
     // PAYROLL EMAIL DELIVERY - STEP 2C UI POLISH
     // Keep the panel open after the async refresh because shared card controls
@@ -22665,6 +22958,28 @@ function renderPayrollRecords(records) {
     // Payslip preview should only be available for finalised payroll records.
     const canPreviewPayslip = Boolean(record.is_finalised);
 
+    // PAYROLL EMAIL DELIVERY - STEP 2F-2E
+    // Row-level selection for controlled payslip sending.
+    // Already Sent records stay visible but cannot be selected again.
+    const canSelectForPayslipEmail = canSelectPayrollRecordForPayslipEmail(record);
+    const isSelectedForPayslipEmail =
+      state.selectedPayrollRecordIdsForPayslipEmail.has(String(record.id || "").trim());
+
+    const payslipSelectionCell = canSelectForPayslipEmail
+      ? `
+        <input type="checkbox"
+          class="form-check-input"
+          title="Select this payroll record for payslip email delivery"
+          ${isSelectedForPayslipEmail ? "checked" : ""}
+          onchange="window.hrTogglePayslipEmailPayrollRecordSelection('${safePayrollRecordId}', this.checked)" />
+      `
+      : `
+        <span class="badge text-bg-light border text-secondary"
+          title="${record.is_finalised ? "Resend protected" : "Finalise payroll before sending"}">
+          ${record.is_finalised ? "Sent" : "Locked"}
+        </span>
+      `;
+
     const employeeOverrideAuditSummary =
       getPayrollRecordEmployeeOverrideAuditSummary(record);
 
@@ -22677,6 +22992,10 @@ function renderPayrollRecords(records) {
     const row = document.createElement("tr");
 
     row.innerHTML = `
+      <td class="text-center">
+        ${payslipSelectionCell}
+      </td>
+
       <td>
         <!-- MANAGE ORGANIZATION DOWNSTREAM USAGE - STEP 6A RECOVERY
              Payroll Records should show payroll record identity only.
@@ -23467,12 +23786,12 @@ function renderPayslipPreview(payrollRecord) {
       </div>
     </div>
 
-    <div class="alert alert-light border mt-4 mb-0">
-      <div class="fw-semibold mb-1">Preview only</div>
-      <div class="small text-secondary">
-        This payslip has not been emailed from this preview. Email delivery will be added after sender domain and secure email provider setup are available.
-      </div>
-    </div>
+<div class="alert alert-light border mt-4 mb-0">
+  <div class="fw-semibold mb-1">HR preview only</div>
+  <div class="small text-secondary">
+    This preview does not send an email. Use Send Selected Payslips from Payroll Records to send a controlled notification. Salary, deduction, and bank details must remain protected behind secure system access.
+  </div>
+</div>
   `;
 }
 

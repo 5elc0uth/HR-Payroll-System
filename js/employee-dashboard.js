@@ -49,7 +49,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadEmployeeLeaveRequests();
     await loadEmployeePayroll();
 
-    showSection("profile");
+    // PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+    // Allow safe notification links to open the employee Payroll section
+    // after authentication, without putting payroll IDs, salary values,
+    // bank details, or tokens in the URL.
+    showInitialEmployeeDashboardSection();
+
     startLeaveAutoRefresh();
   } catch (error) {
     console.error("Error initialising employee dashboard:", error);
@@ -445,6 +450,35 @@ function setRefreshButtonLoading(button, isLoading) {
     button.innerHTML = button.dataset.originalHtml;
     delete button.dataset.originalHtml;
   }
+}
+
+// PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+// Resolve the initial Employee Dashboard section from the URL.
+// Example safe link: employee-dashboard.html?section=payroll
+// Only known section names are allowed, so the URL cannot trigger
+// unexpected behaviour or expose payroll-sensitive values.
+function getInitialEmployeeDashboardSectionFromUrl() {
+  const allowedSections = new Set(["profile", "leave", "payroll"]);
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const requestedSection = normalizeText(params.get("section") || "");
+
+    if (allowedSections.has(requestedSection)) {
+      return requestedSection;
+    }
+  } catch (error) {
+    console.warn("Unable to resolve initial employee dashboard section:", error);
+  }
+
+  return "profile";
+}
+
+// PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+// Open the requested safe section after all employee data has loaded.
+// This keeps payslip access behind the normal authenticated employee dashboard.
+function showInitialEmployeeDashboardSection() {
+  showSection(getInitialEmployeeDashboardSectionFromUrl());
 }
 
 function showSection(sectionName) {
@@ -901,11 +935,11 @@ async function loadEmployeeLeaveBalances() {
   const supabase = getSupabaseClient();
   const employeeIdentityCandidates = getEmployeeIdentityCandidates();
 
-if (!employeeIdentityCandidates.length) {
-  state.payrollRecords = [];
-  renderPayroll([]);
-  return;
-}
+  if (!employeeIdentityCandidates.length) {
+    state.payrollRecords = [];
+    renderPayroll([]);
+    return;
+  }
 
   let query = supabase.from("employee_leave_balances").select(`
       id,
@@ -1332,8 +1366,10 @@ function getPayrollTaxLabel(record) {
   const paye = Number(record?.paye_tax || 0);
   const wht = Number(record?.wht_tax || 0);
 
-  if (paye > 0) return "PAYE";
-  if (wht > 0) return "WHT";
+  // PAYROLL SECURE DELIVERY - STEP 2F-3B-2
+  // Use employee-friendly tax labels that match HR payslip preview wording.
+  if (paye > 0) return "PAYE Tax";
+  if (wht > 0) return "WHT Tax";
   return "No Tax";
 }
 
@@ -1346,6 +1382,24 @@ function getPayrollDisplayGroup(record) {
     state.employeeRecord?.role ||
     "Unassigned"
   );
+}
+
+// PAYROLL SECURE DELIVERY - STEP 2F-3B-2
+// Convert stored payroll group codes into employee-friendly labels.
+// This keeps the employee self-service view aligned with HR wording.
+function formatPayrollDisplayGroupLabel(value) {
+  const cleanValue = String(value || "").trim();
+
+  if (!cleanValue) return "Unassigned";
+
+  if (cleanValue.toUpperCase() === "REGULAR") {
+    return "Regular";
+  }
+
+  return cleanValue
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function normalizePayrollModel(value) {
@@ -1431,8 +1485,8 @@ function buildGenericPayrollBreakdownItems(record) {
   const taxLabel = getPayrollTaxLabel(record);
 
   const rawItems = [
-    { label: "Employee Group", value: getPayrollDisplayGroup(record), type: "text" },
-    { label: "Base Salary", value: Number(record.base_salary || 0), type: "money" },
+    { label: "Employee Group", value: formatPayrollDisplayGroupLabel(getPayrollDisplayGroup(record)), type: "text" },
+    { label: "Monthly Gross Salary", value: Number(record.base_salary || 0), type: "money" },
     { label: "Basic Pay", value: Number(record.basic_pay || 0), type: "money" },
     { label: "Housing Allowance", value: Number(record.housing_allowance || 0), type: "money" },
     { label: "Transport Allowance", value: Number(record.transport_allowance || 0), type: "money" },
@@ -1496,10 +1550,13 @@ function buildRegularPayrollSections(record) {
       otherDeductions;
 
   const salaryStructureItems = [
-    buildTextDisplayItem("Employee Group", getPayrollDisplayGroup(record)),
+    buildTextDisplayItem(
+      "Employee Group",
+      formatPayrollDisplayGroupLabel(getPayrollDisplayGroup(record)),
+    ),
     buildTextDisplayItem("Payroll Model", "Alpatech Regular"),
     buildMoneyDisplayItem(
-      "Base Salary",
+      "Monthly Gross Salary",
       Number(record.base_salary || 0),
       currency,
       { emphasis: true },
@@ -1523,7 +1580,7 @@ function buildRegularPayrollSections(record) {
       ]
       : []),
     buildMoneyDisplayItem(
-      "New Base Salary",
+      "Revised Monthly Gross Salary",
       Number(record.new_base_salary || 0),
       currency,
       { emphasis: true },
@@ -1549,7 +1606,7 @@ function buildRegularPayrollSections(record) {
       formatPayrollPercent(record.other_allowance_percent, 20),
     ),
     buildMoneyDisplayItem(
-      "BHT",
+      "BHT (Basic + Housing + Transport)",
       Number(record.bht || 0),
       currency,
     ),
@@ -1658,13 +1715,13 @@ function buildRegularPayrollSections(record) {
 
   if (payeTax !== 0) {
     deductionItems.push(
-      buildMoneyDisplayItem("PAYE", payeTax, currency),
+      buildMoneyDisplayItem("PAYE Tax", payeTax, currency),
     );
   }
 
   if (whtTax !== 0) {
     deductionItems.push(
-      buildMoneyDisplayItem("WHT", whtTax, currency),
+      buildMoneyDisplayItem("WHT Tax", whtTax, currency),
     );
   }
 
@@ -1698,7 +1755,7 @@ function buildRegularPayrollSections(record) {
 
   const netSummaryItems = [
     buildMoneyDisplayItem(
-      "Net Salary",
+      "Net Salary before Logistics",
       netSalary,
       currency,
     ),
@@ -1886,8 +1943,8 @@ async function loadEmployeePayroll() {
     )
     : [];
 
-state.payrollRecords = records;
-applyPayrollFilters();
+  state.payrollRecords = records;
+  applyPayrollFilters();
 }
 function renderPayroll(records) {
   const historyRecords = Array.isArray(records) ? records : [];
@@ -2011,7 +2068,9 @@ function renderPayrollHistory(records) {
     const taxValue = getPayrollTaxValue(record);
     const taxLabel = getPayrollTaxLabel(record);
     const employeePension = Number(record.employee_pension || 0);
-    const employeeGroup = getPayrollDisplayGroup(record);
+    // PAYROLL SECURE DELIVERY - STEP 2F-3B-2
+    // Show employee-friendly group label instead of raw stored group code.
+    const employeeGroup = formatPayrollDisplayGroupLabel(getPayrollDisplayGroup(record));
 
     const row = document.createElement("tr");
     row.className = "payroll-summary-row";
@@ -2061,7 +2120,7 @@ function renderPayrollHistory(records) {
           class="btn btn-sm btn-outline-primary download-payslip-btn"
           data-payroll-id="${escapeHtml(record.id)}"
         >
-          <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+<i class="bi bi-file-earmark-pdf me-1"></i>Download Payslip PDF
         </button>
       </td>
     `;
@@ -2265,7 +2324,11 @@ async function downloadPayslipPdf(payrollId, buttonElement) {
 
     const employeeId = getEmployeeIdDisplayValue(state.employeeRecord || {});
     const department = state.employeeRecord?.department || "--";
-    const employeeGroup = getPayrollDisplayGroup(payrollRecord);
+    // PAYROLL SECURE DELIVERY - STEP 2F-3B-2
+    // Use the same employee-friendly payroll group label in the PDF.
+    const employeeGroup = formatPayrollDisplayGroupLabel(
+      getPayrollDisplayGroup(payrollRecord),
+    );
     const currency = (payrollRecord.currency || "NGN").toUpperCase();
     const payslipSections = buildPayslipSections(payrollRecord);
 
@@ -2370,7 +2433,7 @@ function setPayslipDownloadLoading(buttonElement, isLoading) {
     `;
   } else {
     buttonElement.innerHTML = `
-      <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+      <i class="bi bi-file-earmark-pdf me-1"></i>Download Payslip PDF
     `;
   }
 }

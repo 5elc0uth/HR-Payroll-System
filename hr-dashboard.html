@@ -1093,15 +1093,15 @@
                 <input type="hidden" id="lineManager" autocomplete="off" />
 
                 <div class="col-md-6">
-<label for="approverEmail" class="form-label fw-semibold">
-  Primary Approver Email <span class="text-secondary">(optional)</span>
-</label>
-<input type="email" id="approverEmail" class="form-control bg-light"
-  placeholder="Optional - auto-filled when available" readonly />
-<div class="form-text">
-  Optional for now. Workflow routing can be completed later when approver mailboxes are available.
-</div>
-<div class="invalid-feedback">Enter a valid approver email if one is available.</div>
+                  <label for="approverEmail" class="form-label fw-semibold">
+                    Primary Approver Email <span class="text-secondary">(optional)</span>
+                  </label>
+                  <input type="email" id="approverEmail" class="form-control bg-light"
+                    placeholder="Optional - auto-filled when available" readonly />
+                  <div class="form-text">
+                    Optional for now. Workflow routing can be completed later when approver mailboxes are available.
+                  </div>
+                  <div class="invalid-feedback">Enter a valid approver email if one is available.</div>
                 </div>
 
                 <div class="col-12">
@@ -2077,23 +2077,23 @@
 
               <form id="hrp85EmailIntegrationForm" novalidate>
                 <div class="row g-4">
-<div class="col-lg-12">
-  <label for="hrp85TestRecipientSelect" class="form-label fw-semibold">
-    Approved Recipient <span class="text-danger">*</span>
-  </label>
-  <select id="hrp85TestRecipientSelect" class="form-select" required>
-    <option value="">Select approved recipient</option>
-  </select>
-  <div class="invalid-feedback">
-    Select an approved recipient.
-  </div>
-</div>
+                  <div class="col-lg-12">
+                    <label for="hrp85TestRecipientSelect" class="form-label fw-semibold">
+                      Approved Recipient <span class="text-danger">*</span>
+                    </label>
+                    <select id="hrp85TestRecipientSelect" class="form-select" required>
+                      <option value="">Select approved recipient</option>
+                    </select>
+                    <div class="invalid-feedback">
+                      Select an approved recipient.
+                    </div>
+                  </div>
 
-<!-- HRP-85 - STEP 1E FINAL CLEANUP
+                  <!-- HRP-85 - STEP 1E FINAL CLEANUP
      The validation email subject is system-controlled.
      HR should only choose the approved recipient; this avoids making the
      setup card look like a general email composer. -->
-<input type="hidden" id="hrp85TestSubject" value="Email Integration Validation" />
+                  <input type="hidden" id="hrp85TestSubject" value="Email Integration Validation" />
 
                   <div class="col-12">
                     <div class="border rounded-4 p-3 bg-white">
@@ -4493,8 +4493,11 @@
 
                 <div
                   class="d-flex flex-column flex-md-row justify-content-md-end align-items-md-center gap-2 mt-3 pt-3 border-top">
-                  <span class="small text-secondary me-md-auto">
-                    Payroll actions apply to the selected action cycle.
+                  <!-- PAYROLL EMAIL DELIVERY - STEP 2F-2E
+     HR must select the exact finalised payroll records to email.
+     The selected count keeps the send action deliberate and auditable. -->
+                  <span class="small text-secondary me-md-auto" id="selectedPayslipRecordsSummary">
+                    Select finalised payroll record(s) below before sending payslips.
                   </span>
 
                   <button type="button" id="exportPayrollCsvBtn"
@@ -4510,7 +4513,7 @@
                     class="btn btn-outline-success dashboard-action-btn text-nowrap" disabled
                     title="Payslip email sending will be enabled in the next steps">
                     <i class="bi bi-envelope-paper me-2"></i>
-                    Send Payslips
+                    Send Selected Payslips
                   </button>
                 </div>
               </div>
@@ -4524,10 +4527,11 @@
                 No payroll records found yet.
               </div>
 
-              <!-- DESCRIPTION ITEM 4 - STEP 5C
-     Keep Payroll Records visible for HR review, but contain long record lists
-     inside a controlled scroll panel so the whole page does not become too long. -->
-              <div id="payrollRecordsTableWrapper" class="dashboard-table-wrap table-responsive d-none"
+              <!-- PAYROLL EMAIL DELIVERY - STEP 2F-2E SPACING
+     Add breathing space between the payroll action toolbar and the
+     Payroll Records table so the records area does not visually touch
+     the filter/action card. -->
+              <div id="payrollRecordsTableWrapper" class="dashboard-table-wrap table-responsive d-none mt-3"
                 style="max-height: 620px; overflow-y: auto;">
                 <table class="table align-middle mb-0">
                   <!-- DESCRIPTION ITEM 4 - STEP 5C
@@ -4535,6 +4539,10 @@
      through many payroll records inside the contained panel. -->
                   <thead class="position-sticky top-0 bg-light" style="z-index: 2;">
                     <tr>
+                      <!-- PAYROLL EMAIL DELIVERY - STEP 2F-2E
+       Checkbox column lets HR choose exactly which finalised payroll
+       records should receive payslip notification emails. -->
+                      <th class="text-center">Send</th>
                       <th>Employee</th>
                       <th>Cycle</th>
                       <th>Pay / Submit</th>
@@ -4547,7 +4555,7 @@
                     <tr>
                       <!-- DESCRIPTION ITEM 2 - UI ALIGNMENT STEP 8B
      Colspan reduced to match the new compact payroll records layout. -->
-                      <td colspan="6" class="text-center text-secondary py-4">
+                      <td colspan="7" class="text-center text-secondary py-4">
                         Loading payroll records.
                       </td>
                     </tr>
@@ -4604,7 +4612,8 @@
                     <div
                       class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
                       <div class="small text-secondary">
-                        Detailed payslip email logs will appear here after status loading is wired.
+                        Delivery status loads automatically when this panel opens. Use Refresh Status only when you need
+                        the latest provider result.
                       </div>
 
                       <!-- DESCRIPTION ITEM 4 - STEP 6
@@ -4630,7 +4639,7 @@
                             <th>Pay Cycle</th>
                             <th>Status</th>
                             <th>Sent At</th>
-                            <th>Error Message</th>
+                            <th>Delivery Note</th>
                           </tr>
                         </thead>
                         <tbody id="payslipEmailLogsTableBody">
@@ -4695,10 +4704,11 @@
       </div>
     </div>
   </div>
-  <!-- DESCRIPTION ITEM 4 - STEP 7
-       Payslip Preview modal.
-       This lets HR review the payslip content for a finalised payroll record
-       before real email delivery is configured. -->
+  <!-- PAYROLL SECURE DELIVERY - STEP 2F-3A
+     Payslip Preview modal.
+     HR uses this to review finalised payslip content before or after
+     controlled payslip notification delivery. Employee secure viewing
+     will be handled separately through a protected access route. -->
   <div id="payslipPreviewModal" class="d-none position-fixed top-0 start-0 w-100 h-100"
     style="z-index: 1060; background: rgba(15, 23, 42, 0.45);" aria-hidden="true">
     <div class="container h-100 d-flex align-items-center justify-content-center py-4">
@@ -4707,7 +4717,8 @@
           <div>
             <h2 id="payslipPreviewTitle" class="h4 mb-1">Payslip Preview</h2>
             <p class="text-secondary mb-0">
-              Review the payslip details before email delivery is enabled.
+              Review the finalised payslip details. Email notifications are sent separately through Send Selected
+              Payslips.
             </p>
           </div>
 

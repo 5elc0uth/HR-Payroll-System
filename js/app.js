@@ -30,6 +30,9 @@ document.addEventListener("DOMContentLoaded", function () {
   // Dedicated browser cache key for the validated tenant/company context.
   // This allows dashboards to know which company workspace the signed-in user belongs to.
   const TENANT_CONTEXT_STORAGE_KEY = "hrPayrollTenantContext";
+  // PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+  // Matches the safe post-login redirect key used by session.js.
+  const POST_LOGIN_REDIRECT_STORAGE_KEY = "hrPayrollPostLoginRedirect";
 
   function showAlert(message, type) {
     if (!alertContainer) return;
@@ -73,6 +76,32 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     return roleRoutes[role] || "/index.html";
+  }
+
+  // PAYROLL SECURE DELIVERY - STEP 2F-3B-1
+  // Return a stored safe post-login destination only when it matches the
+  // signed-in user's role. Currently only employee payroll deep-linking is allowed.
+  function getSafePostLoginRedirectForRole(role = "") {
+    const userRole = String(role || "").trim().toLowerCase();
+
+    try {
+      const storedRedirect = sessionStorage.getItem(
+        POST_LOGIN_REDIRECT_STORAGE_KEY,
+      );
+
+      sessionStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
+
+      if (
+        userRole === "employee" &&
+        storedRedirect === "/employee-dashboard.html?section=payroll"
+      ) {
+        return storedRedirect;
+      }
+    } catch (error) {
+      console.warn("Safe post-login redirect could not be resolved:", error);
+    }
+
+    return "";
   }
 
   // HRP-80 - TENANT / COMPANY LOGIN SEGMENTATION - STEP 1F-3
@@ -535,7 +564,9 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
 
-        const redirectTarget = getDashboardByRole(profile.role);
+        const redirectTarget =
+          getSafePostLoginRedirectForRole(profile.role) ||
+          getDashboardByRole(profile.role);
 
         showAlert(
           `Sign-in successful. Welcome <strong>${profile.full_name || authData.user.email}</strong>. Company: <strong>${tenantValidation.companyName || tenantValidation.tenantCode}</strong>. Redirecting...`,

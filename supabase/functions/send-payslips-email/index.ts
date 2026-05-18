@@ -1,10 +1,13 @@
-// PAYROLL EMAIL DELIVERY - STEP 2B
-// Secure backend foundation for Send Payslips.
+// PAYROLL EMAIL DELIVERY - STEP 2E
+// Secure backend delivery for Send Payslips.
 //
-// This function does NOT send real emails yet.
-// It validates the signed-in HR/payroll user, loads finalised payroll records
-// server-side, checks required recipient data, and prepares Pending
-// payslip_email_logs for the next delivery step.
+// This function validates the signed-in HR/payroll user, verifies tenant/company
+// ownership server-side, loads finalised payroll records, prepares payslip email
+// logs, sends controlled payslip notification emails through EmailJS, and marks
+// each payslip_email_logs row as Sent or Failed.
+//
+// This step does not attach PDF payslips yet and does not accept salary,
+// deduction, or bank data from the browser.
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -39,6 +42,153 @@ function cleanText(value: unknown) {
 
 function normalise(value: unknown) {
   return cleanText(value).toLowerCase();
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2E
+// EmailJS settings are read only inside the Edge Function from Supabase secrets.
+// The browser does not provide provider keys, salary values, deductions, or bank data.
+type EmailJsConfig = {
+  serviceId: string;
+  templateId: string;
+  publicKey: string;
+  privateKey: string;
+  fromName: string;
+};
+
+type PayslipEmailDeliveryRequest = {
+  config: EmailJsConfig;
+  toEmail: string;
+  toName: string;
+  subject: string;
+  message: string;
+  initiatedByEmail: string;
+  payCycle: string;
+  payrollRecordId: string;
+
+  // PAYROLL SECURE DELIVERY - STEP 2F-3B-3
+  // Safe employee payroll landing URL.
+  // This must point to the protected employee dashboard payroll section,
+  // not to a payroll record ID or salary-bearing public page.
+  payslipAccessUrl: string;
+};
+
+function getRequiredEnv(name: string) {
+  const value = Deno.env.get(name)?.trim();
+
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+// PAYROLL SECURE DELIVERY - STEP 2F-3B-3
+// Optional frontend URL used in payslip notification emails.
+// It must be HTTPS when configured in Supabase secrets.
+// Localhost is allowed only for local testing.
+function getOptionalPayslipAccessUrlEnv(name: string) {
+  const value = Deno.env.get(name)?.trim();
+
+  if (!value) return "";
+
+  try {
+    const parsedUrl = new URL(value);
+    const isHttps = parsedUrl.protocol === "https:";
+    const isLocalhost =
+      parsedUrl.hostname === "localhost" ||
+      parsedUrl.hostname === "127.0.0.1";
+
+    if (!isHttps && !isLocalhost) {
+      throw new Error("Only HTTPS URLs are allowed outside local testing.");
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    throw new Error(
+      `${name} must be a valid secure employee payroll URL when provided.`,
+    );
+  }
+}
+
+// PAYROLL SECURE DELIVERY - STEP 2F-1
+// Read an optional secure payslip access URL from Supabase secrets.
+// It is optional for now so existing safe notification-only sending does not break.
+// When configured, it must be HTTPS because payslip access is payroll-sensitive.
+function getOptionalHttpsUrlEnv(name: string) {
+  const value = Deno.env.get(name)?.trim();
+
+  if (!value) return "";
+
+  try {
+    const parsedUrl = new URL(value);
+
+    if (parsedUrl.protocol !== "https:") {
+      throw new Error("Only HTTPS URLs are allowed.");
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    throw new Error(`${name} must be a valid HTTPS URL when provided.`);
+  }
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+async function sendPayslipEmailViaEmailJs({
+  config,
+  toEmail,
+  toName,
+  subject,
+  message,
+  initiatedByEmail,
+  payCycle,
+  payrollRecordId,
+  payslipAccessUrl,
+}: PayslipEmailDeliveryRequest) {
+  const response = await fetch(
+    "https://api.emailjs.com/api/v1.0/email/send",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        service_id: config.serviceId,
+        template_id: config.templateId,
+        user_id: config.publicKey,
+        accessToken: config.privateKey,
+        template_params: {
+          to_email: toEmail,
+          to_name: toName || toEmail,
+          subject,
+          message,
+          from_name: config.fromName,
+          initiated_by_email: initiatedByEmail || "",
+          pay_cycle: payCycle,
+          payroll_record_id: payrollRecordId,
+
+          // PAYROLL SECURE DELIVERY - STEP 2F-3B-3
+          // Non-sensitive EmailJS params for the protected employee payroll page.
+          payslip_access_url: payslipAccessUrl,
+          payslip_access_label: payslipAccessUrl
+            ? "Sign in to view your payslip securely"
+            : "Sign in to the HR & Payroll System to view your payslip",
+
+          sent_at: new Date().toISOString(),
+        },
+      }),
+    },
+  );
+
+  const responseText = await response.text();
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    responseText,
+  };
 }
 
 // PAYROLL EMAIL DELIVERY - STEP 2B FIX
@@ -93,9 +243,9 @@ function uniqueCleanIds(values: unknown) {
 function getProfileRole(profile: Record<string, unknown> | null) {
   return normalise(
     profile?.role ||
-      profile?.system_role ||
-      profile?.user_role ||
-      "",
+    profile?.system_role ||
+    profile?.user_role ||
+    "",
   );
 }
 
@@ -116,6 +266,64 @@ function getEmployeeName(record: Record<string, unknown>) {
     cleanText(record.work_email) ||
     "Unknown Employee"
   );
+}
+
+// PAYROLL EMAIL DELIVERY - STEP 2E
+// Keep the email content controlled and non-sensitive. This does not include
+// salary, deductions, bank details, or PDF attachments.
+function buildPayslipEmailSubject(record: Record<string, unknown>) {
+  const payCycle = cleanText(record.pay_cycle) || "Payroll";
+
+  return `Payslip Notification - ${payCycle}`.slice(0, 180);
+}
+
+function buildPayslipEmailMessage(
+  record: Record<string, unknown>,
+  payslipAccessUrl: string,
+) {
+  const employeeName = getEmployeeName(record);
+  const payCycle = cleanText(record.pay_cycle) || "the selected pay cycle";
+  const payDate = cleanText(record.pay_date);
+
+  const accessInstruction = payslipAccessUrl
+    ? `To view your payslip securely, sign in here: ${payslipAccessUrl}`
+    : "To view your payslip securely, sign in to the HR & Payroll System and open Payroll.";
+
+  return [
+    `Hello ${employeeName},`,
+    "",
+    `Your payslip notification for ${payCycle}${payDate ? `, pay date ${payDate}` : ""}, has been processed by the HR & Payroll System.`,
+    "",
+    accessInstruction,
+    "",
+    "No salary, deduction, net pay, or bank details are included in this email body.",
+    "",
+    "For any payroll queries, please contact HR/Payroll.",
+    "",
+    "This is an automated HR & Payroll System email.",
+  ].join("\n");
+}
+
+async function updatePayslipEmailLogStatus(
+  supabase: ReturnType<typeof createClient>,
+  logId: string,
+  status: "Sent" | "Failed",
+  errorMessage: string | null = null,
+) {
+  const payload: Record<string, unknown> = {
+    status,
+    error_message: errorMessage,
+    sent_at: status === "Sent" ? new Date().toISOString() : null,
+  };
+
+  const { error } = await supabase
+    .from("payslip_email_logs")
+    .update(payload)
+    .eq("id", logId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 function buildPayslipEmailLogPayload(record: Record<string, unknown>) {
@@ -149,6 +357,27 @@ serve(async (request) => {
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error("Supabase Edge Function environment is not configured.");
     }
+
+    // PAYROLL EMAIL DELIVERY - STEP 2E
+    // Reuse the EmailJS secrets already proven by HRP-85.
+    const emailJsConfig: EmailJsConfig = {
+      serviceId: getRequiredEnv("EMAILJS_SERVICE_ID"),
+      // PAYROLL EMAIL DELIVERY - STEP 2E-C
+      // Payslip delivery uses its own EmailJS template so it does not inherit
+      // HRP-85 validation/test wording.
+      templateId: getRequiredEnv("EMAILJS_PAYSLIP_TEMPLATE_ID"),
+      publicKey: getRequiredEnv("EMAILJS_PUBLIC_KEY"),
+      privateKey: getRequiredEnv("EMAILJS_PRIVATE_KEY"),
+      fromName:
+        Deno.env.get("EMAILJS_FROM_NAME")?.trim() ||
+        "HR & Payroll System",
+    };
+
+// PAYROLL SECURE DELIVERY - STEP 2F-3B-3
+// Optional secure employee payroll page used in payslip notification emails.
+// Example production value:
+// https://your-domain.com/employee-dashboard.html?section=payroll
+const payslipAccessUrl = getOptionalPayslipAccessUrlEnv("PAYSLIP_ACCESS_URL");
 
     const token = getBearerToken(request);
 
@@ -385,7 +614,7 @@ serve(async (request) => {
 
     const { data: existingLogs, error: existingLogsError } = await supabase
       .from("payslip_email_logs")
-      .select("payroll_record_id, status")
+      .select("id, payroll_record_id, status")
       .in("payroll_record_id", finalisedPayrollRecordIds);
 
     if (existingLogsError) {
@@ -395,25 +624,31 @@ serve(async (request) => {
     const existingLogMap = new Map(
       (existingLogs || []).map((log) => [
         cleanText(log.payroll_record_id),
-        normalise(log.status),
+        log,
       ]),
     );
 
-    const recordsToPrepare = finalisedRecords.filter((record) => {
-      const existingStatus = existingLogMap.get(cleanText(record.id));
+    const getExistingStatus = (record: Record<string, unknown>) => {
+      const existingLog = existingLogMap.get(cleanText(record.id));
+      return normalise(existingLog?.status);
+    };
 
-      // PAYROLL EMAIL DELIVERY - STEP 2B
-      // Do not disturb rows already Pending or Sent.
-      // Failed rows may be reset to Pending for retry preparation.
+    const recordsToPrepare = finalisedRecords.filter((record) => {
+      const existingStatus = getExistingStatus(record);
+
+      // PAYROLL EMAIL DELIVERY - STEP 2E
+      // New records and Failed records are reset to Pending before sending.
+      // Existing Pending rows are also eligible to send, but do not need a new log.
+      // Sent rows are never resent by this step.
       return !existingStatus || existingStatus === "failed";
     });
 
     const alreadyPendingCount = finalisedRecords.filter(
-      (record) => existingLogMap.get(cleanText(record.id)) === "pending",
+      (record) => getExistingStatus(record) === "pending",
     ).length;
 
     const alreadySentCount = finalisedRecords.filter(
-      (record) => existingLogMap.get(cleanText(record.id)) === "sent",
+      (record) => getExistingStatus(record) === "sent",
     ).length;
 
     if (recordsToPrepare.length) {
@@ -430,18 +665,170 @@ serve(async (request) => {
       }
     }
 
+    const recordsToSend = finalisedRecords.filter(
+      (record) => getExistingStatus(record) !== "sent",
+    );
+
+    const recordsToSendPayrollRecordIds = recordsToSend
+      .map((record) => cleanText(record.id))
+      .filter(Boolean);
+
+    let deliveryLogs: Record<string, unknown>[] = [];
+
+    if (recordsToSendPayrollRecordIds.length) {
+      const { data: latestLogs, error: latestLogsError } = await supabase
+        .from("payslip_email_logs")
+        .select("id, payroll_record_id, status")
+        .in("payroll_record_id", recordsToSendPayrollRecordIds);
+
+      if (latestLogsError) {
+        throw latestLogsError;
+      }
+
+      deliveryLogs = Array.isArray(latestLogs) ? latestLogs : [];
+    }
+
+    const deliveryLogByPayrollRecordId = new Map(
+      deliveryLogs.map((log) => [
+        cleanText(log.payroll_record_id),
+        log,
+      ]),
+    );
+
+    let sentCount = 0;
+    let failedCount = 0;
+    let missingLogCount = 0;
+    const deliveryFailures: string[] = [];
+
+    for (const record of recordsToSend) {
+      const payrollRecordId = cleanText(record.id);
+      const employeeName = getEmployeeName(record);
+      const recipientEmail = normalise(record.work_email);
+      const deliveryLog = deliveryLogByPayrollRecordId.get(payrollRecordId);
+      const deliveryLogId = cleanText(deliveryLog?.id);
+
+      if (!deliveryLogId) {
+        failedCount += 1;
+        missingLogCount += 1;
+        deliveryFailures.push(
+          `${employeeName}: payslip email log was not found after preparation.`,
+        );
+        continue;
+      }
+
+      if (!isValidEmail(recipientEmail)) {
+        const errorMessage = "Employee work email is not a valid email address.";
+
+        await updatePayslipEmailLogStatus(
+          supabase,
+          deliveryLogId,
+          "Failed",
+          errorMessage,
+        );
+
+        failedCount += 1;
+        deliveryFailures.push(`${employeeName}: ${errorMessage}`);
+        continue;
+      }
+
+const subject = buildPayslipEmailSubject(record);
+
+// PAYROLL SECURE DELIVERY - STEP 2F-3B-3
+// Add only the protected employee Payroll page URL.
+// Do not include payroll amounts, bank details, or payroll record IDs in the email body.
+const message = buildPayslipEmailMessage(record, payslipAccessUrl);
+
+      try {
+        const emailJsResult = await sendPayslipEmailViaEmailJs({
+          config: emailJsConfig,
+          toEmail: recipientEmail,
+          toName: employeeName,
+          subject,
+          message,
+          initiatedByEmail: user.email || "",
+payCycle: cleanText(record.pay_cycle),
+payrollRecordId,
+
+// PAYROLL SECURE DELIVERY - STEP 2F-3B-3
+// Passed as an EmailJS template parameter for optional button/link rendering.
+payslipAccessUrl,
+
+          // PAYROLL SECURE DELIVERY - STEP 2F-1
+          // Pass the optional secure access URL to EmailJS template params.
+          payslipAccessUrl,
+        });
+
+        if (!emailJsResult.ok) {
+          const errorMessage =
+            emailJsResult.responseText ||
+            `EmailJS failed with HTTP status ${emailJsResult.status}.`;
+
+          await updatePayslipEmailLogStatus(
+            supabase,
+            deliveryLogId,
+            "Failed",
+            errorMessage,
+          );
+
+          failedCount += 1;
+          deliveryFailures.push(`${employeeName}: ${errorMessage}`.slice(0, 250));
+          continue;
+        }
+
+        await updatePayslipEmailLogStatus(
+          supabase,
+          deliveryLogId,
+          "Sent",
+          null,
+        );
+
+        sentCount += 1;
+      } catch (deliveryError) {
+        const errorMessage = getSafeErrorMessage(deliveryError);
+
+        try {
+          await updatePayslipEmailLogStatus(
+            supabase,
+            deliveryLogId,
+            "Failed",
+            errorMessage,
+          );
+        } catch (logUpdateError) {
+          deliveryFailures.push(
+            `${employeeName}: email failed and the failure log could not be updated. ${getSafeErrorMessage(logUpdateError)}`.slice(0, 250),
+          );
+        }
+
+        failedCount += 1;
+        deliveryFailures.push(`${employeeName}: ${errorMessage}`.slice(0, 250));
+      }
+    }
+
+    const deliveryStatus = failedCount
+      ? sentCount
+        ? "DeliveredWithFailures"
+        : "DeliveryFailed"
+      : "Sent";
+
     return jsonResponse(200, {
-      success: true,
-      status: "Prepared",
-      message: "Payslip email delivery records were prepared successfully. No emails were sent in this step.",
+      success: failedCount === 0,
+      status: deliveryStatus,
+      message: failedCount
+        ? "Payslip email delivery completed with one or more failures. Review Payslip Email Status."
+        : "Payslip emails were sent successfully.",
+      failures: deliveryFailures.slice(0, 10),
       summary: {
         finalisedRecords: finalisedRecords.length,
         prepared: recordsToPrepare.length,
+        sent: sentCount,
+        failed: failedCount,
+        missingLogs: missingLogCount,
         alreadyPending: alreadyPendingCount,
         alreadySent: alreadySentCount,
         missingRequiredData: 0,
       },
     });
+
   } catch (error) {
     console.error("send-payslips-email foundation error:", error);
 
